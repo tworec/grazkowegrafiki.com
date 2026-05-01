@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Robust site mirrorer for grazkowegrafiki.com (or similar Adobe Portfolio sites).
+Robust site mirrorer for grazkowegrafiki.com.
 
 What it does:
 - Crawls all pages starting from BASE_URL (handles relative links)

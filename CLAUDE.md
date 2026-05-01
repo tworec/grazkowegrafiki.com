@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Single-script Python utility that mirrors `grazkowegrafiki.com` (an Adobe Portfolio site) to a local `site_mirror/` directory. The main script is `mirror_portfolio.py`.
+Single-script Python utility that mirrors `grazkowegrafiki.com` to a local `site_mirror/` directory. The main script is `mirror_portfolio.py`.
 
 ## Running
 

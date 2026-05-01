@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Remove Adobe Portfolio branding and dead references from mirrored HTML files.
+Remove platform branding and dead references from mirrored HTML files.
 
 Removes:
-- <meta name="twitter:site" content="@AdobePortfolio">
+- <meta name="twitter:site"> with platform social handle
 - <meta name="twitter:card"> (useless without server)
 - <link rel="canonical"> (points to local paths, meaningless)
-- <div class="site-footer"> containing "Powered by Adobe Portfolio"
+- <div class="site-footer"> containing platform attribution text
 - <script src="//use.typekit.net/..."> (external CDN, broken)
 - Typekit noscript fallback
-- adobe.com / portfolio.adobe.com href attributes on remaining links
+- External platform links
 - Inline __config__ script (page_id, theme name) and Safari BFCache shim
 - <script class="js-lightbox-slide-content" type="text/html"> templates
   (unused by replacement main.js)
 - Editor data-attributes: data-context, data-hover-hint*, data-identity,
   data-text-keypath
-- Portfolio test/editor classes: e2e-site-*, js-text-editable,
+- Platform test/editor classes: e2e-site-*, js-text-editable,
   js-inline-text-editable, js-js-project-module
 
-Also remaps long Portfolio hashes (m[hex40+], p[hex40+]) used as data-id /
+Also remaps long platform hashes (m[hex40+], p[hex40+]) used as data-id /
 page-id into sequential m1/m2.../p1/p2... across HTML + CSS atomically.
 """
 import glob
@@ -34,7 +34,7 @@ def clean_html(path):
     soup = BeautifulSoup(original, "html.parser")
     changed = False
 
-    # 1. Remove twitter:site @AdobePortfolio meta
+    # 1. Remove twitter:site platform meta
     for tag in soup.find_all("meta", attrs={"name": "twitter:site"}):
         if "adobe" in (tag.get("content") or "").lower():
             tag.decompose(); changed = True
@@ -56,13 +56,13 @@ def clean_html(path):
         if "typekit" in str(tag).lower():
             tag.decompose(); changed = True
 
-    # 6. Remove site-footer (only contains "Powered by Adobe Portfolio")
+    # 6. Remove site-footer
     #    Wrapper may be either <div> or <footer> — match by class only.
     footer = soup.find(class_="site-footer")
     if footer:
         footer.decompose(); changed = True
 
-    # 7. Remove any remaining links to portfolio.adobe.com / adobe.com
+    # 7. Remove remaining external platform links
     for tag in soup.find_all("a", href=re.compile(r"adobe\.com|portfolio\.adobe")):
         tag.decompose(); changed = True
 
@@ -71,7 +71,7 @@ def clean_html(path):
         changed = True
 
     # 9. Insert Facebook + Instagram social_icons module (mirrored from
-    #    o-mnie / contact, where Adobe Portfolio already had it in-content)
+    #    o-mnie / contact, where the original site already had it in-content)
     if add_social_module(soup):
         changed = True
 
@@ -93,7 +93,7 @@ KILL_CLASS_EXACT = {
 
 
 def strip_portfolio_markers(soup):
-    """Remove Adobe Portfolio editor/runtime hooks from a parsed HTML tree."""
+    """Remove platform editor/runtime hooks from a parsed HTML tree."""
     changed = False
 
     for tag in soup.find_all("script"):
@@ -129,7 +129,7 @@ HASH_RE = re.compile(r'\b([mp])([0-9a-f]{40,})\b')
 
 
 def remap_portfolio_hashes():
-    """Replace Portfolio hashes with sequential ids across HTML + CSS atomically."""
+    """Replace long hashes with sequential ids across HTML + CSS atomically."""
     files = (
         sorted(glob.glob(os.path.join(MIRROR, "*.html"))) +
         sorted(glob.glob(os.path.join(MIRROR, "assets", "*.css"))) +
@@ -149,7 +149,7 @@ def remap_portfolio_hashes():
     mapping.update({h: f"p{i}" for i, h in enumerate(found_p, 1)})
 
     if not mapping:
-        print("  no Portfolio hashes found")
+        print("  no long hashes found")
         return
 
     updated = 0
@@ -281,7 +281,7 @@ def ensure_social_module_css():
 def add_social_module(soup):
     """Insert FB+IG social_icons module at end of project canvas (idempotent).
 
-    Mirrors the original Adobe Portfolio module that was already present on
+    Mirrors the social icons module that was already present on
     o-mnie.html / contact.html. Skips pages that already have it.
     Cleans up any leftover <footer class="social-footer"> from prior versions.
     """
@@ -292,7 +292,7 @@ def add_social_module(soup):
     for stale in soup.find_all(class_="grazka-social"):
         stale.decompose(); changed = True
 
-    # If the page has the original Adobe Portfolio social_icons module
+    # If the page has the original social_icons module
     # (data-id present), leave it alone — its theme CSS already styles it.
     if soup.find(class_="social_icons", attrs={"data-id": True}):
         return changed
