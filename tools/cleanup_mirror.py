@@ -26,7 +26,7 @@ import os
 import re
 from bs4 import BeautifulSoup
 
-MIRROR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site_mirror")
+MIRROR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def clean_html(path):
@@ -163,19 +163,25 @@ def remap_portfolio_hashes():
           f"across {updated} files")
 
 
+SOCIAL_MODULE_VERSION = "4"
 SOCIAL_MODULE_HTML = (
     '<div class="js-project-module project-module module social_icons '
-    'project-module-social_icons align-">'
+    f'project-module-social_icons align-" data-v="{SOCIAL_MODULE_VERSION}">'
     '<div class="module-content module-content-social_icons js-module-content">'
-    '<div class="social"><ul>'
-    '<li><a href="https://www.facebook.com/grazkowegrafiki/" target="_blank" '
+    '<div class="social">'
+    '<ul>'
+    '<li>'
+    '<a href="https://www.facebook.com/grazkowegrafiki/" target="_blank" '
     'rel="noopener noreferrer" aria-label="Facebook">'
     '<svg class="icon" viewBox="0 0 30 24" xmlns="http://www.w3.org/2000/svg">'
     '<path d="M16.21 20h-3.26v-8h-1.63V9.24h1.63V7.59c0-2.25 0.92-3.59 '
     '3.53-3.59h2.17v2.76H17.3 c-1.02 0-1.08 0.39-1.08 1.11l0 1.38h2.46L18.38 '
     '12h-2.17V20z"/>'
-    '</svg></a></li>'
-    '<li><a href="https://www.instagram.com/grazkowe_grafiki/" target="_blank" '
+    '</svg>'
+    '</a>'
+    '</li>'
+    '<li>'
+    '<a href="https://www.instagram.com/grazkowe_grafiki/" target="_blank" '
     'rel="noopener noreferrer" aria-label="Instagram">'
     '<svg class="icon" viewBox="0 0 30 24" xmlns="http://www.w3.org/2000/svg">'
     '<g>'
@@ -199,9 +205,77 @@ SOCIAL_MODULE_HTML = (
     '2.7-2.7s2.7,1.2,2.7,2.7C17.7,13.5,16.5,14.7,15,14.7L15,14.7z"/>'
     '<path d="M20.2,7.7c0,0.5-0.4,1-1,1s-1-0.4-1-1s0.4-1,1-1S20.2,7.2,20.2,'
     '7.7L20.2,7.7z"/>'
-    '</g></svg></a></li>'
-    '</ul></div></div></div>'
+    '</g></svg>'
+    '</a>'
+    '</li>'
+    '</ul>'
+    '</div></div></div>'
 )
+
+
+SOCIAL_MODULE_CSS_MARKER = "/* grazka-social-module-v4 */"
+SOCIAL_MODULE_CSS = """
+""" + SOCIAL_MODULE_CSS_MARKER + """
+html { background-color: #625069; }
+body.transition-enabled, .transition-enabled { opacity: 1 !important; }
+.grid--main, .js-grid-main { visibility: visible !important; }
+.project-module-social_icons {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  text-align: center !important;
+  padding: 48px 16px !important;
+  background: #625069 !important;
+  clear: both;
+}
+.project-module-social_icons ul {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 0 !important;
+}
+.project-module-social_icons li {
+  display: inline-block !important;
+  padding: 0 12px !important;
+}
+.project-module-social_icons a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 56px !important;
+  height: 56px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 50% !important;
+  text-decoration: none !important;
+  transition: background 0.2s ease;
+}
+.project-module-social_icons a:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+.project-module-social_icons svg {
+  display: inline-block !important;
+  width: 32px !important;
+  height: 32px !important;
+  fill: #ffffff !important;
+  opacity: 1 !important;
+}
+.project-module-social_icons svg path,
+.project-module-social_icons svg g {
+  fill: #ffffff !important;
+}
+"""
+
+
+def ensure_social_module_css():
+    """Append our universal social_icons CSS to dist/css/main.css if missing."""
+    css_path = os.path.join(MIRROR, "dist", "css", "main.css")
+    if not os.path.exists(css_path):
+        return False
+    s = open(css_path, encoding="utf-8").read()
+    if SOCIAL_MODULE_CSS_MARKER in s:
+        return False
+    open(css_path, "a", encoding="utf-8").write(SOCIAL_MODULE_CSS)
+    return True
 
 
 def add_social_module(soup):
@@ -215,14 +289,25 @@ def add_social_module(soup):
 
     for stale in soup.find_all("footer", class_="social-footer"):
         stale.decompose(); changed = True
+    for stale in soup.find_all(class_="grazka-social"):
+        stale.decompose(); changed = True
 
-    if soup.find(class_="social_icons"):
+    # If the page has the original Adobe Portfolio social_icons module
+    # (data-id present), leave it alone — its theme CSS already styles it.
+    if soup.find(class_="social_icons", attrs={"data-id": True}):
         return changed
+
+    # Drop ANY previous insertion of ours (with data-v) so we can place the
+    # fresh copy in the canonical location below — even if data-v matches.
+    for stale in soup.find_all(class_="social_icons"):
+        if stale.get("data-v"):
+            stale.decompose(); changed = True
 
     canvas = (soup.find(id="project-canvas")
               or soup.find(class_="js-project-modules")
               or soup.find(class_="page-content")
-              or soup.find("main"))
+              or soup.find("main")
+              or soup.body)
     if not canvas:
         return changed
 
@@ -272,6 +357,11 @@ def main():
     remap_portfolio_hashes()
     print("\nRenaming Portfolio-specific class names…")
     rename_class_names()
+    print("\nEnsuring social_icons CSS is in main.css…")
+    if ensure_social_module_css():
+        print("  appended universal social_icons CSS to dist/css/main.css")
+    else:
+        print("  already present (or main.css missing)")
 
 
 if __name__ == "__main__":

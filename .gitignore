@@ -2,3 +2,4 @@
 .claude/
 __pycache__/
 *.pyc
+assets/_themes_backup/
