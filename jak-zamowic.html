@@ -105,44 +105,48 @@ padding-bottom: 109px;
 </div>
 <div class="project-module module form project-module-form" data-id="m4">
 <form class="contact-form" id="orderForm">
-<input type="hidden" name="access_key" value="7695e549-7f53-4451-84ef-6f191885ddb7"/>
-<input type="hidden" name="subject" id="formSubject" value="Zamówienie portretu"/>
-<input type="hidden" name="from_name" value="Formularz zamówienia — Grażkowe Grafiki"/>
+<input name="access_key" type="hidden" value="7695e549-7f53-4451-84ef-6f191885ddb7"/>
+<input id="formSubject" name="subject" type="hidden" value="Zamówienie portretu"/>
+<input name="from_name" type="hidden" value="Formularz zamówienia — Grażkowe Grafiki"/>
 <div class="form-input">
 <label for="imie">Imię *</label>
-<input name="Imię" id="imie" placeholder="" required="" type="text"/>
+<input id="imie" name="Imię" placeholder="" required="" type="text"/>
+</div>
+<div class="form-input">
+<label for="email">Adres e-mail (do odpowiedzi) *</label>
+<input id="email" name="email" placeholder="" required="" type="email"/>
 </div>
 <div class="form-input">
 <label for="rodzaj">Jaki rodzaj portretu wybierasz? *</label>
-<input name="Rodzaj portretu" id="rodzaj" placeholder="Komiks, kreskówka, cyfrowa akwarela?" required="" type="text"/>
+<input id="rodzaj" name="Rodzaj portretu" placeholder="Komiks, kreskówka, cyfrowa akwarela?" required="" type="text"/>
 </div>
 <div class="form-input">
 <label for="osoby">Ile osób ma być na portrecie? *</label>
-<input name="Liczba osób" id="osoby" placeholder="" required="" type="text"/>
+<input id="osoby" name="Liczba osób" placeholder="" required="" type="text"/>
 </div>
 <div class="form-input">
 <label for="kadrowanie">Jak kadrujemy? *</label>
-<input name="Kadrowanie" id="kadrowanie" placeholder="Głowa i ramiona, do pasa czy cała sylwetka?" required="" type="text"/>
+<input id="kadrowanie" name="Kadrowanie" placeholder="Głowa i ramiona, do pasa czy cała sylwetka?" required="" type="text"/>
 </div>
 <div class="form-input">
 <label for="termin">Kiedy chciałbyś otrzymać gotowy portret? *</label>
-<input name="Preferowany termin" id="termin" placeholder="Normalny termin realizacji to ok. 2-3 tyg" required="" type="text"/>
+<input id="termin" name="Preferowany termin" placeholder="Normalny termin realizacji to ok. 2-3 tyg" required="" type="text"/>
 </div>
 <div class="form-input">
 <label for="kolory">Czy preferujesz jakieś konkretne kolory?</label>
-<input name="Preferowane kolory" id="kolory" placeholder="" type="text"/>
+<input id="kolory" name="Preferowane kolory" placeholder="" type="text"/>
 </div>
 <div class="form-input">
 <label for="dodatki">Czy chcesz umieścić na ilustracji jakieś dodatkowe elementy? Np. przedmioty symbolizujące hobby, napis, czy specjalne tło?</label>
-<textarea name="Dodatkowe elementy / tło" id="dodatki" placeholder=""></textarea>
+<textarea id="dodatki" name="Dodatkowe elementy / tło" placeholder=""></textarea>
 </div>
 <div class="form-input">
 <label for="format">Potrzebujesz tylko plik JPG, czy chcesz zamówić u mnie wydruk? A jeśli tak, to jaki?</label>
-<textarea name="Format / wydruk" id="format" placeholder="JPG, kubek, wydruk A4, zeszyt, zaproszenia, wizytówki, etc."></textarea>
+<textarea id="format" name="Format / wydruk" placeholder="JPG, kubek, wydruk A4, zeszyt, zaproszenia, wizytówki, etc."></textarea>
 </div>
 <div class="form-input">
 <label for="uwagi">Dodatkowe uwagi (jeśli zamawiasz dostawę InPost wpisz tu namiar na swój paczkomat i nr telefonu)</label>
-<textarea name="Dodatkowe uwagi" id="uwagi" placeholder=""></textarea>
+<textarea id="uwagi" name="Dodatkowe uwagi" placeholder=""></textarea>
 </div>
 <button class="submit-button" id="submitOrderBtn" type="submit"><span class="submit-text preserve-whitespace">Wyślij</span></button>
 <p id="formMessage" style="margin-top:10px;font-size:13px;display:none;"></p>
