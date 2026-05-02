@@ -31790,6 +31790,15 @@ body.page-zaproszenia .other-projects .project-cover .details {
 html { background-color: #625069; }
 body.transition-enabled, .transition-enabled { opacity: 1 !important; }
 .grid--main, .js-grid-main { visibility: visible !important; }
+
+/* responsive nav — class is on <html>, scoped selectors don't reach it */
+@media (max-width: 768px) {
+  html.show-responsive-nav { overflow: hidden !important; }
+  html.show-responsive-nav .responsive-nav { opacity: 1 !important; transition: visibility 0s ease 0s, opacity 0.2s ease 0s !important; visibility: visible !important; }
+  html.show-responsive-nav .responsive-nav nav { display: block !important; }
+  html.show-responsive-nav .site-header,
+  html.show-responsive-nav .site-container { display: none !important; }
+}
 .project-module-social_icons {
   display: block !important;
   visibility: visible !important;
