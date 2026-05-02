@@ -25,17 +25,28 @@
   function setupHamburger() {
     var hamburger = document.querySelector('.js-hamburger');
     var close = document.querySelector('.js-close-responsive-nav');
+    var navWrap = document.querySelector('.responsive-nav');
+    var siteHeader = document.querySelector('.site-header');
     var html = document.documentElement;
-    if (hamburger) {
-      hamburger.addEventListener('click', function () {
-        html.classList.add('show-responsive-nav');
-      });
+
+    function openNav() {
+      html.classList.add('show-responsive-nav');
+      if (navWrap) {
+        navWrap.style.cssText = 'display:flex !important;opacity:1 !important;visibility:visible !important;';
+      }
+      if (siteHeader) siteHeader.style.display = 'none';
+      document.body.style.overflow = 'hidden';
     }
-    if (close) {
-      close.addEventListener('click', function () {
-        html.classList.remove('show-responsive-nav');
-      });
+
+    function closeNav() {
+      html.classList.remove('show-responsive-nav');
+      if (navWrap) navWrap.style.cssText = '';
+      if (siteHeader) siteHeader.style.display = '';
+      document.body.style.overflow = '';
     }
+
+    if (hamburger) hamburger.addEventListener('click', openNav);
+    if (close) close.addEventListener('click', closeNav);
   }
 
   var lightboxState = { items: [], index: 0, root: null, img: null };
