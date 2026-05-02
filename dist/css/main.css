@@ -31799,6 +31799,13 @@ body.transition-enabled, .transition-enabled { opacity: 1 !important; }
   html.show-responsive-nav .site-header,
   html.show-responsive-nav .site-container { display: none !important; }
 }
+
+/* mobile font sizes */
+@media (max-width: 768px) {
+  .rich-text, .rich-text p, .rich-text div, .rich-text span { font-size: 18px !important; line-height: 1.65 !important; }
+  .page-header .description { font-size: 16px !important; line-height: 1.6 !important; }
+  h1.title { font-size: 32px !important; }
+}
 .project-module-social_icons {
   display: block !important;
   visibility: visible !important;
