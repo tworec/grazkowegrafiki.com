@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Skate Runner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a1a; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    canvas { display: block; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="800" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    // --- Constants ---
+    const W = 800, H = 400;
+    const FLOOR_Y = 330;
+    const GRAVITY = 0.75;
+    const JUMP_VY = -11;
+    const PW = 24, PH = 32;    // player pixel dimensions
+    const PLAYER_X = 100;      // fixed screen X
+    const BASE_SPEED = 5;
+    const MAX_SPEED = 10;
+    const CYCLE_W = 3200;      // world tiles every this many px
+
+    // --- Mutable state (all initialized here so HUD never sees undefined) ---
+    let state = 'menu';
+    let score = 0, scrollX = 0, speed = BASE_SPEED;
+    let coinsCollected = 0, coinsBannerTimer = 0;
+    let coins = [];
+    let p = null;  // set by resetGame() before drawing
+
+    // --- Spike level definitions (world x within one cycle) ---
+    // With JUMP_VY=-11, GRAVITY=0.75: max height ~80px, airtime ~29 frames,
+    // horizontal jump distance at base speed ~146px. Single spike ~24px wide.
+    const SPIKE_DEFS = [
+      { wx: 650,  w: 22, h: 22 },   // intro single
+      { wx: 950,  w: 22, h: 22 },   // single
+      { wx: 1100, w: 30, h: 28 },   // wider
+      { wx: 1420, w: 22, h: 22 },
+      { wx: 1700, w: 22, h: 22 },
+      { wx: 1820, w: 22, h: 22 },   // double — jump over both at once
+      { wx: 2080, w: 30, h: 28 },
+      { wx: 2380, w: 22, h: 22 },
+      { wx: 2480, w: 22, h: 22 },   // double
+      { wx: 2750, w: 22, h: 22 },
+      { wx: 2980, w: 30, h: 28 },
+      { wx: 3120, w: 22, h: 22 },
+    ];
+
+    // --- Coin level definitions ---
+    // Coins placed in safe gaps between spike groups, at heights reachable by the jump arc.
+    const COIN_DEFS = [
+      { wx: 800,  baseY: FLOOR_Y - 50 },   // between spikes 650 and 950
+      { wx: 1560, baseY: FLOOR_Y - 65 },   // between 1420 and 1700
+      { wx: 2620, baseY: FLOOR_Y - 50 },   // between 2480 and 2750
+    ];
+
+    function resetGame() {
+      state = 'playing';
+      score = 0;
+      scrollX = 0;
+      speed = BASE_SPEED;
+      coinsCollected = 0;
+      coinsBannerTimer = 0;
+      p = { y: FLOOR_Y - PH, vy: 0, onGround: true, animFrame: 0, animTimer: 0 };
+      coins = COIN_DEFS.map(c => ({ wx: c.wx, y: c.baseY, collected: false }));
+    }
+
+    function handleInput() {
+      if (state === 'menu' || state === 'dead') { resetGame(); return; }
+      if (state === 'playing' && p.onGround) {
+        p.vy = JUMP_VY;
+        p.onGround = false;
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') { e.preventDefault(); handleInput(); }
+    });
+    document.addEventListener('mousedown', handleInput);
+    document.addEventListener('touchstart', e => { e.preventDefault(); handleInput(); }, { passive: false });
+
+    function updatePlayer(dt) {
+      if (!p.onGround) p.vy += GRAVITY;
+      p.y += p.vy;
+
+      if (p.y >= FLOOR_Y - PH) {
+        p.y = FLOOR_Y - PH;
+        p.vy = 0;
+        p.onGround = true;
+      }
+
+      // 2-frame walk animation at ~8 FPS
+      p.animTimer += dt;
+      if (p.animTimer > 125) {
+        p.animTimer = 0;
+        p.animFrame = 1 - p.animFrame;
+      }
+    }
+
+    // Far parallax: city silhouette (slowest scroll)
+    function drawFarLayer() {
+      const layerScroll = scrollX * 0.15;
+      const bldgW = 90, bldgSpacing = 110;
+      const startCell = Math.floor(layerScroll / bldgSpacing);
+      for (let i = 0; i < 12; i++) {
+        const cell = startCell + i;
+        const x = Math.floor(cell * bldgSpacing - layerScroll);
+        if (x > W || x + bldgW < 0) continue;
+        const h = 60 + ((cell * 73) % 80);
+        ctx.fillStyle = '#252830';
+        ctx.fillRect(x, FLOOR_Y - h, bldgW - 14, h);
+        // Windows — lit/unlit decision keyed to the building cell + window grid index
+        // (NOT screen coords) so the pattern stays stable while scrolling.
+        let row = 0;
+        for (let wy = FLOOR_Y - h + 14; wy < FLOOR_Y - 8; wy += 14, row++) {
+          let col = 0;
+          for (let dx = 8; dx < bldgW - 22; dx += 12, col++) {
+            const lit = ((cell * 31 + row * 17 + col * 7) % 7) > 4;
+            ctx.fillStyle = lit ? '#5a4f2a' : '#1a1c22';
+            ctx.fillRect(x + dx, wy, 5, 6);
+          }
+        }
+      }
+    }
+
+    // Mid parallax: skatepark structures (medium scroll)
+    function drawMidLayer() {
+      const layerScroll = scrollX * 0.4;
+      const itemSpacing = 220;
+      const startCell = Math.floor(layerScroll / itemSpacing);
+      for (let i = 0; i < 8; i++) {
+        const cell = startCell + i;
+        const x = Math.floor(cell * itemSpacing - layerScroll);
+        if (x > W + 100 || x + 100 < 0) continue;
+        const type = cell % 4;
+        ctx.fillStyle = '#3a3a3e';
+        if (type === 0) {
+          // Quarter pipe (curved ramp)
+          ctx.beginPath();
+          ctx.moveTo(x, FLOOR_Y);
+          ctx.lineTo(x, FLOOR_Y - 55);
+          ctx.quadraticCurveTo(x + 35, FLOOR_Y, x + 70, FLOOR_Y);
+          ctx.closePath();
+          ctx.fill();
+        } else if (type === 1) {
+          // Light pole with lamp head
+          ctx.fillRect(x, FLOOR_Y - 90, 3, 90);
+          ctx.fillRect(x - 12, FLOOR_Y - 92, 24, 3);
+          ctx.fillStyle = '#5a4f2a';
+          ctx.fillRect(x - 10, FLOOR_Y - 89, 4, 4);
+          ctx.fillRect(x + 6, FLOOR_Y - 89, 4, 4);
+        } else if (type === 2) {
+          // Grind box
+          ctx.fillRect(x, FLOOR_Y - 22, 80, 22);
+          ctx.fillStyle = '#2a2a2e';
+          ctx.fillRect(x, FLOOR_Y - 22, 80, 3);
+        } else {
+          // Halfpipe back wall
+          ctx.beginPath();
+          ctx.moveTo(x, FLOOR_Y);
+          ctx.lineTo(x, FLOOR_Y - 70);
+          ctx.lineTo(x + 60, FLOOR_Y - 70);
+          ctx.quadraticCurveTo(x + 95, FLOOR_Y - 70, x + 95, FLOOR_Y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawBackground() {
+      // Sky gradient (slightly cooler / more atmospheric)
+      const grad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
+      grad.addColorStop(0, '#1a1c24');
+      grad.addColorStop(0.6, '#2c2e36');
+      grad.addColorStop(1, '#3d3d3f');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, FLOOR_Y);
+
+      // Parallax layers behind the foreground
+      drawFarLayer();
+      drawMidLayer();
+
+      // Floor slab
+      ctx.fillStyle = '#555558';
+      ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
+
+      // Floor top edge
+      ctx.fillStyle = '#888';
+      ctx.fillRect(0, FLOOR_Y, W, 2);
+
+      // Scrolling concrete seam lines
+      ctx.strokeStyle = '#4a4a4c';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 6; i++) {
+        const x = ((i * 160 - scrollX) % W + W) % W;
+        ctx.beginPath();
+        ctx.moveTo(x, FLOOR_Y);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer() {
+      const x = PLAYER_X;
+      const y = p.y;
+      const f = p.animFrame; // 0 or 1 for wheel animation
+
+      ctx.save();
+
+      // Scooter deck
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(x - 2, y + PH - 6, PW + 4, 4);
+
+      // Handlebar stem
+      ctx.fillStyle = '#7f8c8d';
+      ctx.fillRect(x + PW - 8, y + PH - 18, 3, 14);
+
+      // Handlebar crossbar
+      ctx.fillStyle = '#95a5a6';
+      ctx.fillRect(x + PW - 14, y + PH - 18, 14, 3);
+
+      // Rear wheel
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.arc(x + 3, y + PH - 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7f8c8d';
+      ctx.beginPath();
+      ctx.arc(x + 3, y + PH - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Front wheel (hub radius alternates 1px for spin effect)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.arc(x + PW - 3, y + PH - 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7f8c8d';
+      ctx.beginPath();
+      ctx.arc(x + PW - 3, y + PH - 2, 2 + f, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      ctx.fillStyle = '#3498db';
+      ctx.fillRect(x + 6, y + PH - 22, 9, 12);
+
+      // Head
+      ctx.fillStyle = '#f0c080';
+      ctx.fillRect(x + 7, y + PH - 30, 8, 8);
+
+      // Helmet
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(x + 6, y + PH - 32, 10, 5);
+
+      // Front arm reaching handlebar
+      ctx.fillStyle = '#f0c080';
+      ctx.fillRect(x + 13, y + PH - 20, 6, 3);
+
+      // Back leg
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(x + 7, y + PH - 10, 4, 7);
+
+      // Front leg (slightly bent)
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(x + 13, y + PH - 10, 4, 5);
+
+      ctx.restore();
+    }
+
+    function drawSpike(sx, w, h) {
+      // Hazard cone: orange triangle with white reflective stripe
+      ctx.fillStyle = '#e67e22';
+      ctx.beginPath();
+      ctx.moveTo(sx, FLOOR_Y);
+      ctx.lineTo(sx + w / 2, FLOOR_Y - h);
+      ctx.lineTo(sx + w, FLOOR_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      // White reflective stripe ~55% up the cone
+      const stripeY = FLOOR_Y - h * 0.55;
+      const stripeH = Math.max(2, Math.round(h * 0.14));
+      const ratio = (FLOOR_Y - stripeY) / h;
+      const halfW = (w / 2) * (1 - ratio);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx + w / 2 - halfW, stripeY - stripeH / 2, halfW * 2, stripeH);
+
+      // Dark outline for crispness
+      ctx.strokeStyle = '#a04515';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx, FLOOR_Y);
+      ctx.lineTo(sx + w / 2, FLOOR_Y - h);
+      ctx.lineTo(sx + w, FLOOR_Y);
+      ctx.stroke();
+
+      // Tiny base shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(sx - 1, FLOOR_Y, w + 2, 2);
+    }
+
+    function drawSpikes() {
+      const cycle = Math.floor(scrollX / CYCLE_W);
+      for (let c = cycle; c <= cycle + 1; c++) {
+        for (const s of SPIKE_DEFS) {
+          const sx = s.wx + c * CYCLE_W - scrollX;
+          if (sx + s.w < 0 || sx > W) continue;
+          drawSpike(sx, s.w, s.h);
+        }
+      }
+    }
+
+    function spikeHit() {
+      const cycle = Math.floor(scrollX / CYCLE_W);
+      for (let c = cycle; c <= cycle + 1; c++) {
+        for (const s of SPIKE_DEFS) {
+          const sx = s.wx + c * CYCLE_W - scrollX;
+          // Spike hitbox inset 4px sides, 4px top
+          const hx1 = sx + 4,           hx2 = sx + s.w - 4;
+          const hy1 = FLOOR_Y - s.h + 4, hy2 = FLOOR_Y;
+          // Player hitbox inset 4px all sides
+          const px1 = PLAYER_X + 4, px2 = PLAYER_X + PW - 4;
+          const py1 = p.y + 4,      py2 = p.y + PH - 4;
+          if (px1 < hx2 && px2 > hx1 && py1 < hy2 && py2 > hy1) return true;
+        }
+      }
+      return false;
+    }
+
+    function drawCoins() {
+      coins.forEach(coin => {
+        if (coin.collected) return;
+        if (scrollX > CYCLE_W) return; // coins exist only in the first cycle
+        const sx = coin.wx - scrollX;
+        if (sx < -20 || sx > W + 20) return;
+
+        // Gold coin circle
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(sx, coin.y, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#d4ac0d';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 'C' label
+        ctx.fillStyle = '#b7950b';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('C', sx, coin.y);
+      });
+    }
+
+    function checkCoins(dt) {
+      if (coinsBannerTimer > 0) coinsBannerTimer -= dt;  // always decrement
+      if (scrollX > CYCLE_W) return;
+      coins.forEach(coin => {
+        if (coin.collected) return;
+        const sx = coin.wx - scrollX;
+        // AABB vs coin circle (radius 9) — approximate
+        const px1 = PLAYER_X, px2 = PLAYER_X + PW;
+        const py1 = p.y,      py2 = p.y + PH;
+        if (px1 < sx + 9 && px2 > sx - 9 && py1 < coin.y + 9 && py2 > coin.y - 9) {
+          coin.collected = true;
+          coinsCollected++;
+          if (coinsCollected === 3) coinsBannerTimer = 2000;
+        }
+      });
+    }
+
+    function drawHUD() {
+      ctx.save();
+
+      // Coin counter — top left
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`🪙 ${coinsCollected}/3`, 16, 14);
+
+      // Score — top right
+      if (state === 'playing' || state === 'dead') {
+        ctx.textAlign = 'right';
+        ctx.fillText(`${score.toFixed(1)}s`, W - 16, 14);
+      }
+
+      // All coins collected banner
+      if (coinsBannerTimer > 0) {
+        ctx.globalAlpha = Math.min(1, coinsBannerTimer / 400);
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 22px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('All coins collected! 🛹', W / 2, 55);
+      }
+
+      ctx.restore();
+
+      // Menu overlay
+      if (state === 'menu') {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 38px monospace';
+        ctx.fillText('SKATE RUNNER', W / 2, H / 2 - 45);
+        ctx.fillStyle = '#fff';
+        ctx.font = '18px monospace';
+        ctx.fillText('Spacja / klik / tap — start & skok', W / 2, H / 2 + 5);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '14px monospace';
+        ctx.fillText('Zbierz 3 monety. Unikaj kolców.', W / 2, H / 2 + 35);
+        ctx.restore();
+      }
+
+      // Game over overlay
+      if (state === 'dead') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 38px monospace';
+        ctx.fillText('GAME OVER', W / 2, H / 2 - 35);
+        ctx.fillStyle = '#fff';
+        ctx.font = '18px monospace';
+        ctx.fillText(`Czas: ${score.toFixed(1)}s   Monety: ${coinsCollected}/3`, W / 2, H / 2 + 8);
+        ctx.fillStyle = '#aaa';
+        ctx.font = '14px monospace';
+        ctx.fillText('Spacja / klik — restart', W / 2, H / 2 + 42);
+        ctx.restore();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      if (state !== 'menu') {
+        drawSpikes();
+        drawCoins();
+        drawPlayer();
+      }
+      drawHUD();
+    }
+
+    let lastTime = null;
+    function loop(ts) {
+      if (lastTime === null) { lastTime = ts; requestAnimationFrame(loop); return; }
+      const dt = Math.min(ts - lastTime, 50);
+      lastTime = ts;
+
+      if (state === 'playing') {
+        score += dt / 1000;
+        scrollX += speed;
+        if (scrollX >= CYCLE_W * 1000) scrollX -= CYCLE_W * 1000; // prevent float drift after ~1000 cycles
+        speed = Math.min(BASE_SPEED + score * 0.3, MAX_SPEED);
+        updatePlayer(dt);
+        checkCoins(dt);
+        if (spikeHit()) state = 'dead';
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
