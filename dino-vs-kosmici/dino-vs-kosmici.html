@@ -197,6 +197,8 @@
   charSprites.dino.src = 'assets/char-dino.png';
   charSprites.alien.src = 'assets/kosmita-robot-transparent.png';
   charSprites.flyer.src = 'assets/char-flyer.png';
+  // char-flyer.png is a horizontal sprite sheet: 6 IDLE frames laid side-by-side
+  const FLYER_ANIM = { frames: 6, frameW: 250, frameH: 350, fps: 7 };
   const SPR = {
     hud:     {x:45,   y:40,  w:440, h:285},
     heal:    {x:540,  y:48,  w:250, h:105},
@@ -2266,12 +2268,21 @@
     if (alienImg && alienImg.complete && alienImg.naturalWidth) {
       ctx.restore();
       const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 : 0.86);
-      const w = a.type === 'small' ? a.r * 4.2 * scale : a.r * 2.45 * scale;
-      const h = a.type === 'small' ? a.r * 2.05 * scale : a.r * 3.75 * scale;
+      // Small flyer is a tall robot now, drawn from a 6-frame horizontal sprite sheet
+      const w = a.type === 'small' ? a.r * 2.6 * scale : a.r * 2.45 * scale;
+      const h = a.type === 'small' ? a.r * 3.6 * scale : a.r * 3.75 * scale;
       ctx.save();
       ctx.translate(a.x, a.y - a.r*0.52 + bob*0.35);
       if (a.vx < -5) ctx.scale(-1, 1);
-      ctx.drawImage(alienImg, -w/2, -h/2, w, h);
+      if (a.type === 'small') {
+        const frame = Math.floor(state.t * FLYER_ANIM.fps + (a.wob || 0)) % FLYER_ANIM.frames;
+        const sx = frame * FLYER_ANIM.frameW;
+        ctx.drawImage(alienImg,
+          sx, 0, FLYER_ANIM.frameW, FLYER_ANIM.frameH,
+          -w/2, -h/2, w, h);
+      } else {
+        ctx.drawImage(alienImg, -w/2, -h/2, w, h);
+      }
       ctx.restore();
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
