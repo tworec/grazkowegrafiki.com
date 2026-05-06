@@ -1,0 +1,2553 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Dino kontra Kosmici</title>
+<style>
+  :root {
+    --hud-bg: rgba(0,0,0,0.55);
+    --hud-fg: #fff;
+    --hp: #e63946;
+    --energy: #ffd166;
+    --xp: #06d6a0;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; background: #1a3a1a;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #fff; user-select: none; -webkit-user-select: none;
+    touch-action: none; overscroll-behavior: none;
+  }
+  #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud {
+    position: absolute; top: 8px; left: 8px;
+    background: var(--hud-bg); border-radius: 12px;
+    padding: 8px 10px; font-size: 13px; line-height: 1.3;
+    pointer-events: auto; min-width: 190px;
+  }
+  .bar { width: 140px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin: 2px 0 4px; }
+  .bar > div { height: 100%; transition: width 120ms linear; }
+  .bar.hp > div { background: var(--hp); }
+  .bar.en > div { background: var(--energy); }
+  .bar.xp > div { background: var(--xp); }
+  #stats { display: flex; gap: 10px; font-weight: 600; }
+  #stats span small { font-weight: 400; opacity: .8; }
+  #goalLine, #upgradeLine { font-size: 11px; opacity: .95; margin-top: 3px; }
+  #settings {
+    display: flex; gap: 6px; align-items: center; margin-top: 6px;
+    pointer-events: auto;
+  }
+  #settings select, #settings button {
+    height: 24px; border: 0; border-radius: 6px; padding: 0 6px;
+    background: rgba(255,255,255,0.9); color: #123; font: 700 11px system-ui;
+  }
+  #settings button { min-width: 54px; cursor: pointer; }
+
+  /* Attack buttons */
+  #attacks {
+    position: absolute; right: 12px; bottom: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    pointer-events: auto;
+  }
+  .attackBtn {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(0,0,0,0.55); border: 2px solid #fff;
+    color: #fff; font-size: 28px; display: flex;
+    align-items: center; justify-content: center;
+    position: relative; overflow: hidden; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .attackBtn .cd {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.25);
+    transition: height 80ms linear;
+  }
+  .attackBtn .label {
+    position: absolute; top: -16px; left: 0; right: 0;
+    text-align: center; font-size: 10px; color: #fff;
+    text-shadow: 0 1px 2px #000;
+  }
+  .attackBtn[data-key="J"] {
+    width: 80px; height: 80px; font-size: 22px;
+    background: rgba(80,140,255,0.55);
+  }
+
+  /* Joystick */
+  #joy {
+    position: absolute; left: 16px; bottom: 16px;
+    width: 140px; height: 140px; border-radius: 50%;
+    background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.6);
+    touch-action: none;
+  }
+  #joy .stick {
+    position: absolute; left: 50%; top: 50%;
+    width: 60px; height: 60px; margin: -30px 0 0 -30px;
+    border-radius: 50%; background: rgba(255,255,255,0.85);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+
+  /* Banner messages */
+  #banner {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(0,0,0,0.75); padding: 18px 28px; border-radius: 14px;
+    font-size: 24px; font-weight: 700; text-align: center;
+    pointer-events: auto; display: none; max-width: 90%;
+  }
+  #banner button {
+    margin-top: 12px; font-size: 16px; padding: 8px 16px;
+    border-radius: 8px; border: 0; background: #06d6a0; color: #003;
+    font-weight: 700; cursor: pointer;
+  }
+
+  /* Help text */
+  #help {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--hud-bg); border-radius: 10px;
+    padding: 6px 10px; font-size: 11px; max-width: 220px;
+    line-height: 1.35; pointer-events: none;
+  }
+  @media (pointer: coarse) { #help { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="speciesLine" style="font-weight:700; color:#9aff9a; margin-bottom:2px">Stegozaur</div>
+  <div id="stats">
+    <span>LVL <small id="lvl">1</small></span>
+    <span>$ <small id="money">0</small></span>
+  </div>
+  <div id="goalLine">Bazy: 1</div>
+  <div>HP <span id="hpTxt">100/100</span></div>
+  <div class="bar hp"><div id="hpBar" style="width:100%"></div></div>
+  <div>Energia</div>
+  <div class="bar en"><div id="enBar" style="width:100%"></div></div>
+  <div>XP</div>
+  <div class="bar xp"><div id="xpBar" style="width:0%"></div></div>
+  <div id="upgradeLine">Ulepszenia: 0</div>
+  <div id="settings">
+    <select id="difficulty" title="Poziom trudnosci">
+      <option value="easy">Easy</option>
+      <option value="normal" selected>Normal</option>
+      <option value="hard">Hard</option>
+    </select>
+    <button id="powerBtn" type="button" title="Tryb zasilania">30 FPS</button>
+  </div>
+</div>
+
+<div id="help">
+  Cel: zniszcz wszystkie bazy<br>
+  Strzałki = ruch &middot; Spacja = skok<br>
+  Z = pazur &middot; X = ogon &middot; C = ogień
+</div>
+
+<div id="joy"><div class="stick"></div></div>
+
+<div id="attacks">
+  <div class="attackBtn" data-key="C" title="Ogień (1 min)"><span class="label">OGIEŃ</span>🔥<div class="cd" style="height:0%"></div></div>
+  <div class="attackBtn" data-key="X" title="Ogon (10 s)"><span class="label">OGON</span><svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true">
+    <path d="M3 22 Q12 18 20 14 Q26 11 30 9" stroke="#5fbe5f" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M3 22 Q12 18 20 14 Q26 11 30 9" stroke="#3a8a3a" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="0 7 1.5 7"/>
+    <g fill="#fff5cc" stroke="#1a1a1a" stroke-width="0.7" stroke-linejoin="round">
+      <path d="M9 17 L9 11 L11 11 L11 7 L13 11 L11 13 L11 17 Z"/>
+      <path d="M16 14 L16 8 L18 8 L18 4 L20 8 L18 10 L18 14 Z"/>
+      <path d="M23 11 L23 5 L25 5 L25 1 L27 5 L25 7 L25 11 Z"/>
+    </g>
+  </svg><div class="cd" style="height:0%"></div></div>
+  <div class="attackBtn" data-key="Z" title="Pazur (0.5 s)"><span class="label">PAZUR</span><svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true">
+    <ellipse cx="16" cy="23" rx="10" ry="7" fill="#5fbe5f" stroke="#2f7a2f" stroke-width="1.2"/>
+    <ellipse cx="9" cy="14" rx="3.2" ry="3.8" fill="#5fbe5f" stroke="#2f7a2f" stroke-width="1"/>
+    <ellipse cx="16" cy="11" rx="3.2" ry="3.8" fill="#5fbe5f" stroke="#2f7a2f" stroke-width="1"/>
+    <ellipse cx="23" cy="14" rx="3.2" ry="3.8" fill="#5fbe5f" stroke="#2f7a2f" stroke-width="1"/>
+    <path d="M7.5 11 L8.5 3 L11 11 Z" fill="#fff5cc" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M14.5 8 L16 1 L18 8 Z" fill="#fff5cc" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M21.5 11 L24 3 L24.5 11 Z" fill="#fff5cc" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
+  </svg><div class="cd" style="height:0%"></div></div>
+  <div class="attackBtn" data-key="J" title="Skok"><span class="label">SKOK</span>⤴</div>
+</div>
+
+<div id="banner"></div>
+
+<script>
+(() => {
+  // ---------- Canvas & sizing ----------
+  const cv = document.getElementById('game');
+  let ctx = cv.getContext('2d');
+  const LOW_POWER_DPR = 1;
+  const HIGH_POWER_DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const perf = {lowPower: true, targetFps: 30, hidden: false, staticDirty: true};
+  let W = 0, H = 0, DPR = LOW_POWER_DPR;
+  const staticCv = document.createElement('canvas');
+  const staticCtx = staticCv.getContext('2d');
+  const atlas = new Image();
+  atlas.onload = () => { perf.staticDirty = true; };
+  atlas.src = 'assets/antos-atlas.png';
+  const dinoSprite = new Image();
+  dinoSprite.src = 'assets/antos-dino.png';
+  const charSprites = {
+    dino: new Image(),
+    alien: new Image(),
+    flyer: new Image()
+  };
+  charSprites.dino.src = 'assets/char-dino.png';
+  charSprites.alien.src = 'assets/kosmita-robot-transparent.png';
+  charSprites.flyer.src = 'assets/char-flyer.png';
+  const SPR = {
+    hud:     {x:45,   y:40,  w:440, h:285},
+    heal:    {x:540,  y:48,  w:250, h:105},
+    bluePad: {x:540,  y:205, w:215, h:120},
+    base:    {x:875,  y:35,  w:590, h:285},
+    robot:   {x:525,  y:370, w:290, h:275},
+    arrow:   {x:880,  y:375, w:245, h:125},
+    sign:    {x:1150, y:390, w:210, h:130},
+    totem:   {x:1320, y:360, w:125, h:270},
+    path:    {x:840,  y:575, w:330, h:125},
+    flag:    {x:65,   y:640, w:240, h:270},
+    treeA:   {x:292,  y:745, w:205, h:240},
+    pine:    {x:525,  y:762, w:160, h:225},
+    bush:    {x:705,  y:800, w:215, h:170},
+    rock:    {x:875,  y:810, w:305, h:155},
+    treeB:   {x:1240, y:680, w:250, h:305},
+    stick:   {x:70,   y:368, w:240, h:185}
+  };
+  function drawSprite(name, x, y, w, h, opts) {
+    if (!atlas.complete || !atlas.naturalWidth || !SPR[name]) return false;
+    const s = SPR[name];
+    opts = opts || {};
+    ctx.save();
+    ctx.translate(x, y);
+    if (opts.flip) ctx.scale(-1, 1);
+    if (opts.alpha != null) ctx.globalAlpha = opts.alpha;
+    if (opts.rotate) ctx.rotate(opts.rotate);
+    ctx.drawImage(atlas, s.x, s.y, s.w, s.h, -w/2, -h/2, w, h);
+    ctx.restore();
+    return true;
+  }
+
+  function drawDinoSprite(p) {
+    const img = (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino :
+                (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
+    if (!img) return false;
+    const jumpY = p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0;
+    const wp = p.walkPhase || 0;
+    const moving = Math.hypot(p.vx, p.vy) > 30;
+    const bob = Math.sin(wp * 2) * (moving ? 1.8 : 0.4);
+    const scale = p.species === 'diplo' ? 1.08 : (p.species === 'tyranno' ? 1.0 : 0.96);
+    const w = 78 * scale;
+    const h = 116 * scale;
+    ctx.save();
+    ctx.translate(p.x, p.y - 34 - jumpY + bob);
+    if (p.facing === -1) ctx.scale(-1, 1);
+    if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
+    ctx.drawImage(img, -w/2, -h/2, w, h);
+    if (p.attackAnim > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.arc(w*0.32, -h*0.12, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.filter = 'none';
+    ctx.restore();
+    return true;
+  }
+
+  function resize() {
+    DPR = perf.lowPower ? LOW_POWER_DPR : HIGH_POWER_DPR;
+    W = cv.clientWidth = window.innerWidth;
+    H = cv.clientHeight = window.innerHeight;
+    cv.width = Math.floor(W * DPR);
+    cv.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    staticCv.width = cv.width;
+    staticCv.height = cv.height;
+    staticCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawGrassNoise.pat = null;
+    perf.staticDirty = true;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  document.addEventListener('visibilitychange', () => {
+    perf.hidden = document.hidden;
+    if (!perf.hidden) last = performance.now();
+  });
+
+  // ---------- Audio (Web Audio – no files) ----------
+  let actx = null;
+  function ensureAudio() {
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    if (actx && actx.state === 'suspended') actx.resume();
+  }
+  function beep({freq=440, dur=0.15, type='sine', vol=0.18, slide=0, noise=false}) {
+    if (!actx) return;
+    const t0 = actx.currentTime;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    g.connect(actx.destination);
+    if (noise) {
+      const buf = actx.createBuffer(1, Math.floor(actx.sampleRate * dur), actx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+      const src = actx.createBufferSource();
+      src.buffer = buf; src.connect(g); src.start(t0); src.stop(t0+dur);
+    } else {
+      const o = actx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t0);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq+slide), t0+dur);
+      o.connect(g); o.start(t0); o.stop(t0+dur);
+    }
+  }
+  const sfx = {
+    claw:    () => { beep({freq:900, dur:0.10, type:'square', vol:0.12, slide:-500}); beep({freq:1400, dur:0.07, type:'sawtooth', vol:0.08, slide:-700}); },
+    tail:    () => { beep({freq:200, dur:0.18, type:'sine', vol:0.20, slide:-120}); beep({dur:0.12, noise:true, vol:0.10}); },
+    fire:    () => { beep({dur:0.45, noise:true, vol:0.18}); beep({freq:120, dur:0.45, type:'sawtooth', vol:0.10, slide:-60}); },
+    hit:     () => { beep({freq:500, dur:0.06, type:'square', vol:0.08, slide:-300}); },
+    alienHit:() => { beep({freq:300, dur:0.12, type:'triangle', vol:0.14, slide:-180}); beep({dur:0.08, noise:true, vol:0.05}); },
+    jump:    () => { beep({freq:380, dur:0.18, type:'sine', vol:0.13, slide:520}); },
+    coin:    () => { beep({freq:880, dur:0.07, type:'square', vol:0.12}); setTimeout(()=>beep({freq:1320, dur:0.10, type:'square', vol:0.12}), 60); },
+    fizzle:  () => { beep({freq:240, dur:0.18, type:'square', vol:0.08, slide:-180}); },
+    heal:    () => { beep({freq:660, dur:0.08, type:'sine', vol:0.10}); setTimeout(()=>beep({freq:990, dur:0.10, type:'sine', vol:0.10}), 50); },
+    levelup: () => { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep({freq:f, dur:0.16, type:'triangle', vol:0.15}), i*90)); },
+    win:     () => { [392,494,587,784,988,1175].forEach((f,i)=>setTimeout(()=>beep({freq:f, dur:0.18, type:'triangle', vol:0.16}), i*120)); },
+    lose:    () => { [440,330,247,165].forEach((f,i)=>setTimeout(()=>beep({freq:f, dur:0.30, type:'sawtooth', vol:0.18, slide:-40}), i*180)); }
+  };
+
+  const el = {
+    speciesLine: document.getElementById('speciesLine'),
+    lvl: document.getElementById('lvl'),
+    money: document.getElementById('money'),
+    goalLine: document.getElementById('goalLine'),
+    hpTxt: document.getElementById('hpTxt'),
+    hpBar: document.getElementById('hpBar'),
+    enBar: document.getElementById('enBar'),
+    xpBar: document.getElementById('xpBar'),
+    upgradeLine: document.getElementById('upgradeLine'),
+    difficulty: document.getElementById('difficulty'),
+    powerBtn: document.getElementById('powerBtn'),
+    banner: document.getElementById('banner'),
+    btnCd: {
+      Z: document.querySelector('.attackBtn[data-key="Z"] .cd'),
+      X: document.querySelector('.attackBtn[data-key="X"] .cd'),
+      C: document.querySelector('.attackBtn[data-key="C"] .cd')
+    }
+  };
+
+  const DIFFICULTY = {
+    easy:   {spawn: 0.11, extraSpawn: 0.04, maxBase: 4, hpMul: 0.82, dmgMul: 0.75, label: 'Easy'},
+    normal: {spawn: 0.16, extraSpawn: 0.06, maxBase: 5, hpMul: 1.00, dmgMul: 1.00, label: 'Normal'},
+    hard:   {spawn: 0.22, extraSpawn: 0.08, maxBase: 6, hpMul: 1.18, dmgMul: 1.20, label: 'Hard'}
+  };
+  let difficultyKey = 'normal';
+
+  el.difficulty.addEventListener('change', () => {
+    difficultyKey = el.difficulty.value;
+    buildLevel();
+    notify('Poziom: ' + DIFFICULTY[difficultyKey].label, '#ffd166');
+  });
+  el.powerBtn.addEventListener('click', () => {
+    perf.lowPower = !perf.lowPower;
+    perf.targetFps = perf.lowPower ? 30 : 60;
+    el.powerBtn.textContent = perf.lowPower ? '30 FPS' : '60 FPS';
+    resize();
+  });
+
+  // ---------- Input ----------
+  const keys = new Set();
+  window.addEventListener('keydown', e => {
+    ensureAudio();
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space'].includes(e.key)) e.preventDefault();
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys.add(k);
+    if (k === ' ' || e.code === 'Space') tryJump();
+    if (k === 'z') tryAttack('claw');
+    if (k === 'x') tryAttack('tail');
+    if (k === 'c') tryAttack('fire');
+    if (k === 'r' && state.gameOver) restart();
+  }, {passive:false});
+  window.addEventListener('keyup', e => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys.delete(k);
+  });
+
+  // Joystick
+  const joyEl = document.getElementById('joy');
+  const stickEl = joyEl.querySelector('.stick');
+  let joy = {active:false, dx:0, dy:0, id:null};
+  const joyR = 50;
+  function setStick(x, y) {
+    stickEl.style.transform = `translate(${x}px, ${y}px)`;
+  }
+  function joyStart(e) {
+    ensureAudio();
+    const t = e.changedTouches ? e.changedTouches[0] : e;
+    joy.active = true; joy.id = e.changedTouches ? t.identifier : 'mouse';
+    joyMove(e);
+  }
+  function joyMove(e) {
+    if (!joy.active) return;
+    const r = joyEl.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    let pt;
+    if (e.changedTouches) {
+      for (const t of e.changedTouches) if (t.identifier === joy.id) { pt = t; break; }
+      if (!pt) return;
+    } else pt = e;
+    let dx = pt.clientX - cx, dy = pt.clientY - cy;
+    const d = Math.hypot(dx, dy);
+    if (d > joyR) { dx = dx/d*joyR; dy = dy/d*joyR; }
+    setStick(dx, dy);
+    joy.dx = dx/joyR; joy.dy = dy/joyR;
+  }
+  function joyEnd(e) {
+    if (e && e.changedTouches) {
+      let m = false;
+      for (const t of e.changedTouches) if (t.identifier === joy.id) { m = true; break; }
+      if (!m) return;
+    }
+    joy.active = false; joy.dx = 0; joy.dy = 0; setStick(0,0);
+  }
+  joyEl.addEventListener('touchstart', joyStart, {passive:false});
+  joyEl.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e); }, {passive:false});
+  joyEl.addEventListener('touchend', joyEnd);
+  joyEl.addEventListener('touchcancel', joyEnd);
+  joyEl.addEventListener('mousedown', joyStart);
+  window.addEventListener('mousemove', e => joy.active && joy.id==='mouse' && joyMove(e));
+  window.addEventListener('mouseup', e => joy.active && joy.id==='mouse' && joyEnd());
+
+  // Attack buttons
+  document.querySelectorAll('.attackBtn').forEach(btn => {
+    const handler = e => {
+      e.preventDefault(); ensureAudio();
+      const k = btn.dataset.key;
+      if (k === 'Z') tryAttack('claw');
+      else if (k === 'X') tryAttack('tail');
+      else if (k === 'C') tryAttack('fire');
+      else if (k === 'J') tryJump();
+    };
+    btn.addEventListener('touchstart', handler, {passive:false});
+    btn.addEventListener('mousedown', handler);
+  });
+
+  // ---------- Game state ----------
+  const state = {
+    t: 0,
+    gameOver: false,
+    won: false,
+    cam: {x:0, y:0}, // (we keep camera at 0 because world == screen for now)
+    player: null,
+    aliens: [],
+    bases: [],
+    projectiles: [],
+    fx: [],
+    coins: [],
+    trees: [],
+    rocks: [],
+    allies: [],
+    upgradePad: null,
+    allyPad: null,
+    helipad: null,
+    flag: null
+  };
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  // Three species cycle every time you finish a game. Stats are tuned to give each
+  // a clear personality without wildly changing how the game plays.
+  const SPECIES = ['stego', 'tyranno', 'diplo'];
+  const SPECIES_STATS = {
+    stego:   { name: 'Stegozaur',  hp: 250, claw: 18, tail: 30, fire: 6, color: '#4ea84e', dark: '#2f7a2f', belly: '#a3d9a3' },
+    tyranno: { name: 'Tyranozaur', hp: 220, claw: 26, tail: 22, fire: 6, color: '#a85a3a', dark: '#7a3a20', belly: '#d49a7a' },
+    diplo:   { name: 'Diplodok',   hp: 320, claw: 14, tail: 38, fire: 5, color: '#3a8a8a', dark: '#1f5a5a', belly: '#7accbe' }
+  };
+  let speciesIndex = 0;
+
+  function currentSpecies() { return SPECIES[speciesIndex]; }
+  function currentStats()   { return SPECIES_STATS[currentSpecies()]; }
+
+  function makePlayer() {
+    const sp = currentSpecies();
+    const st = SPECIES_STATS[sp];
+    return {
+      x: W/2, y: H - 100,
+      vx: 0, vy: 0,
+      r: 26,
+      species: sp,
+      hp: st.hp, maxHp: st.hp,
+      energy: 100, maxEnergy: 100,
+      level: 1, xp: 0, xpNeed: 50,
+      money: 0,
+      facing: 1, // 1 right, -1 left
+      jump: 0,   // jump animation timer
+      flash: 0,  // damage flash
+      attackAnim: 0,
+      shield: 0,
+      upgrades: {hp:0, energy:0, cooldown:0, ally:0},
+      lastDir: {x:1,y:0},
+      walkPhase: 0
+    };
+  }
+
+  function pickWanderTarget() {
+    return { x: rand(W*0.10, W*0.90), y: rand(H*0.18, H*0.85) };
+  }
+
+  function makeAlien(type, x, y) {
+    // Personality: ~35% always-chase aggressives, ~65% wanderers that only chase up close.
+    // This makes the swarm spread out around the map instead of dogpiling the dino.
+    const personality = Math.random() < 0.35 ? 'aggressive' : 'wanderer';
+    const common = {
+      x, y, vx:0, vy:0, attackCd: 0,
+      wob: rand(0,Math.PI*2),
+      personality,
+      wanderTarget: pickWanderTarget(),
+      wanderTimer: rand(2.5, 6)
+    };
+    if (type === 'big') {
+      return Object.assign({type:'big',    r: 26, hp: 60, maxHp: 60, speed: 60, dmg: 14}, common);
+    } else if (type === 'walker') {
+      return Object.assign({type:'walker', r: 18, hp: 40, maxHp: 40, speed: 80, dmg: 10}, common);
+    } else { // small flyer
+      return Object.assign({type:'small',  r: 16, hp: 30, maxHp: 30, speed: 95, dmg:  8}, common);
+    }
+  }
+
+  function makeBase(x, y, tier) {
+    const d = DIFFICULTY[difficultyKey] || DIFFICULTY.normal;
+    function tuned(b) {
+      b.hp = Math.round(b.hp * d.hpMul);
+      b.maxHp = b.hp;
+      b.dmg = Math.round((b.dmg || 8) * d.dmgMul);
+      b.ruin = null;
+      return b;
+    }
+    tier = tier || 'main';
+    if (tier === 'main') {
+      // The HQ — the biggest, toughest one
+      return tuned({x, y, w:160, h:80, hp:220, maxHp:220, eggs:3, fireCd: 0,
+              tier, dmg: 8, fireRate: 2.6, color: '#4f7fb5', dark: '#2c5990', cones: 5});
+    } else if (tier === 'secondary') {
+      return tuned({x, y, w:110, h:60, hp:90, maxHp:90, eggs:1, fireCd: rand(1, 3),
+              tier, dmg: 6, fireRate: 3.6, color: '#3f6585', dark: '#1f4060', cones: 3});
+    } else { // tertiary or any further
+      return tuned({x, y, w:90, h:50, hp:60, maxHp:60, eggs:1, fireCd: rand(1, 3),
+              tier, dmg: 5, fireRate: 4.4, color: '#2f5070', dark: '#162a45', cones: 2});
+    }
+  }
+
+  function notify(text, color) {
+    state.fx.push({kind:'notify', x: W/2, y: H*0.28, text, color: color || '#fff', life: 2.5, t: 0, vy: -10});
+  }
+
+  function makeAlly(x, y) {
+    // tiny stegosaur — auto-attacks aliens, low HP
+    const allyUp = state.player && state.player.upgrades ? state.player.upgrades.ally : 0;
+    return {
+      x, y, vx: 0, vy: 0,
+      r: 14, hp: 25, maxHp: 25,
+      speed: 150, dmg: 3 + allyUp, attackCd: 0,
+      bob: rand(0, Math.PI*2), facing: 1, flash: 0
+    };
+  }
+
+  function buildLevel() {
+    state.player = makePlayer();
+    state.aliens = [];
+    state.bases = [];
+    state.projectiles = [];
+    state.fx = [];
+    state.coins = [];
+    state.trees = [];
+    state.rocks = [];
+    state.allies = [];
+
+    // ----- Randomized layout — picked fresh every game -----
+    // Alien HQ: somewhere in the upper band of the map
+    const baseX = rand(W*0.18, W*0.82);
+    const baseY = rand(80, Math.max(90, Math.min(180, H*0.22)));
+
+    // Player spawn: lower band, far from the HQ
+    let pX, pY, tries = 0;
+    do {
+      pX = rand(W*0.15, W*0.85);
+      pY = rand(H*0.70, H - 80);
+      tries++;
+    } while (tries < 30 && Math.hypot(pX - baseX, pY - baseY) < Math.min(W*0.4, H*0.5));
+    state.player.x = pX; state.player.y = pY;
+
+    // Heal pad — middle band, away from HQ and player
+    let hpX, hpY; tries = 0;
+    do {
+      hpX = rand(70, W - 70);
+      hpY = rand(H*0.34, H*0.66);
+      tries++;
+    } while (tries < 60 && (
+      Math.hypot(hpX - baseX, hpY - baseY) < 140 ||
+      Math.hypot(hpX - pX,    hpY - pY)    < 100
+    ));
+
+    // Ally pad — also middle band, but kept away from heal pad
+    let apX, apY; tries = 0;
+    do {
+      apX = rand(70, W - 70);
+      apY = rand(H*0.34, H*0.66);
+      tries++;
+    } while (tries < 80 && (
+      Math.hypot(apX - baseX, apY - baseY) < 140 ||
+      Math.hypot(apX - pX,    apY - pY)    < 100 ||
+      Math.hypot(apX - hpX,   apY - hpY)   < 140
+    ));
+
+    // Now create the entities at the picked spots
+    state.bases.push(makeBase(baseX, baseY));
+    state.upgradePad = {x: hpX, y: hpY, r: 26};
+    state.allyPad    = {x: apX, y: apY, r: 26};
+
+    // Helipad — sits to one side of the HQ (decorative, gives the alien camp character)
+    const hpdSide = Math.random() < 0.5 ? -1 : 1;
+    state.helipad = {
+      x: clamp(baseX + hpdSide * rand(95, 135), 60, W - 50),
+      y: clamp(baseY + rand(-20, 25), 50, Math.max(70, H*0.18)),
+      r: 38
+    };
+    // If helipad ends up overlapping the HQ horizontally, push it further out
+    if (Math.abs(state.helipad.x - baseX) < 90) {
+      state.helipad.x = clamp(baseX + hpdSide * 110, 60, W - 50);
+    }
+
+    // Flag (territory) — somewhere near the player's home turf
+    state.flag = {
+      x: clamp(pX + rand(-100, 100), 50, W - 30),
+      y: clamp(pY + rand(-50, 70),   140, H - 60)
+    };
+
+    // Rocks — random positions, avoiding all the above
+    const targetRocks = 6 + Math.floor(Math.random()*3); // 6–8 rocks
+    let rockTries = 0;
+    while (state.rocks.length < targetRocks && rockTries < 200) {
+      rockTries++;
+      const r = rand(22, 36);
+      const x = rand(70, W - 70);
+      const y = rand(140, H - 90);
+      if (Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < r + state.upgradePad.r + 28) continue;
+      if (Math.hypot(x - state.allyPad.x,    y - state.allyPad.y)    < r + state.allyPad.r + 28) continue;
+      if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
+      const mainBase = state.bases[0];
+      if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
+      if (Math.hypot(x - state.player.x, y - state.player.y) < r + 70) continue;
+      let tooClose = false;
+      for (const rk of state.rocks) {
+        if (Math.hypot(x - rk.x, y - rk.y) < r + rk.r + 22) { tooClose = true; break; }
+      }
+      if (tooClose) continue;
+      state.rocks.push({x, y, r, seed: Math.random()*1000});
+    }
+
+    // Trees — random decoration, also avoiding the placed elements
+    const treeCount = 10;
+    for (let i=0;i<treeCount;i++) {
+      const tx = rand(40, W-40);
+      const ty = rand(140, H-90);
+      if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
+      if (Math.hypot(tx - state.upgradePad.x, ty - state.upgradePad.y) < 60) continue;
+      if (Math.hypot(tx - state.allyPad.x,    ty - state.allyPad.y)    < 60) continue;
+      const mb = state.bases[0];
+      if (Math.abs(tx - mb.x) < mb.w/2 + 30 && Math.abs(ty - mb.y) < mb.h/2 + 30) continue;
+      let onRock = false;
+      for (const rk of state.rocks) if (Math.hypot(tx-rk.x, ty-rk.y) < rk.r + 18) { onRock = true; break; }
+      if (onRock) continue;
+      const variants = ['treeA', 'pine', 'bush', 'treeB'];
+      state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v: variants[Math.floor(Math.random()*variants.length)]});
+    }
+
+    // Start with one alien (per agreement: zaczynamy od jednego)
+    spawnAlien();
+
+    state.t = 0; state.hudAcc = 1; state.gameOver = false; state.won = false;
+    perf.staticDirty = true;
+    el.banner.style.display = 'none';
+    updateHUD();
+  }
+
+  function spawnAlien(fromBase) {
+    // Proportions tuned so count × HP ≈ equal across types:
+    //   big=60HP @ 22%, walker=40HP @ 33%, flyer=30HP @ 45%
+    // (cyclops/big is now rarer; flyers are most common)
+    const r = Math.random();
+    const kind = r < 0.22 ? 'big' : (r < 0.55 ? 'walker' : 'small');
+    const b = fromBase || state.bases.find(bb => !bb.dead) || state.bases[0];
+    if (!b) return;
+    const bx = b.x, by = b.y + (b.h ? b.h/2 + 10 : 60);
+    const a = makeAlien(kind, bx + rand(-90,90), by + rand(0,30));
+    state.aliens.push(a);
+  }
+
+  // ---------- Rock collision ----------
+  function pushOutOfRocks(e) {
+    if (!state.rocks) return;
+    for (const r of state.rocks) {
+      const dx = e.x - r.x, dy = e.y - r.y;
+      const d = Math.hypot(dx, dy);
+      const minD = e.r + r.r;
+      if (d < minD && d > 0.001) {
+        const push = (minD - d) + 0.5;
+        const nx = dx/d, ny = dy/d;
+        e.x += nx * push; e.y += ny * push;
+        // dampen velocity into the rock so we don't constantly press
+        if (e.vx !== undefined) {
+          const dot = e.vx * nx + e.vy * ny;
+          if (dot < 0) { e.vx -= dot * nx; e.vy -= dot * ny; }
+        }
+      } else if (d <= 0.001) {
+        // dead-on overlap — eject upward
+        e.x += 0.1; e.y += minD;
+      }
+    }
+  }
+  function projectileHitsRock(pr) {
+    if (!state.rocks) return false;
+    for (const r of state.rocks) {
+      if (Math.hypot(pr.x - r.x, pr.y - r.y) < r.r + (pr.r||4) - 1) return true;
+    }
+    return false;
+  }
+
+  // ---------- Cooldowns & energy costs ----------
+  const cd = { claw:{ready:0,max:0.5}, tail:{ready:0,max:10}, fire:{ready:0,max:60} };
+  const ENERGY_COST = { claw: 6, tail: 18, fire: 35 };
+  function cooldownMax(kind) {
+    const up = state.player && state.player.upgrades ? state.player.upgrades.cooldown : 0;
+    return cd[kind].max * Math.max(0.72, 1 - up * 0.07);
+  }
+
+  // Find the nearest alive alien (or base, if no aliens). Returns {x,y,target,dx,dy,dist} or null.
+  function findNearestTarget() {
+    const p = state.player;
+    let best = null, bestD = Infinity;
+    for (const a of state.aliens) {
+      if (a.dead) continue;
+      const d = Math.hypot(a.x - p.x, a.y - p.y);
+      if (d < bestD) { bestD = d; best = a; }
+    }
+    if (!best) {
+      // fallback: target the base if alive
+      for (const b of state.bases) {
+        if (b.dead) continue;
+        const d = Math.hypot(b.x - p.x, b.y - p.y);
+        if (d < bestD) { bestD = d; best = b; }
+      }
+    }
+    if (!best) return null;
+    const dx = best.x - p.x, dy = best.y - p.y;
+    return {x: best.x, y: best.y, target: best, dx, dy, dist: Math.hypot(dx, dy) || 1};
+  }
+
+  function autoFaceTarget() {
+    const p = state.player;
+    const t = findNearestTarget();
+    if (!t) return null;
+    if (t.dx > 1) p.facing = 1;
+    else if (t.dx < -1) p.facing = -1;
+    p.lastDir.x = t.dx / t.dist;
+    p.lastDir.y = t.dy / t.dist;
+    return t;
+  }
+
+  function tryAttack(kind) {
+    if (state.gameOver) return;
+    const p = state.player;
+    if (cd[kind] && cd[kind].ready > 0) return;
+    const cost = ENERGY_COST[kind] || 0;
+    if (p.energy < cost) {
+      // not enough energy — fizzle
+      sfx.fizzle();
+      flashRing(p.x, p.y, 22, '#ffd166');
+      return;
+    }
+    p.energy -= cost;
+    p.attackAnim = 0.25;
+    // Auto-rotate toward the nearest alien before attacking,
+    // so the player just needs to press the button.
+    const tgt = autoFaceTarget();
+    const stats = SPECIES_STATS[p.species] || SPECIES_STATS.stego;
+    if (kind === 'claw') {
+      sfx.claw();
+      cd.claw.ready = cooldownMax('claw');
+      // melee toward the nearest alien (not just the side we face)
+      const biteBonus = p.species === 'tyranno' && tgt && tgt.dist < 72 ? 1.45 : 1;
+      meleeHit(40, 30, 0, Math.PI*2, Math.round(stats.claw * biteBonus), /*radius*/ 56, tgt);
+      const fxx = tgt ? p.x + (tgt.dx/tgt.dist)*22 : p.x + p.facing*22;
+      const fxy = tgt ? p.y + (tgt.dy/tgt.dist)*22 : p.y;
+      flashRing(fxx, fxy, 30, '#9bd6ff');
+    } else if (kind === 'tail') {
+      sfx.tail();
+      cd.tail.ready = cooldownMax('tail');
+      // tail swing — all-around thump (diplodoks have the longest reach)
+      const reach = p.species === 'diplo' ? 80 : 70;
+      meleeHit(60, 60, 0, Math.PI*2, stats.tail, reach, null);
+      if (p.species === 'diplo') {
+        for (const a of state.aliens) {
+          const dx = a.x - p.x, dy = a.y - p.y;
+          const d = Math.hypot(dx, dy) || 1;
+          if (!a.dead && d < reach + a.r + 10) {
+            a.vx += dx / d * 180;
+            a.vy += dy / d * 180;
+          }
+        }
+      }
+      if (p.species === 'stego') {
+        p.shield = Math.max(p.shield || 0, 2.5);
+        notify('Tarcza stegozaura!', '#9bd6ff');
+      }
+      flashRing(p.x, p.y, reach - 10, '#fff2a8');
+    } else if (kind === 'fire') {
+      sfx.fire();
+      cd.fire.ready = cooldownMax('fire');
+      // fire breath toward nearest alien (or facing direction if none)
+      let dirx, diry;
+      if (tgt) { dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist; }
+      else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
+      const ang = Math.atan2(diry, dirx);
+      const shots = perf.lowPower ? 8 : 14;
+      for (let i=0;i<shots;i++) {
+        const a = ang + rand(-0.35, 0.35);
+        const sp = rand(220, 320);
+        state.projectiles.push({
+          kind:'fire', x: p.x + Math.cos(ang)*22, y: p.y + Math.sin(ang)*22,
+          vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+          life: 0.55, dmg: stats.fire, r: 10, t: 0
+        });
+      }
+    }
+  }
+
+  function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
+    // radius = circular reach around player (auto-aim friendly)
+    // If tgt provided and is an alien, force-hit it even if a hair outside radius (forgiving aim).
+    const p = state.player;
+    const reach = radius || rangeX;
+    let any = false;
+    for (const a of state.aliens) {
+      if (a.dead) continue;
+      const dx = a.x - p.x, dy = a.y - p.y;
+      const d = Math.hypot(dx, dy);
+      const hitR = reach + a.r + 6;
+      if (d <= hitR || (tgt && tgt.target === a && d <= hitR + 14)) {
+        damageAlien(a, dmg);
+        any = true;
+      }
+    }
+    // base too — any swing close enough hits the base
+    for (const b of state.bases) {
+      if (b.dead) continue;
+      const dx = b.x - p.x, dy = b.y - p.y;
+      if (Math.abs(dx) < b.w/2 + rangeX && Math.abs(dy) < b.h/2 + rangeY) {
+        damageBase(b, dmg); any = true;
+      }
+    }
+    return any;
+  }
+
+  function tryJump() {
+    if (state.gameOver) return;
+    const p = state.player;
+    if (p.jump <= 0) {
+      p.jump = 0.5;
+      sfx.jump();
+    }
+  }
+
+  // ---------- Damage ----------
+  function damageAlien(a, dmg) {
+    a.hp -= dmg;
+    sfx.alienHit();
+    flashRing(a.x, a.y, 18, '#ff7a7a');
+    // knockback
+    const p = state.player;
+    const dx = a.x - p.x, dy = a.y - p.y;
+    const d = Math.hypot(dx,dy)||1;
+    a.vx += dx/d * 80; a.vy += dy/d * 80;
+    if (a.hp <= 0) killAlien(a);
+  }
+
+  function killAlien(a) {
+    a.dead = true;
+    // Cyclop (big) is the heavy-hitter — toughest, hits hardest, rarest. Reward
+    // dialled up so taking one down is a clearly profitable event.
+    //   flyer 12 $ baseline
+    //   walker ≈ 2× flyer
+    //   big ≈ 7× flyer
+    const reward = a.type === 'big' ? 85 : (a.type === 'walker' ? 22 : 12);
+    const xp     = a.type === 'big' ? 70 : (a.type === 'walker' ? 22 : 10);
+    spawnCoinBurst(a.x, a.y, reward);
+    addXP(xp);
+    // burst FX
+    for (let i=0;i<10;i++) {
+      const ang = rand(0, Math.PI*2), sp = rand(60, 180);
+      state.fx.push({kind:'puff', x:a.x, y:a.y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:0.5, t:0, color:'#9b7'});
+    }
+  }
+
+  function damageBase(b, dmg) {
+    b.hp -= dmg;
+    perf.staticDirty = true;
+    sfx.alienHit();
+    flashRing(b.x, b.y, 30, '#ff7a7a');
+    if (b.hp <= 0 && !b.dead) {
+      b.dead = true;
+      b.ruin = [];
+      for (let i=0;i<8;i++) b.ruin.push({x:rand(-b.w/2, b.w/2), y:rand(-b.h/2, b.h/2), r:rand(3, 5)});
+      const isMain = b.tier === 'main';
+      const reward = isMain ? 100 : 50;
+      const xp     = isMain ? 80 : 40;
+      spawnCoinBurst(b.x, b.y, reward);
+      addXP(xp);
+      // free the eggs!
+      for (let i=0;i<b.eggs;i++) {
+        state.fx.push({kind:'egg', x:b.x+rand(-30,30), y:b.y+rand(-15,15),
+                       vx:rand(-30,30), vy:rand(-100,-40), life:2.5, t:0});
+      }
+      // Check if ALL bases (main + secondaries) are gone
+      const allDead = state.bases.every(bb => bb.dead);
+      if (allDead) {
+        sfx.win();
+        state.won = true;
+        showBanner('🥚 URATOWANE! 🦖<br><small>Pokonałeś WSZYSTKIE bazy kosmitów<br>i odzyskałeś jaja dinozaurów!</small>', true);
+      } else {
+        sfx.coin();
+        notify(isMain ? 'KWATERA GŁÓWNA padła!' : 'Baza kosmitów zniszczona!', '#9aff9a');
+      }
+    }
+  }
+
+  function damagePlayer(dmg) {
+    const p = state.player;
+    if (p.shield > 0) dmg = Math.ceil(dmg * 0.45);
+    p.hp -= dmg; p.flash = 0.18;
+    sfx.hit();
+    if (p.hp <= 0 && !state.gameOver) {
+      p.hp = 0;
+      state.gameOver = true;
+      sfx.lose();
+      showBanner('Ojej! Stegozaur padł 😵<br><small>Spróbujcie jeszcze raz!</small>', true);
+    }
+  }
+
+  function addXP(n) {
+    const p = state.player;
+    p.xp += n;
+    while (p.xp >= p.xpNeed) {
+      p.xp -= p.xpNeed;
+      p.level += 1;
+      p.maxHp += 20; p.hp = p.maxHp;
+      p.xpNeed = Math.round(p.xpNeed * 1.6);
+      sfx.levelup();
+      flashRing(p.x, p.y, 80, '#9aff9a');
+    }
+  }
+
+  function tryAutoUpgrade() {
+    const p = state.player;
+    const up = p.upgrades;
+    if (p.money < 40) return false;
+    const choices = [
+      {key:'hp',       max:4, label:'+HP', apply: () => { p.maxHp += 25; p.hp = p.maxHp; }},
+      {key:'energy',   max:3, label:'+ENERGIA', apply: () => { p.maxEnergy += 15; p.energy = p.maxEnergy; }},
+      {key:'cooldown', max:4, label:'SZYBSZE ATAKI', apply: () => {}},
+      {key:'ally',     max:3, label:'SILNIEJSZE STADO', apply: () => {
+        for (const al of state.allies) al.dmg += 1;
+      }}
+    ];
+    choices.sort((a, b) => up[a.key] - up[b.key]);
+    const pick = choices.find(c => up[c.key] < c.max);
+    if (!pick) return false;
+    p.money -= 40;
+    up[pick.key] += 1;
+    pick.apply();
+    sfx.levelup();
+    flashRing(p.x, p.y, 90, '#ffd166');
+    notify('Ulepszenie: ' + pick.label, '#ffd166');
+    return true;
+  }
+
+  function spawnCoinBurst(x, y, total) {
+    const n = Math.min(perf.lowPower ? 5 : 8, Math.max(2, Math.round(total/14)));
+    const each = Math.round(total / n);
+    for (let i=0;i<n;i++) {
+      const ang = rand(0, Math.PI*2), sp = rand(60, 160);
+      // Coins now stick around for ~25 s instead of 6, so you have time to
+      // come back and pick them up after a fight.
+      state.coins.push({x, y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:25, t:0, value:each});
+    }
+  }
+
+  function flashRing(x, y, r, color) {
+    state.fx.push({kind:'ring', x, y, r0:8, r1:r, life:0.35, t:0, color});
+  }
+
+  function showBanner(html, withRestart) {
+    el.banner.innerHTML = html + (withRestart ? '<br><button id="rstBtn">Zagraj jeszcze raz</button>' : '');
+    el.banner.style.display = 'block';
+    if (withRestart) {
+      const b = document.getElementById('rstBtn');
+      b.addEventListener('click', restart);
+      b.addEventListener('touchstart', e => { e.preventDefault(); restart(); }, {passive:false});
+    }
+  }
+
+  function restart() {
+    // Winning unlocks the next dino. Losing retries the same one.
+    if (state.won) speciesIndex = (speciesIndex + 1) % SPECIES.length;
+    buildLevel();
+    notify('Teraz grasz: ' + SPECIES_STATS[currentSpecies()].name + '!', '#9aff9a');
+  }
+
+  // ---------- AI ----------
+  function updateAlien(a, dt) {
+    const p = state.player;
+    a.wob += dt * 2;
+    a.wanderTimer = (a.wanderTimer || 0) - dt;
+
+    // Find closest reachable target (player or ally) — used for distance & attack.
+    let closest = p, bestD = Math.hypot(p.x - a.x, p.y - a.y);
+    for (const al of state.allies) {
+      if (al.dead) continue;
+      const d = Math.hypot(al.x - a.x, al.y - a.y);
+      if (d < bestD) { bestD = d; closest = al; }
+    }
+
+    // Decide what we're walking toward this frame:
+    // - aggressives chase if anything is within 520 px (basically always)
+    // - wanderers only chase when something is within 220 px; otherwise stroll to a point
+    const aggroRange = a.personality === 'aggressive' ? 520 : 220;
+    const inAggro = bestD < aggroRange;
+
+    let goalX, goalY;
+    if (inAggro) {
+      goalX = closest.x; goalY = closest.y;
+    } else {
+      // wandering: pick a new spot when we arrive or get bored
+      const wt = a.wanderTarget;
+      if (!wt || a.wanderTimer <= 0 || Math.hypot(wt.x - a.x, wt.y - a.y) < 35) {
+        a.wanderTarget = pickWanderTarget();
+        a.wanderTimer = rand(2.5, 6);
+      }
+      goalX = a.wanderTarget.x; goalY = a.wanderTarget.y;
+    }
+
+    const dx = goalX - a.x, dy = goalY - a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    let ax = dx/d, ay = dy/d;
+    // signature wobble per-type
+    if (a.type === 'small') {
+      ax += Math.cos(a.wob)*0.5; ay += Math.sin(a.wob*1.3)*0.5;
+    } else {
+      ax += Math.cos(a.wob*0.7)*0.2; ay += Math.sin(a.wob*0.5)*0.2;
+    }
+    const m = Math.hypot(ax,ay)||1; ax/=m; ay/=m;
+    // Wanderers move at half speed (they're meandering, not charging)
+    const speedMul = inAggro ? 1.0 : 0.55;
+    a.vx += (ax * a.speed * speedMul - a.vx) * Math.min(1, dt*3);
+    a.vy += (ay * a.speed * speedMul - a.vy) * Math.min(1, dt*3);
+    // damping
+    a.vx *= 0.96; a.vy *= 0.96;
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    // flyers fly over rocks; walkers and big are blocked
+    if (a.type !== 'small') pushOutOfRocks(a);
+    // keep aliens on screen too
+    a.x = clamp(a.x, a.r, W - a.r);
+    a.y = clamp(a.y, a.r + 20, H - a.r);
+
+    // attack only matters if our closest target is actually within striking range
+    a.attackCd -= dt;
+    if (inAggro && bestD < closest.r + a.r + 4 && a.attackCd <= 0) {
+      if (closest === p) damagePlayer(a.dmg);
+      else damageAlly(closest, a.dmg);
+      a.attackCd = 1.0;
+    }
+  }
+
+  function damageAlly(al, dmg) {
+    al.hp -= dmg; al.flash = 0.18;
+    sfx.hit();
+    if (al.hp <= 0) {
+      al.dead = true;
+      // small puff
+      for (let i=0;i<6;i++) {
+        const ang = rand(0, Math.PI*2), sp = rand(40, 120);
+        state.fx.push({kind:'puff', x:al.x, y:al.y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:0.4, t:0, color:'#9b7'});
+      }
+    }
+  }
+
+  function updateAlly(al, dt) {
+    al.bob = (al.bob || 0) + dt * 6;
+    if (al.flash > 0) al.flash -= dt;
+    // Find nearest alien (or base if no aliens)
+    let target = null, bestD = Infinity;
+    for (const a of state.aliens) {
+      if (a.dead) continue;
+      const d = Math.hypot(a.x - al.x, a.y - al.y);
+      if (d < bestD) { bestD = d; target = a; }
+    }
+    let attackingBase = false;
+    if (!target) {
+      for (const b of state.bases) {
+        if (b.dead) continue;
+        const d = Math.hypot(b.x - al.x, b.y - al.y);
+        if (d < bestD) { bestD = d; target = b; attackingBase = true; }
+      }
+    }
+
+    let dx = 0, dy = 0;
+    if (target) {
+      dx = target.x - al.x; dy = target.y - al.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const reach = al.r + (target.r || 30) + 4;
+      if (d > reach) {
+        al.vx += (dx/d * al.speed - al.vx) * Math.min(1, dt*4);
+        al.vy += (dy/d * al.speed - al.vy) * Math.min(1, dt*4);
+      } else {
+        al.vx *= 0.85; al.vy *= 0.85;
+        al.attackCd -= dt;
+        if (al.attackCd <= 0) {
+          al.attackCd = 0.9;
+          if (attackingBase) damageBase(target, al.dmg);
+          else damageAlien(target, al.dmg);
+          // little snap visual
+          flashRing(al.x + (dx/d)*8, al.y + (dy/d)*8, 14, '#bff5bf');
+        }
+      }
+      if (dx > 1) al.facing = 1; else if (dx < -1) al.facing = -1;
+    } else {
+      // no target — follow player
+      const p = state.player;
+      const fdx = p.x - al.x, fdy = p.y - al.y;
+      const d = Math.hypot(fdx, fdy);
+      if (d > 70) {
+        al.vx += (fdx/d * al.speed*0.6 - al.vx) * Math.min(1, dt*3);
+        al.vy += (fdy/d * al.speed*0.6 - al.vy) * Math.min(1, dt*3);
+      } else { al.vx *= 0.9; al.vy *= 0.9; }
+    }
+    al.vx *= 0.92; al.vy *= 0.92;
+    al.x += al.vx * dt;
+    al.y += al.vy * dt;
+    pushOutOfRocks(al);
+    al.x = clamp(al.x, al.r, W - al.r);
+    al.y = clamp(al.y, al.r + 60, H - al.r);
+    // walk cycle for limb animation
+    const sp = Math.hypot(al.vx, al.vy);
+    if (sp > 20) al.walkPhase = (al.walkPhase || 0) + dt * Math.min(2 + sp/100, 8);
+  }
+
+  function updateBase(b, dt) {
+    if (b.dead) return;
+    b.fireCd -= dt;
+    if (b.aiming) {
+      b.aiming -= dt;
+      if (b.aiming > 0) return;
+      b.aiming = 0;
+      b.fireCd = b.fireRate || 2.6;
+      // shoot a slow plasma ball at player
+      const p = state.player;
+      const dx = p.x - b.x, dy = p.y - b.y;
+      const d = Math.hypot(dx,dy)||1;
+      state.projectiles.push({
+        kind:'plasma', x: b.x, y: b.y + 20,
+        vx: dx/d*180, vy: dy/d*180,
+        life: 4, r: 8, dmg: b.dmg || 8, t: 0, hostile: true
+      });
+    } else if (b.fireCd <= 0) {
+      b.aiming = 0.35;
+    }
+  }
+
+  // ---------- Frame ----------
+  let last = performance.now();
+  let lastDraw = performance.now();
+  function frame(now) {
+    if (perf.hidden) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    const frameMs = 1000 / perf.targetFps;
+    if (now - lastDraw < frameMs - 1) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    lastDraw = now;
+    if (!state.gameOver && !state.won) {
+      update(dt);
+      draw();
+    } else if (perf.staticDirty) {
+      draw();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt) {
+    state.t += dt;
+    const p = state.player;
+    const diff = DIFFICULTY[difficultyKey] || DIFFICULTY.normal;
+
+    // Input vector: keyboard + joystick
+    let ix = 0, iy = 0;
+    if (keys.has('ArrowLeft') || keys.has('a')) ix -= 1;
+    if (keys.has('ArrowRight') || keys.has('d')) ix += 1;
+    if (keys.has('ArrowUp') || keys.has('w')) iy -= 1;
+    if (keys.has('ArrowDown') || keys.has('s')) iy += 1;
+    if (Math.abs(joy.dx) + Math.abs(joy.dy) > 0.05) { ix = joy.dx; iy = joy.dy; }
+    const m = Math.hypot(ix, iy);
+    if (m > 1) { ix /= m; iy /= m; }
+
+    if (m > 0.05) {
+      p.lastDir.x = ix; p.lastDir.y = iy;
+      if (ix > 0.1) p.facing = 1;
+      else if (ix < -0.1) p.facing = -1;
+    }
+    const speed = 220;
+    p.vx += (ix * speed - p.vx) * Math.min(1, dt*8);
+    p.vy += (iy * speed - p.vy) * Math.min(1, dt*8);
+    p.vx *= 0.85; p.vy *= 0.85;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // Rocks block movement (you can hide behind them)
+    pushOutOfRocks(p);
+    // Clamp to screen (no leaving the screen — per request)
+    p.x = clamp(p.x, p.r + 4, W - p.r - 4);
+    p.y = clamp(p.y, p.r + 60, H - p.r - 4); // keep below HUD a bit
+
+    // Walk-cycle phase advances only while we're moving — feet plant believably
+    const pSpeed = Math.hypot(p.vx, p.vy);
+    if (pSpeed > 20) p.walkPhase = (p.walkPhase || 0) + dt * Math.min(1.5 + pSpeed/120, 7);
+
+    // Slow passive energy regen — but most of your energy comes from the heal pad
+    p.energy = clamp(p.energy + 2*dt, 0, p.maxEnergy);
+
+    // Healing pad (red plus) — converts dino-money into HP and energy
+    // Costs: 1 $ = 5 HP, 1 $ = 5 energy. Tick every 100 ms while standing on it.
+    const pad = state.upgradePad;
+    if (pad) {
+      const onPad = Math.hypot(p.x - pad.x, p.y - pad.y) < pad.r + p.r;
+      pad.tickAcc = (pad.tickAcc || 0) + (onPad ? dt : 0);
+      pad.glow = onPad ? 1 : Math.max(0, (pad.glow||0) - dt*2);
+      if (onPad && pad.tickAcc >= 0.1) {
+        pad.tickAcc = 0;
+        let didSomething = false;
+        if (p.hp < p.maxHp && p.money >= 1) {
+          p.hp = Math.min(p.maxHp, p.hp + 5);
+          p.money -= 1;
+          didSomething = true;
+        }
+        if (p.energy < p.maxEnergy && p.money >= 1) {
+          p.energy = Math.min(p.maxEnergy, p.energy + 5);
+          p.money -= 1;
+          didSomething = true;
+        }
+        if (didSomething) {
+          // tiny heal sound, but only every ~0.5s so it isn't spammy
+          if (!pad.lastSnd || state.t - pad.lastSnd > 0.45) {
+            sfx.heal();
+            pad.lastSnd = state.t;
+          }
+          state.fx.push({kind:'puff', x: p.x + rand(-12,12), y: p.y - 14,
+                         vx: rand(-20,20), vy: -50, life: 0.5, t: 0, color: '#9aff9a'});
+        } else if (p.hp >= p.maxHp && p.energy >= p.maxEnergy && p.money >= 40 &&
+                   (!pad.lastUpgrade || state.t - pad.lastUpgrade > 1.5)) {
+          if (tryAutoUpgrade()) pad.lastUpgrade = state.t;
+        }
+      }
+    }
+
+    // Ally pad — buy a STADO (herd) of 3 small dinos for 30$. Max 6 alive at once.
+    const ALLY_COST = 30, ALLY_MAX = 6, ALLY_PER_BUY = 3;
+    const ap = state.allyPad;
+    if (ap) {
+      const onAp = Math.hypot(p.x - ap.x, p.y - ap.y) < ap.r + p.r;
+      ap.glow = onAp ? 1 : Math.max(0, (ap.glow||0) - dt*2);
+      ap.tickAcc = (ap.tickAcc || 0) + (onAp ? dt : 0);
+      if (onAp && ap.tickAcc >= 1.5) {
+        ap.tickAcc = 0;
+        const aliveCount = state.allies.filter(a => !a.dead).length;
+        // Need full slots for the whole herd, so 3 always show up together.
+        if (p.money >= ALLY_COST && aliveCount + ALLY_PER_BUY <= ALLY_MAX) {
+          p.money -= ALLY_COST;
+          for (let i = 0; i < ALLY_PER_BUY; i++) {
+            const ang = rand(0, Math.PI*2);
+            const dist = rand(20, 45);
+            state.allies.push(makeAlly(p.x + Math.cos(ang)*dist, p.y + Math.sin(ang)*dist));
+          }
+          sfx.coin();
+          flashRing(p.x, p.y, 70, '#9aff9a');
+        }
+      }
+    }
+
+    if (p.jump > 0) p.jump -= dt;
+    if (p.shield > 0) p.shield -= dt;
+    if (p.flash > 0) p.flash -= dt;
+    if (p.attackAnim > 0) p.attackAnim -= dt;
+
+    // Cooldowns
+    for (const k of Object.keys(cd)) cd[k].ready = Math.max(0, cd[k].ready - dt);
+
+    // Aliens
+    for (const a of state.aliens) updateAlien(a, dt);
+    state.aliens = state.aliens.filter(a => !a.dead);
+
+    // Allies
+    for (const al of state.allies) if (!al.dead) updateAlly(al, dt);
+    state.allies = state.allies.filter(al => !al.dead);
+
+    // Bases
+    for (const b of state.bases) updateBase(b, dt);
+
+    // Projectiles
+    for (const pr of state.projectiles) {
+      pr.t += dt; pr.life -= dt;
+      pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+      // Rocks block projectiles — that's how you "hide"
+      if (projectileHitsRock(pr)) { pr.life = 0; continue; }
+      if (pr.kind === 'fire') {
+        pr.vx *= 0.97; pr.vy *= 0.97;
+        // damage aliens & base
+        for (const a of state.aliens) if (!a.dead && Math.hypot(a.x-pr.x, a.y-pr.y) < a.r + pr.r) {
+          damageAlien(a, pr.dmg); pr.life = 0;
+        }
+        for (const b of state.bases) if (!b.dead && Math.abs(b.x-pr.x) < b.w/2+pr.r && Math.abs(b.y-pr.y) < b.h/2+pr.r) {
+          damageBase(b, pr.dmg); pr.life = 0;
+        }
+      } else if (pr.kind === 'plasma' && pr.hostile) {
+        if (Math.hypot(p.x-pr.x, p.y-pr.y) < p.r + pr.r) { damagePlayer(pr.dmg); pr.life = 0; }
+        // also hit allies
+        else for (const al of state.allies) if (!al.dead && Math.hypot(al.x-pr.x, al.y-pr.y) < al.r + pr.r) {
+          damageAlly(al, pr.dmg); pr.life = 0; break;
+        }
+      }
+    }
+    state.projectiles = state.projectiles.filter(pr => pr.life > 0 && pr.x > -40 && pr.x < W+40 && pr.y > -40 && pr.y < H+40);
+
+    // Coins
+    for (const c of state.coins) {
+      c.t += dt; c.life -= dt;
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      c.vx *= 0.92; c.vy *= 0.92;
+      // generous pickup range so you don't lose coins by walking past them
+      const pickupR = p.r + 22;
+      const dToP = Math.hypot(c.x-p.x, c.y-p.y);
+      if (dToP < pickupR) {
+        p.money += c.value; c.life = 0; sfx.coin();
+      } else if (dToP < pickupR * 3.2 && c.life < 24.8) {
+        // gentle magnet pull once they've settled — drifts coins toward the dino
+        const m = (dToP > 0.001) ? 1/dToP : 0;
+        c.vx += (p.x - c.x) * m * 90 * dt;
+        c.vy += (p.y - c.y) * m * 90 * dt;
+      }
+    }
+    state.coins = state.coins.filter(c => c.life > 0);
+
+    // FX
+    for (const f of state.fx) {
+      f.t += dt; f.life -= dt;
+      if (f.kind === 'puff' || f.kind === 'egg') {
+        f.x += f.vx * dt; f.y += f.vy * dt;
+        f.vy += 240 * dt; f.vx *= 0.98;
+      } else if (f.kind === 'notify') {
+        f.y += (f.vy || 0) * dt;
+        f.vy = (f.vy || 0) * 0.93;
+      }
+    }
+    state.fx = state.fx.filter(f => f.life > 0);
+
+    // Aliens are produced by every alive base. Spawn rate is intentionally slow
+    // so the player has time to actually win (was way too aggressive before).
+    // Single-base rate ~0.16/s = ~one alien every 6 seconds. +0.06/s per extra base.
+    const aliveBases = state.bases.filter(b => !b.dead);
+    const maxAliens = Math.min(11, diff.maxBase + (aliveBases.length - 1) * 3);
+    if (aliveBases.length > 0 && state.aliens.length < maxAliens && state.t > 6 &&
+        Math.random() < dt * (diff.spawn + (aliveBases.length - 1) * diff.extraSpawn)) {
+      spawnAlien(aliveBases[Math.floor(Math.random() * aliveBases.length)]);
+    }
+
+    // Reinforcement bases are built from a real group of at least 5 aliens,
+    // so they never appear out of empty grass.
+    if (state.bases.length < 2) {
+      spawnBaseFromAlienCluster('secondary', 'Druga baza zbudowana przez kosmitów!');
+    }
+    if (state.bases.length < 3) {
+      spawnBaseFromAlienCluster('tertiary', 'Trzecia baza zbudowana przez kosmitów!');
+    }
+
+    state.hudAcc = (state.hudAcc || 0) + dt;
+    if (state.hudAcc >= 0.1) {
+      state.hudAcc = 0;
+      updateHUD();
+    }
+  }
+
+  function spawnBaseFromAlienCluster(tier, message) {
+    const cluster = findAlienCluster(5, 130);
+    if (!cluster) return false;
+    const x = clamp(cluster.x, 70, W - 70);
+    const y = clamp(cluster.y, 80, H - 90);
+    if (!canPlaceReinforcementBase(x, y)) return false;
+    const nb = makeBase(x, y, tier);
+    state.bases.push(nb);
+    for (const a of cluster.members.slice(0, 5)) {
+      a.dead = true;
+      state.fx.push({kind:'puff', x:a.x, y:a.y, vx:rand(-45,45), vy:rand(-90,-35), life:0.5, t:0, color:'#9b7'});
+    }
+    state.aliens = state.aliens.filter(a => !a.dead);
+    perf.staticDirty = true;
+    flashRing(nb.x, nb.y, 85, '#ffd166');
+    notify(message, '#ffd166');
+    sfx.alienHit();
+    return true;
+  }
+
+  function findAlienCluster(minCount, radius) {
+    let best = null;
+    for (const a of state.aliens) {
+      if (a.dead) continue;
+      const members = [];
+      let sx = 0, sy = 0;
+      for (const b of state.aliens) {
+        if (b.dead) continue;
+        if (Math.hypot(a.x - b.x, a.y - b.y) <= radius) {
+          members.push(b);
+          sx += b.x; sy += b.y;
+        }
+      }
+      if (members.length >= minCount && (!best || members.length > best.members.length)) {
+        best = {members, x: sx / members.length, y: sy / members.length};
+      }
+    }
+    return best;
+  }
+
+  function canPlaceReinforcementBase(x, y) {
+      let ok = true;
+      for (const b of state.bases) {
+        if (Math.abs(x - b.x) < (b.w||120)/2 + 80 && Math.abs(y - b.y) < (b.h||60)/2 + 50) { ok = false; break; }
+      }
+      if (ok && state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < state.helipad.r + 60) ok = false;
+      if (ok && state.upgradePad && Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < 80) ok = false;
+      if (ok && state.allyPad && Math.hypot(x - state.allyPad.x, y - state.allyPad.y) < 80) ok = false;
+      return ok;
+  }
+
+  function updateHUD() {
+    const p = state.player;
+    const aliveBases = state.bases.reduce((n, b) => n + (b.dead ? 0 : 1), 0);
+    const up = p.upgrades || {hp:0, energy:0, cooldown:0, ally:0};
+    el.speciesLine.textContent = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
+    el.lvl.textContent = p.level;
+    el.money.textContent = p.money;
+    el.goalLine.textContent = `Bazy: ${aliveBases}/${state.bases.length} | Kosmici: ${state.aliens.length}`;
+    el.hpTxt.textContent = `${Math.max(0,Math.round(p.hp))}/${p.maxHp}` + (p.shield > 0 ? ' + tarcza' : '');
+    el.hpBar.style.width = (100 * p.hp / p.maxHp) + '%';
+    el.enBar.style.width = (100 * p.energy / p.maxEnergy) + '%';
+    el.xpBar.style.width = (100 * p.xp / p.xpNeed) + '%';
+    el.upgradeLine.textContent = `Ulepszenia: HP ${up.hp} EN ${up.energy} CD ${up.cooldown} ST ${up.ally}`;
+    setBtnCd('Z', cd.claw);
+    setBtnCd('X', cd.tail);
+    setBtnCd('C', cd.fire);
+  }
+  function setBtnCd(key, c) {
+    const btn = el.btnCd[key];
+    if (!btn) return;
+    const kind = key === 'Z' ? 'claw' : key === 'X' ? 'tail' : 'fire';
+    btn.style.height = clamp(100 * c.ready / cooldownMax(kind), 0, 100) + '%';
+  }
+
+  // ---------- Drawing ----------
+  function renderStaticLayer() {
+    const liveCtx = ctx;
+    ctx = staticCtx;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#3aa14a';
+    ctx.fillRect(0, 0, W, H);
+    drawGrassNoise();
+    for (const t of state.trees) drawTree(t);
+    drawHelipad(state.helipad);
+    drawFlag(state.flag);
+    drawSprite('sign', W*0.78, H*0.42, 66, 42);
+    drawSprite('totem', W*0.90, H*0.36, 48, 96);
+    for (const b of state.bases) drawBase(b);
+    for (const r of state.rocks) drawRock(r);
+    ctx = liveCtx;
+    perf.staticDirty = false;
+  }
+
+  function draw() {
+    if (perf.staticDirty) renderStaticLayer();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(staticCv, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    drawUpgradePad(state.upgradePad);
+    drawAllyPad(state.allyPad);
+
+    // Coins
+    for (const c of state.coins) drawCoin(c);
+
+    // Allies
+    for (const al of state.allies) if (!al.dead) drawAlly(al);
+
+    // Player
+    drawPlayer(state.player);
+    drawShield(state.player);
+
+    // Aliens
+    for (const a of state.aliens) drawAlien(a);
+
+    // Projectiles
+    for (const pr of state.projectiles) drawProjectile(pr);
+
+    // FX on top
+    for (const f of state.fx) drawFx(f);
+  }
+
+  function drawRock(r) {
+    if (drawSprite('rock', r.x, r.y + r.r*0.1, r.r*2.55, r.r*1.35)) return;
+    ctx.save();
+    ctx.translate(r.x, r.y);
+    // shadow on the grass
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(2, r.r*0.55, r.r*1.0, r.r*0.32, 0, 0, Math.PI*2); ctx.fill();
+    // base rock
+    ctx.fillStyle = '#7a7a82';
+    ctx.beginPath(); ctx.arc(0, 0, r.r, 0, Math.PI*2); ctx.fill();
+    // top highlight
+    ctx.fillStyle = '#a4a4ad';
+    ctx.beginPath(); ctx.ellipse(-r.r*0.25, -r.r*0.32, r.r*0.55, r.r*0.4, 0, 0, Math.PI*2); ctx.fill();
+    // dark crack lines (use seed-stable variation)
+    ctx.strokeStyle = '#4a4a52'; ctx.lineWidth = 2;
+    const sd = (r.seed||0);
+    ctx.beginPath();
+    ctx.moveTo(-r.r*0.45, -r.r*0.10 + Math.sin(sd)*r.r*0.05);
+    ctx.lineTo( r.r*0.10,  r.r*0.20 + Math.cos(sd*1.3)*r.r*0.04);
+    ctx.lineTo( r.r*0.50, -r.r*0.05 + Math.sin(sd*0.7)*r.r*0.03);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r.r*0.20, r.r*0.40);
+    ctx.lineTo( r.r*0.05, r.r*0.15);
+    ctx.stroke();
+    // little moss patches
+    ctx.fillStyle = '#3a7a3a';
+    ctx.beginPath(); ctx.arc(r.r*0.55,  r.r*0.10, r.r*0.18, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r.r*0.30, r.r*0.50, r.r*0.13, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawAllyPad(u) {
+    if (!u) return;
+    const glow = u.glow || 0;
+    if (glow > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(120,255,180,${0.3*glow})`;
+      ctx.beginPath(); ctx.arc(u.x,u.y, u.r*1.9, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    if (drawSprite('bluePad', u.x, u.y + 2, 78, 44)) {
+      drawAllyPadLabel(u);
+      return;
+    }
+    ctx.save();
+    ctx.translate(u.x, u.y);
+    if (glow > 0) {
+      ctx.fillStyle = `rgba(120,255,180,${0.3*glow})`;
+      ctx.beginPath(); ctx.arc(0,0, u.r*1.9, 0, Math.PI*2); ctx.fill();
+    }
+    const pulse = 1 + Math.sin(state.t*3 + 1)*0.06;
+    // teal/green pad
+    ctx.fillStyle = '#1f8a52';
+    ctx.beginPath(); ctx.arc(0,0,u.r*pulse,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#cdf0d8';
+    ctx.beginPath(); ctx.arc(0,0,u.r*0.85*pulse,0,Math.PI*2); ctx.fill();
+    // mini stegosaur silhouette
+    ctx.fillStyle = '#1f8a52';
+    // body
+    ctx.beginPath(); ctx.ellipse(0, 2, u.r*0.55, u.r*0.30, 0, 0, Math.PI*2); ctx.fill();
+    // head
+    ctx.beginPath(); ctx.ellipse(u.r*0.55, 0, u.r*0.22, u.r*0.18, 0, 0, Math.PI*2); ctx.fill();
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(-u.r*0.45, 2);
+    ctx.lineTo(-u.r*0.85, -2);
+    ctx.lineTo(-u.r*0.45, 6);
+    ctx.fill();
+    // back plates
+    for (let i=-1;i<=1;i++) {
+      ctx.beginPath();
+      ctx.moveTo(i*u.r*0.20 - 2, -u.r*0.20);
+      ctx.lineTo(i*u.r*0.20,     -u.r*0.45);
+      ctx.lineTo(i*u.r*0.20 + 2, -u.r*0.20);
+      ctx.closePath(); ctx.fill();
+    }
+    // legs
+    ctx.fillRect(-u.r*0.25, u.r*0.20, 3, 6);
+    ctx.fillRect( u.r*0.20, u.r*0.20, 3, 6);
+    // label
+    drawAllyPadLabel(u, true);
+    ctx.restore();
+  }
+
+  function drawAllyPadLabel(u, translated) {
+    const canBuy = state.player && state.player.money >= 30 && state.allies.filter(a => !a.dead).length <= 3;
+    const x = translated ? 0 : u.x;
+    const y = translated ? u.r + 6 : u.y + u.r + 6;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(x - 50, y, 100, 32, 6); ctx.fill();
+    ctx.fillStyle = canBuy ? '#fff' : '#cccccc';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(canBuy ? 'KUP STADO' : 'BRAK $ / LIMIT', x, y + 8);
+    ctx.font = '10px system-ui';
+    ctx.fillText('30 $ = 3 dinki', x, y + 22);
+    ctx.restore();
+  }
+
+  function drawAlly(al) {
+    ctx.save();
+    ctx.translate(al.x, al.y);
+    if (al.facing === -1) ctx.scale(-1, 1);
+    if (al.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
+    const wp = al.walkPhase || 0;
+    const moving = Math.hypot(al.vx, al.vy) > 30;
+    const bob = Math.sin(wp*2) * (moving ? 1.2 : 0.3);
+    const tailSway = Math.sin(wp) * (moving ? 3 : 0.5);
+    const liftBack  = Math.max(0, Math.sin(wp));
+    const liftFront = Math.max(0, Math.sin(wp + Math.PI));
+    const liftAmt = moving ? 3.5 : 0;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(0, 11, 14, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    // legs (animated, 2 pairs)
+    ctx.fillStyle = '#2c6b34';
+    ctx.fillRect(-7, 7+bob*0.3 - liftBack*liftAmt,  3, 6 - liftBack*2);
+    ctx.fillStyle = '#3a8a4a';
+    ctx.fillRect(-9, 6+bob*0.4 - liftBack*liftAmt,  4, 7 - liftBack*2.5);
+    ctx.fillStyle = '#2c6b34';
+    ctx.fillRect( 6, 7+bob*0.3 - liftFront*liftAmt, 3, 6 - liftFront*2);
+    ctx.fillStyle = '#3a8a4a';
+    ctx.fillRect( 4, 6+bob*0.4 - liftFront*liftAmt, 4, 7 - liftFront*2.5);
+    // body
+    ctx.fillStyle = '#5fbe5f';
+    ctx.beginPath(); ctx.ellipse(-1, bob, 13, 8, 0, 0, Math.PI*2); ctx.fill();
+    // belly
+    ctx.fillStyle = '#bce8bc';
+    ctx.beginPath(); ctx.ellipse(-2, 4+bob, 8, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    // tail (animated)
+    ctx.fillStyle = '#5fbe5f';
+    ctx.beginPath();
+    ctx.moveTo(-11, bob);
+    ctx.quadraticCurveTo(-18, -2+bob+tailSway*0.4, -22, 2+bob+tailSway);
+    ctx.quadraticCurveTo(-18,  5+bob+tailSway*0.4, -11, 4+bob);
+    ctx.fill();
+    // back plates
+    ctx.fillStyle = '#3a8a3a';
+    for (let i=-1;i<=1;i++){
+      const px = i*4 - 2;
+      ctx.beginPath();
+      ctx.moveTo(px-2, -5+bob);
+      ctx.lineTo(px,   -10+bob);
+      ctx.lineTo(px+2, -5+bob);
+      ctx.closePath(); ctx.fill();
+    }
+    // head
+    ctx.fillStyle = '#5fbe5f';
+    ctx.beginPath(); ctx.ellipse(11, -1+bob, 6.5, 5, 0, 0, Math.PI*2); ctx.fill();
+    // eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(13, -2+bob, 1.7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(13.5, -2+bob, 0.9, 0, Math.PI*2); ctx.fill();
+    ctx.filter = 'none';
+    // hp bar (small)
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(-12, -al.r-9, 24, 3);
+    ctx.fillStyle = '#9aff9a';
+    ctx.fillRect(-12, -al.r-9, 24 * (al.hp/al.maxHp), 3);
+    ctx.restore();
+  }
+
+  function drawGrassNoise() {
+    // Dense pencil-like grass texture, cached as a repeating pattern.
+    if (!drawGrassNoise.pat) {
+      const pc = document.createElement('canvas');
+      pc.width = pc.height = 96;
+      const g = pc.getContext('2d');
+      g.fillStyle = '#48a84d'; g.fillRect(0,0,96,96);
+      for (let i=0;i<150;i++){
+        const x=Math.random()*96, y=Math.random()*96, len=5+Math.random()*18, ang=rand(-0.6, 0.6) + (Math.random()<0.5 ? 0 : Math.PI*0.5);
+        const shade = Math.random();
+        g.strokeStyle = shade < 0.35 ? 'rgba(28,100,35,0.34)' : (shade < 0.7 ? 'rgba(115,180,80,0.32)' : 'rgba(235,230,145,0.18)');
+        g.lineWidth = 1 + Math.random()*1.1;
+        g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(ang)*len, y+Math.sin(ang)*len); g.stroke();
+      }
+      drawGrassNoise.pat = ctx.createPattern(pc, 'repeat');
+    }
+    ctx.fillStyle = drawGrassNoise.pat;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  function drawTree(t) {
+    const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
+    const size = sprite === 'pine' ? [52, 78] : sprite === 'bush' ? [72, 50] : sprite === 'treeB' ? [78, 96] : [66, 78];
+    if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) return;
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.scale(t.s, t.s);
+    if (t.v === 'pine') {
+      // trunk
+      ctx.fillStyle = '#6b4a2b';
+      ctx.fillRect(-3, 8, 6, 14);
+      // foliage
+      ctx.fillStyle = '#1f6f2a';
+      ctx.beginPath();
+      ctx.moveTo(0, -22); ctx.lineTo(-14, 8); ctx.lineTo(14, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#2a8336';
+      ctx.beginPath();
+      ctx.moveTo(0, -16); ctx.lineTo(-11, 4); ctx.lineTo(11, 4); ctx.closePath(); ctx.fill();
+    } else {
+      // bush
+      ctx.fillStyle = '#225a26';
+      ctx.beginPath(); ctx.arc(-6,2,9,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(6,2,10,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0,-6,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#2e7c33';
+      ctx.beginPath(); ctx.arc(-2,0,6,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawHelipad(h) {
+    if (!h) return;
+    if (drawSprite('arrow', h.x, h.y, h.r*2.4, h.r*1.2)) return;
+    ctx.save();
+    ctx.translate(h.x, h.y);
+    ctx.fillStyle = '#2a6fb5';
+    ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 36px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('H', 0, 1);
+    ctx.restore();
+  }
+
+  function drawUpgradePad(u) {
+    if (!u) return;
+    const glow = u.glow || 0;
+    if (glow > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(155,255,155,${0.25*glow})`;
+      ctx.beginPath(); ctx.arc(u.x,u.y, u.r*1.9, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    if (drawSprite('heal', u.x, u.y, 82, 42)) {
+      drawUpgradePadLabel(u);
+      return;
+    }
+    ctx.save();
+    ctx.translate(u.x, u.y);
+    // soft outer glow when player stands on it
+    if (glow > 0) {
+      ctx.fillStyle = `rgba(155,255,155,${0.25*glow})`;
+      ctx.beginPath(); ctx.arc(0,0, u.r*1.9, 0, Math.PI*2); ctx.fill();
+    }
+    // pulsing red disk
+    const pulse = 1 + Math.sin(state.t*3)*0.06;
+    ctx.fillStyle = '#b1342f';
+    ctx.beginPath(); ctx.arc(0,0,u.r*pulse,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f7d4d2';
+    ctx.beginPath(); ctx.arc(0,0,u.r*0.85*pulse,0,Math.PI*2); ctx.fill();
+    // plus
+    ctx.fillStyle = '#b1342f';
+    ctx.fillRect(-u.r*0.55, -u.r*0.18, u.r*1.1, u.r*0.36);
+    ctx.fillRect(-u.r*0.18, -u.r*0.55, u.r*0.36, u.r*1.1);
+    // label
+    drawUpgradePadLabel(u, true);
+    ctx.restore();
+  }
+
+  function drawUpgradePadLabel(u, translated) {
+    const upgradeReady = state.player && state.player.hp >= state.player.maxHp &&
+                         state.player.energy >= state.player.maxEnergy && state.player.money >= 40;
+    const x = translated ? 0 : u.x;
+    const y = translated ? u.r + 6 : u.y + u.r + 6;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(x - 46, y, 92, 32, 6); ctx.fill();
+    ctx.fillStyle = upgradeReady ? '#ffd166' : '#fff';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(upgradeReady ? 'ULEPSZ 40 $' : 'LECZ + ENERGIA', x, y + 8);
+    ctx.font = '10px system-ui';
+    ctx.fillText('1 $ = 5 HP / 5 EN', x, y + 22);
+    ctx.restore();
+  }
+
+  function drawFlag(f) {
+    if (!f) return;
+    if (drawSprite('flag', f.x, f.y + 18, 62, 82)) return;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.fillStyle = '#5a3a1f';
+    ctx.fillRect(-1, 0, 2, 30);
+    // flag rectangle with cross
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(2, 0, 22, 14);
+    ctx.fillStyle = '#cc3333';
+    ctx.fillRect(2, 5, 22, 4);
+    ctx.fillRect(11, 0, 4, 14);
+    ctx.restore();
+  }
+
+  function drawBase(b) {
+    if (b.dead) {
+      // smoldering ruin
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.fillStyle = '#3b2a2a';
+      ctx.fillRect(-b.w/2, -b.h/2, b.w, b.h);
+      ctx.fillStyle = '#553';
+      const ruin = b.ruin || [];
+      for (const spot of ruin) {
+        ctx.beginPath(); ctx.arc(spot.x, spot.y, spot.r || 4, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+    if (drawSprite('base', b.x, b.y - 6, b.w * 1.25, b.h * 1.55)) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(b.x - b.w/2, b.y - b.h/2 - 26, b.w, 6);
+      ctx.fillStyle = '#e63946';
+      ctx.fillRect(b.x - b.w/2, b.y - b.h/2 - 26, b.w * (b.hp/b.maxHp), 6);
+      ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    // base body
+    ctx.fillStyle = b.color || '#4f7fb5';
+    roundRect(-b.w/2, -b.h/2, b.w, b.h, Math.min(12, b.h*0.2));
+    ctx.fill();
+    // dark stripe
+    ctx.fillStyle = b.dark || '#2c5990';
+    ctx.fillRect(-b.w/2 + 8, 0, b.w - 16, Math.max(8, b.h*0.18));
+    // antenna lights (cones)
+    const cones = b.cones || 5;
+    const span = (b.w - 28);
+    for (let i=0;i<cones;i++) {
+      const x = -b.w/2 + 14 + (cones === 1 ? span/2 : i * (span/(cones-1)));
+      ctx.fillStyle = i%2 ? '#ff5e5e' : '#ffd166';
+      ctx.beginPath();
+      ctx.moveTo(x, -b.h/2 - 16);
+      ctx.lineTo(x-5, -b.h/2);
+      ctx.lineTo(x+5, -b.h/2);
+      ctx.closePath(); ctx.fill();
+    }
+    // viewport dots — count scales with width
+    ctx.fillStyle = '#9bd6ff';
+    const dots = Math.max(2, Math.floor(b.w/40));
+    const dspan = b.w - 40;
+    for (let i=0;i<dots;i++) {
+      const x = -dspan/2 + (dots === 1 ? 0 : i*(dspan/(dots-1)));
+      ctx.beginPath(); ctx.arc(x, -10, 5, 0, Math.PI*2); ctx.fill();
+    }
+    // tier label for non-main bases
+    if (b.tier && b.tier !== 'main') {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = 'bold 9px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(b.tier === 'secondary' ? 'BAZA II' : 'BAZA III', 0, b.h/2 - 9);
+    }
+    // hp bar
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(-b.w/2, -b.h/2 - 26, b.w, 6);
+    ctx.fillStyle = '#e63946';
+    ctx.fillRect(-b.w/2, -b.h/2 - 26, b.w * (b.hp/b.maxHp), 6);
+    ctx.restore();
+  }
+
+  function drawCoin(c) {
+    // little gold-tinged dinosaur tail with vertebra-bones sticking out the top
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    const wob = Math.sin((c.t)*8)*1.2;
+    const flip = Math.sin(c.t*2 + (c.x+c.y)*0.01) > 0 ? 1 : -1; // gentle pseudo-spin
+    ctx.translate(0, wob);
+    ctx.scale(flip, 1);
+
+    // gold glow halo
+    ctx.fillStyle = 'rgba(255, 220, 100, 0.4)';
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI*2); ctx.fill();
+
+    // tail (curving) - gold body
+    ctx.fillStyle = '#ffcc33';
+    ctx.strokeStyle = '#9a6b00';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-9, 1);
+    ctx.quadraticCurveTo(0, 0, 9, -1);
+    ctx.quadraticCurveTo(11, 1, 8, 3);
+    ctx.quadraticCurveTo(0, 4, -9, 4);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // 3 little bone-spikes on top (like stegosaur plates / vertebrae)
+    ctx.fillStyle = '#fff8d6';
+    ctx.strokeStyle = '#7a5500';
+    ctx.lineWidth = 0.6;
+    for (let i=0; i<3; i++) {
+      const x = -5 + i*5;
+      const yTop = -0.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 1.6, yTop);
+      ctx.lineTo(x,       yTop - 4);
+      ctx.lineTo(x + 1.6, yTop);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    // tail tip darker
+    ctx.fillStyle = '#a07000';
+    ctx.beginPath(); ctx.arc(-9, 2.5, 1.5, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPlayer(p) {
+    if (drawDinoSprite(p)) return;
+    if (p.species === 'tyranno') return drawTyranno(p);
+    if (p.species === 'diplo')   return drawDiplo(p);
+    return drawStego(p);
+  }
+
+  function drawShield(p) {
+    if (!p || p.shield <= 0) return;
+    const a = clamp(p.shield / 2.5, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.25 + a * 0.2;
+    ctx.strokeStyle = '#9bd6ff';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 4, p.r + 12 + Math.sin(state.t*8)*2, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStego(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y - (p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0));
+    if (p.facing === -1) ctx.scale(-1, 1);
+    if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
+
+    const wp = p.walkPhase || 0;
+    const moving = Math.hypot(p.vx, p.vy) > 30;
+    const bob = Math.sin(wp * 2) * (moving ? 1.6 : 0.4);
+    // tail sway
+    const tailSway = Math.sin(wp) * (moving ? 4 : 0.8);
+    // alternating leg lifts (only positive halves of sine = swing phase)
+    const liftBack  = Math.max(0, Math.sin(wp));
+    const liftFront = Math.max(0, Math.sin(wp + Math.PI));
+    const liftAmt = moving ? 5 : 0;
+    // tiny head bob
+    const headBob = Math.sin(wp + 0.6) * (moving ? 1 : 0);
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(0, 18, 22, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    // legs (4 visible, 2 pairs). Far legs slightly thinner and one tick darker.
+    // Back pair
+    ctx.fillStyle = '#2f7a2f';
+    ctx.fillRect(-12, 11 + bob*0.3 - liftBack*liftAmt, 4, 10 - liftBack*3);
+    ctx.fillStyle = '#3f8f3f';
+    ctx.fillRect(-15, 10 + bob*0.4 - liftBack*liftAmt, 6, 12 - liftBack*4);
+    // Front pair
+    ctx.fillStyle = '#2f7a2f';
+    ctx.fillRect( 9, 11 + bob*0.3 - liftFront*liftAmt, 4, 10 - liftFront*3);
+    ctx.fillStyle = '#3f8f3f';
+    ctx.fillRect( 5, 10 + bob*0.4 - liftFront*liftAmt, 6, 12 - liftFront*4);
+
+    // body
+    ctx.fillStyle = '#4ea84e';
+    ctx.beginPath(); ctx.ellipse(-2, bob, 22, 14, 0, 0, Math.PI*2); ctx.fill();
+    // belly
+    ctx.fillStyle = '#a3d9a3';
+    ctx.beginPath(); ctx.ellipse(-3, 6+bob, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    // tail (animated swing)
+    ctx.fillStyle = '#4ea84e';
+    ctx.beginPath();
+    ctx.moveTo(-18, bob);
+    ctx.quadraticCurveTo(-30, -2 + bob + tailSway*0.4, -34, 4 + bob + tailSway);
+    ctx.quadraticCurveTo(-30,  8 + bob + tailSway*0.4, -18, 6 + bob);
+    ctx.fill();
+
+    // back plates (stegosaurus signature)
+    ctx.fillStyle = '#2f7a2f';
+    for (let i=-2;i<=2;i++){
+      const px = i*7 - 3;
+      // tiny per-plate wobble during walk
+      const pw = Math.sin(wp + i*0.4) * (moving ? 0.7 : 0);
+      ctx.beginPath();
+      ctx.moveTo(px-4, -8+bob+pw);
+      ctx.lineTo(px,   -18+bob+pw);
+      ctx.lineTo(px+4, -8+bob+pw);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // head
+    ctx.fillStyle = '#4ea84e';
+    ctx.beginPath(); ctx.ellipse(18, -2+bob+headBob, 11, 9, 0, 0, Math.PI*2); ctx.fill();
+    // eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(22, -4+bob+headBob, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(23, -4+bob+headBob, 1.6, 0, Math.PI*2); ctx.fill();
+    // mouth
+    ctx.strokeStyle = '#1f4f1f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(20, 1+bob+headBob); ctx.lineTo(28, 1+bob+headBob); ctx.stroke();
+
+    // attack flash near mouth/claw
+    if (p.attackAnim > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.arc(28, 0+bob+headBob, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.filter = 'none';
+    ctx.restore();
+  }
+
+  // ----- Tyranozaur -----
+  function drawTyranno(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y - (p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0));
+    if (p.facing === -1) ctx.scale(-1, 1);
+    if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
+
+    const wp = p.walkPhase || 0;
+    const moving = Math.hypot(p.vx, p.vy) > 30;
+    const bob = Math.sin(wp*2) * (moving ? 1.8 : 0.4);
+    const tailSway = Math.sin(wp) * (moving ? 5 : 0.8);
+    const liftBack  = Math.max(0, Math.sin(wp));
+    const liftFront = Math.max(0, Math.sin(wp + Math.PI));
+    const liftAmt = moving ? 5 : 0;
+    const headBob = Math.sin(wp + 0.6) * (moving ? 1.5 : 0);
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 18, 24, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    // 2 powerful back legs (T-Rex hindlimbs)
+    ctx.fillStyle = '#5a2a10';
+    // back leg (further)
+    ctx.fillRect(-9, 11+bob*0.3 - liftBack*liftAmt, 6, 13 - liftBack*4);
+    ctx.fillStyle = '#7a3a20';
+    ctx.fillRect(-12, 10+bob*0.4 - liftBack*liftAmt, 8, 14 - liftBack*5);
+    // front leg
+    ctx.fillStyle = '#5a2a10';
+    ctx.fillRect( 6, 11+bob*0.3 - liftFront*liftAmt, 6, 13 - liftFront*4);
+    ctx.fillStyle = '#7a3a20';
+    ctx.fillRect( 3, 10+bob*0.4 - liftFront*liftAmt, 8, 14 - liftFront*5);
+    // claw toes — 3 little claws on each foot when planted
+    ctx.fillStyle = '#fff5cc';
+    if (liftBack < 0.2) {
+      for (let i=0;i<3;i++) ctx.fillRect(-12 + i*3, 22+bob*0.4, 1.5, 2);
+    }
+    if (liftFront < 0.2) {
+      for (let i=0;i<3;i++) ctx.fillRect( 3 + i*3, 22+bob*0.4, 1.5, 2);
+    }
+
+    // body (chunky)
+    ctx.fillStyle = '#a85a3a';
+    ctx.beginPath(); ctx.ellipse(-3, bob, 22, 14, 0, 0, Math.PI*2); ctx.fill();
+    // belly
+    ctx.fillStyle = '#d49a7a';
+    ctx.beginPath(); ctx.ellipse(-3, 6+bob, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+    // back stripes (no plates — tyrannosaurs didn't have them)
+    ctx.strokeStyle = '#5a2a10'; ctx.lineWidth = 1.4;
+    for (let i=0;i<4;i++) {
+      const x = -16 + i*8;
+      ctx.beginPath();
+      ctx.moveTo(x, -8+bob);
+      ctx.quadraticCurveTo(x+2, -12+bob, x+1, -14+bob);
+      ctx.stroke();
+    }
+
+    // thick tail (animated)
+    ctx.fillStyle = '#a85a3a';
+    ctx.beginPath();
+    ctx.moveTo(-20, bob);
+    ctx.quadraticCurveTo(-32, -2 + bob + tailSway*0.4, -40, 4 + bob + tailSway);
+    ctx.quadraticCurveTo(-32, 10 + bob + tailSway*0.4, -20, 8 + bob);
+    ctx.fill();
+
+    // tiny T-Rex arms — folded against body, with little claws
+    ctx.fillStyle = '#7a3a20';
+    ctx.fillRect(13, -1+bob, 6, 3);
+    ctx.fillStyle = '#fff5cc';
+    ctx.fillRect(19, -1+bob, 2, 1.2);
+    ctx.fillRect(19, 1+bob,  2, 1.2);
+
+    // BIG head
+    ctx.fillStyle = '#a85a3a';
+    ctx.beginPath(); ctx.ellipse(22, -3+bob+headBob, 13, 10, 0, 0, Math.PI*2); ctx.fill();
+    // upper jaw extending forward
+    ctx.beginPath();
+    ctx.moveTo(28, -4+bob+headBob);
+    ctx.lineTo(38, -2+bob+headBob);
+    ctx.lineTo(38, 2+bob+headBob);
+    ctx.lineTo(28, 2+bob+headBob);
+    ctx.closePath(); ctx.fill();
+    // lower jaw (slightly open to show teeth)
+    ctx.fillStyle = '#7a3a20';
+    ctx.beginPath();
+    ctx.moveTo(20, 4+bob+headBob);
+    ctx.lineTo(37, 6+bob+headBob);
+    ctx.lineTo(20, 7+bob+headBob);
+    ctx.closePath(); ctx.fill();
+
+    // teeth (jagged, top + bottom)
+    ctx.fillStyle = '#fff5cc';
+    for (let i=0;i<4;i++) {
+      const x = 24 + i*3.5;
+      ctx.beginPath();
+      ctx.moveTo(x-1.2, 1+bob+headBob);
+      ctx.lineTo(x,     5+bob+headBob);
+      ctx.lineTo(x+1.2, 1+bob+headBob);
+      ctx.closePath(); ctx.fill();
+    }
+    for (let i=0;i<3;i++) {
+      const x = 25 + i*3.5;
+      ctx.beginPath();
+      ctx.moveTo(x-1.0, 5+bob+headBob);
+      ctx.lineTo(x,     1.5+bob+headBob);
+      ctx.lineTo(x+1.0, 5+bob+headBob);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // angry eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(22, -7+bob+headBob, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(23, -7+bob+headBob, 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(22.4, -7.8+bob+headBob, 0.8, 0, Math.PI*2); ctx.fill();
+    // eyebrow
+    ctx.strokeStyle = '#3a1a08'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(18, -11+bob+headBob);
+    ctx.lineTo(27, -8+bob+headBob);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    if (p.attackAnim > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.arc(38, 2+bob+headBob, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.filter = 'none';
+    ctx.restore();
+  }
+
+  // ----- Diplodok -----
+  function drawDiplo(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y - (p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0));
+    if (p.facing === -1) ctx.scale(-1, 1);
+    if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
+
+    const wp = p.walkPhase || 0;
+    const moving = Math.hypot(p.vx, p.vy) > 30;
+    const bob = Math.sin(wp*2) * (moving ? 1.4 : 0.3);
+    const tailSway = Math.sin(wp) * (moving ? 6 : 1);
+    const neckSway = Math.sin(wp + 0.7) * (moving ? 1.8 : 0.4);
+    const liftBack  = Math.max(0, Math.sin(wp));
+    const liftFront = Math.max(0, Math.sin(wp + Math.PI));
+    const liftAmt = moving ? 4 : 0;
+
+    // long shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(-2, 18, 30, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    // 4 sturdy legs (back pair + front pair, each with a far/near)
+    ctx.fillStyle = '#1f5a5a';
+    ctx.fillRect(-12, 11 + bob*0.3 - liftBack*liftAmt, 4, 12 - liftBack*3);
+    ctx.fillStyle = '#2c6f6f';
+    ctx.fillRect(-15, 10 + bob*0.4 - liftBack*liftAmt, 6, 13 - liftBack*4);
+    ctx.fillStyle = '#1f5a5a';
+    ctx.fillRect( 8, 11 + bob*0.3 - liftFront*liftAmt, 4, 12 - liftFront*3);
+    ctx.fillStyle = '#2c6f6f';
+    ctx.fillRect( 5, 10 + bob*0.4 - liftFront*liftAmt, 6, 13 - liftFront*4);
+
+    // body — long, low, oval
+    ctx.fillStyle = '#3a8a8a';
+    ctx.beginPath(); ctx.ellipse(-3, bob+1, 22, 11, 0, 0, Math.PI*2); ctx.fill();
+    // belly
+    ctx.fillStyle = '#7accbe';
+    ctx.beginPath(); ctx.ellipse(-3, 6+bob, 16, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    // very long whip-like tail
+    ctx.fillStyle = '#3a8a8a';
+    ctx.beginPath();
+    ctx.moveTo(-22, bob);
+    ctx.quadraticCurveTo(-32, -1 + bob + tailSway*0.3, -42, 3 + bob + tailSway*0.7);
+    ctx.quadraticCurveTo(-50, 5 + bob + tailSway,    -52, 7 + bob + tailSway*1.1);
+    ctx.quadraticCurveTo(-46, 7 + bob + tailSway*0.8, -36, 6 + bob + tailSway*0.4);
+    ctx.quadraticCurveTo(-30, 6 + bob + tailSway*0.2, -22, 5 + bob);
+    ctx.fill();
+
+    // long curving neck
+    ctx.fillStyle = '#3a8a8a';
+    ctx.beginPath();
+    ctx.moveTo(15, bob - 2);
+    ctx.quadraticCurveTo(22, -10 + bob + neckSway*0.5, 28, -18 + bob + neckSway);
+    ctx.quadraticCurveTo(33, -22 + bob + neckSway*1.2, 36, -22 + bob + neckSway);
+    ctx.quadraticCurveTo(34, -16 + bob + neckSway*0.9, 26, -14 + bob + neckSway*0.7);
+    ctx.quadraticCurveTo(20, -6 + bob + neckSway*0.4, 15, bob + 2);
+    ctx.fill();
+
+    // small head atop the neck
+    ctx.fillStyle = '#3a8a8a';
+    ctx.beginPath(); ctx.ellipse(36, -22 + bob + neckSway, 7, 5, 0, 0, Math.PI*2); ctx.fill();
+    // eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(38, -23 + bob + neckSway, 1.8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(38.6, -23 + bob + neckSway, 1.0, 0, Math.PI*2); ctx.fill();
+    // mouth — friendly little line
+    ctx.strokeStyle = '#1f5050'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(36, -19+bob+neckSway); ctx.lineTo(42, -19+bob+neckSway); ctx.stroke();
+
+    // small dots along the back (subtle texture, no plates)
+    ctx.fillStyle = '#1f5a5a';
+    for (let i=-2; i<=2; i++) {
+      ctx.beginPath();
+      ctx.arc(-3 + i*5, -8+bob, 1.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // attack flash near mouth (head is far from body for diplo)
+    if (p.attackAnim > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.arc(42, -21 + bob + neckSway, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.filter = 'none';
+    ctx.restore();
+  }
+
+  function drawAlien(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    const bob = Math.sin(state.t*4 + a.wob) * 2.2;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(0, a.r*0.7, a.r*0.85, a.r*0.25, 0, 0, Math.PI*2); ctx.fill();
+
+    const alienImg = a.type === 'small' ? charSprites.flyer : charSprites.alien;
+    if (alienImg && alienImg.complete && alienImg.naturalWidth) {
+      ctx.restore();
+      const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 : 0.86);
+      const w = a.type === 'small' ? a.r * 4.2 * scale : a.r * 2.45 * scale;
+      const h = a.type === 'small' ? a.r * 2.05 * scale : a.r * 3.75 * scale;
+      ctx.save();
+      ctx.translate(a.x, a.y - a.r*0.52 + bob*0.35);
+      if (a.vx < -5) ctx.scale(-1, 1);
+      ctx.drawImage(alienImg, -w/2, -h/2, w, h);
+      ctx.restore();
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);
+      ctx.fillStyle = '#ff7a7a';
+      ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
+      ctx.restore();
+      return;
+    }
+
+    const robotScale = a.type === 'big' ? 1.35 : (a.type === 'small' ? 0.82 : 1.0);
+    ctx.restore();
+    if (drawSprite('robot', a.x, a.y - a.r*0.18 + bob*0.35, a.r*2.35*robotScale, a.r*2.55*robotScale, {flip: a.vx < -5})) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);
+      ctx.fillStyle = '#ff7a7a';
+      ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
+      ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.translate(a.x, a.y);
+
+    if (a.type === 'big') {
+      // BIG alien — friendly mushroom-blob style with 1 big eye, antennae, little legs.
+      // legs
+      ctx.fillStyle = '#5b3a8a';
+      for (let i=-1;i<=1;i++){
+        ctx.fillRect(-3 + i*9, a.r*0.4, 5, 10);
+      }
+      // body (round purple)
+      ctx.fillStyle = '#9d6dff';
+      ctx.beginPath(); ctx.arc(0, bob, a.r, 0, Math.PI*2); ctx.fill();
+      // belly
+      ctx.fillStyle = '#caa6ff';
+      ctx.beginPath(); ctx.ellipse(0, bob+8, a.r*0.7, a.r*0.4, 0, 0, Math.PI*2); ctx.fill();
+      // spots
+      ctx.fillStyle = '#7a4cd6';
+      ctx.beginPath(); ctx.arc(-10, bob-6, 4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(8, bob+2, 3, 0, Math.PI*2); ctx.fill();
+      // antennae
+      ctx.strokeStyle = '#5b3a8a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-8, bob - a.r + 2); ctx.quadraticCurveTo(-14, bob - a.r - 12, -16, bob - a.r - 16); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(8, bob - a.r + 2); ctx.quadraticCurveTo(14, bob - a.r - 12, 16, bob - a.r - 16); ctx.stroke();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.arc(-16, bob - a.r - 16, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(16, bob - a.r - 16, 3, 0, Math.PI*2); ctx.fill();
+      // big eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(0, bob - 4, 9, 0, Math.PI*2); ctx.fill();
+      // bloodshot tinge so the eye reads "menacing", not "cartoon-cute"
+      ctx.fillStyle = '#ffd2c4';
+      ctx.beginPath(); ctx.arc(0, bob - 4, 9, 0, Math.PI*2); ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = '#1a1a2a';
+      const lookX = clamp((state.player.x - a.x)/30, -3, 3);
+      const lookY = clamp((state.player.y - a.y)/30, -3, 3);
+      ctx.beginPath(); ctx.arc(lookX, bob - 4 + lookY, 4.5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(lookX-1.5, bob - 5.5 + lookY, 1.4, 0, Math.PI*2); ctx.fill();
+
+      // angry V-shaped eyebrow above the eye (slants down toward center)
+      ctx.strokeStyle = '#3a1f6a'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-9, bob - 14);   // outer end higher
+      ctx.lineTo(-1, bob - 11);
+      ctx.lineTo( 9, bob - 14);   // outer end higher (mirror) — V shape pointing down to eye
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      // mouth — open & toothy when within striking distance, grumpy frown otherwise
+      const distP = Math.hypot(state.player.x - a.x, state.player.y - a.y);
+      if (distP < 95) {
+        // open angry mouth
+        ctx.fillStyle = '#1a0a2a';
+        ctx.beginPath();
+        ctx.ellipse(0, bob + 8, 8, 5, 0, 0, Math.PI*2);
+        ctx.fill();
+        // jagged teeth — small white triangles top & bottom
+        ctx.fillStyle = '#fff5e0';
+        for (let i=-1; i<=1; i++) {
+          const x = i*4;
+          // upper teeth
+          ctx.beginPath();
+          ctx.moveTo(x - 1.7, bob + 5.2);
+          ctx.lineTo(x,       bob + 9);
+          ctx.lineTo(x + 1.7, bob + 5.2);
+          ctx.closePath(); ctx.fill();
+        }
+        for (let i=-1; i<=1; i++) {
+          const x = i*4 + 2;
+          // lower teeth (offset)
+          ctx.beginPath();
+          ctx.moveTo(x - 1.4, bob + 11);
+          ctx.lineTo(x,       bob + 7.5);
+          ctx.lineTo(x + 1.4, bob + 11);
+          ctx.closePath(); ctx.fill();
+        }
+      } else {
+        // closed grumpy frown — middle dips upward
+        ctx.strokeStyle = '#3a1f6a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-7, bob + 9);
+        ctx.quadraticCurveTo(0, bob + 4, 7, bob + 9);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+      }
+    } else if (a.type === 'walker') {
+      // SMALL WALKING alien — orange-red, 4 thin legs, two big eyes, a little gremlin
+      // step animation
+      const step = Math.sin(state.t*8 + a.wob) * 3;
+      // legs
+      ctx.strokeStyle = '#7a2317'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-a.r*0.5, a.r*0.3); ctx.lineTo(-a.r*0.7, a.r*0.9 + step);
+      ctx.moveTo(-a.r*0.2, a.r*0.4); ctx.lineTo(-a.r*0.3, a.r*0.95 - step);
+      ctx.moveTo( a.r*0.2, a.r*0.4); ctx.lineTo( a.r*0.3, a.r*0.95 + step);
+      ctx.moveTo( a.r*0.5, a.r*0.3); ctx.lineTo( a.r*0.7, a.r*0.9 - step);
+      ctx.stroke();
+      // body
+      ctx.fillStyle = '#e85a3c';
+      ctx.beginPath(); ctx.arc(0, bob, a.r, 0, Math.PI*2); ctx.fill();
+      // belly
+      ctx.fillStyle = '#ffb59a';
+      ctx.beginPath(); ctx.ellipse(0, bob+5, a.r*0.65, a.r*0.35, 0, 0, Math.PI*2); ctx.fill();
+      // back spikes
+      ctx.fillStyle = '#a73320';
+      for (let i=-1;i<=1;i++) {
+        ctx.beginPath();
+        ctx.moveTo(i*7 - 3, bob - a.r*0.85);
+        ctx.lineTo(i*7,     bob - a.r*1.25);
+        ctx.lineTo(i*7 + 3, bob - a.r*0.85);
+        ctx.closePath(); ctx.fill();
+      }
+      // two eyes
+      const eyeLook = clamp((state.player.x - a.x)/40, -1.5, 1.5);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-5, bob-3, 4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(5,  bob-3, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(-5+eyeLook, bob-3, 2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(5+eyeLook,  bob-3, 2, 0, Math.PI*2); ctx.fill();
+      // little teeth/mouth (cartoon-fierce, not scary)
+      ctx.strokeStyle = '#5a1a10'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-4, bob+5); ctx.lineTo(-2, bob+7); ctx.lineTo(0, bob+5); ctx.lineTo(2, bob+7); ctx.lineTo(4, bob+5); ctx.stroke();
+    } else {
+      // SMALL flyer — brown UFO-like with 3 small eyes
+      // wing/saucer
+      ctx.fillStyle = '#7a5a3a';
+      ctx.beginPath(); ctx.ellipse(0, bob+2, a.r, a.r*0.45, 0, 0, Math.PI*2); ctx.fill();
+      // dome
+      ctx.fillStyle = '#b08660';
+      ctx.beginPath(); ctx.arc(0, bob - 2, a.r*0.7, Math.PI, 0); ctx.fill();
+      // dome window
+      ctx.fillStyle = '#2dd2c6';
+      ctx.beginPath(); ctx.arc(0, bob - 3, a.r*0.55, Math.PI*1.05, -0.05*Math.PI); ctx.fill();
+      // 3 eyes
+      ctx.fillStyle = '#1a1a2a';
+      for (let i=-1;i<=1;i++) { ctx.beginPath(); ctx.arc(i*5, bob-4, 1.6, 0, Math.PI*2); ctx.fill(); }
+      // lights under
+      const lit = Math.floor(state.t*4 + a.wob*2) % 3;
+      for (let i=0;i<3;i++) {
+        ctx.fillStyle = i===lit ? '#ffd166' : '#553';
+        ctx.beginPath(); ctx.arc(-a.r*0.6 + i*a.r*0.6, bob+5, 2.3, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // hp bar
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(-a.r, -a.r-12, a.r*2, 4);
+    ctx.fillStyle = '#ff7a7a';
+    ctx.fillRect(-a.r, -a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
+
+    ctx.restore();
+  }
+
+  function drawProjectile(pr) {
+    ctx.save();
+    ctx.translate(pr.x, pr.y);
+    if (pr.kind === 'fire') {
+      const lifeFrac = clamp(pr.life / 0.55, 0, 1);
+      ctx.globalAlpha = lifeFrac;
+      ctx.fillStyle = '#ff8533';
+      ctx.beginPath(); ctx.arc(0,0, pr.r * (0.6+0.4*lifeFrac), 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffe066';
+      ctx.beginPath(); ctx.arc(0,0, pr.r*0.55*lifeFrac, 0, Math.PI*2); ctx.fill();
+    } else if (pr.kind === 'plasma') {
+      // Arrow shot from the alien base — rotated to match velocity
+      const ang = Math.atan2(pr.vy, pr.vx);
+      ctx.rotate(ang);
+      // wooden shaft
+      ctx.fillStyle = '#7a4a20';
+      ctx.fillRect(-13, -1.2, 22, 2.4);
+      // shaft highlight (top)
+      ctx.fillStyle = '#a07040';
+      ctx.fillRect(-13, -1.2, 22, 0.8);
+      // metal arrowhead — pointed triangle at the leading edge
+      ctx.fillStyle = '#cdd0d4';
+      ctx.beginPath();
+      ctx.moveTo(9, -4.5);
+      ctx.lineTo(15, 0);
+      ctx.lineTo(9, 4.5);
+      ctx.closePath();
+      ctx.fill();
+      // arrowhead shading
+      ctx.fillStyle = '#7a8088';
+      ctx.beginPath();
+      ctx.moveTo(9, 0);
+      ctx.lineTo(15, 0);
+      ctx.lineTo(9, 4.5);
+      ctx.closePath();
+      ctx.fill();
+      // red feather fletching at the back
+      ctx.fillStyle = '#cc3333';
+      ctx.beginPath();
+      ctx.moveTo(-13, -3.5);
+      ctx.lineTo(-7, -1);
+      ctx.lineTo(-7,  1);
+      ctx.lineTo(-13, 3.5);
+      ctx.lineTo(-16, 0);
+      ctx.closePath();
+      ctx.fill();
+      // fletching detail line
+      ctx.strokeStyle = '#7a1a1a'; ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(-13, -3.5); ctx.lineTo(-13, 3.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawFx(f) {
+    ctx.save();
+    if (f.kind === 'ring') {
+      const k = clamp(f.t / (f.t + f.life), 0, 1);
+      const r = f.r0 + (f.r1 - f.r0) * k;
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = f.color || '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI*2); ctx.stroke();
+    } else if (f.kind === 'puff') {
+      ctx.globalAlpha = clamp(f.life, 0, 1);
+      ctx.fillStyle = f.color || '#9b7';
+      ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, Math.PI*2); ctx.fill();
+    } else if (f.kind === 'egg') {
+      ctx.fillStyle = '#fff5cc';
+      ctx.strokeStyle = '#a07';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, 6, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    } else if (f.kind === 'notify') {
+      ctx.globalAlpha = clamp(f.life / 1.2, 0, 1);
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(f.text).width + 28;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      roundRect(f.x - w/2, f.y - 16, w, 32, 8); ctx.fill();
+      ctx.fillStyle = f.color || '#fff';
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+
+  // ---------- Boot ----------
+  buildLevel();
+  requestAnimationFrame(now => { last = now; frame(now); });
+})();
+</script>
+</body>
+</html>
