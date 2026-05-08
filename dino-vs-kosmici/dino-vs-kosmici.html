@@ -192,13 +192,34 @@
   const charSprites = {
     dino: new Image(),
     alien: new Image(),
-    flyer: new Image()
+    flyer: new Image(),
+    stego: new Image(),
+    tyranno: new Image(),
+    bigalien: new Image(),
+    walker: new Image()
   };
   charSprites.dino.src = 'assets/char-dino.png';
   charSprites.alien.src = 'assets/kosmita-robot-transparent.png';
   charSprites.flyer.src = 'assets/char-flyer.png';
-  // char-flyer.png is a horizontal sprite sheet: 6 IDLE frames laid side-by-side
-  const FLYER_ANIM = { frames: 6, frameW: 250, frameH: 350, fps: 7 };
+  charSprites.stego.src = 'assets/char-stego.png';
+  charSprites.tyranno.src = 'assets/char-tyranno.png';
+  charSprites.bigalien.src = 'assets/char-bigalien.png';
+  charSprites.walker.src = 'assets/char-walker.png';
+  // Sprite-sheet animation metadata (horizontal strips).
+  const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7 };
+  // Stego frames face LEFT in the source — render code flips when facing right.
+  const STEGO_ANIM = { frames: 10, frameW: 397, frameH: 181, fps: 12 };
+  // Tyranno: 4 walk + 3 attack + 3 breath frames laid side-by-side.
+  const TYRANNO_ANIM = {
+    frameW: 233, frameH: 188,
+    walk:   { start: 0, count: 4 },
+    attack: { start: 4, count: 3 },
+    breath: { start: 7, count: 3 }
+  };
+  // Big alien: 5 walk/idle poses (front-facing warrior with mace + wrench).
+  const BIGALIEN_ANIM = { frames: 5, frameW: 327, frameH: 473, fps: 5 };
+  // Walker = small flying rocket. 6 frames (varying engine fire / propeller).
+  const WALKER_ANIM = { frames: 6, frameW: 469, frameH: 239, fps: 8 };
   const SPR = {
     hud:     {x:45,   y:40,  w:440, h:285},
     heal:    {x:540,  y:48,  w:250, h:105},
@@ -232,22 +253,63 @@
   }
 
   function drawDinoSprite(p) {
-    const img = (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino :
+    // Per-species side-view sprite sheets; other species fall back to the
+    // shared front-facing char-dino.png.
+    const stegoReady   = p.species === 'stego'   && charSprites.stego.complete   && charSprites.stego.naturalWidth;
+    const tyrannoReady = p.species === 'tyranno' && charSprites.tyranno.complete && charSprites.tyranno.naturalWidth;
+    const img = stegoReady   ? charSprites.stego   :
+                tyrannoReady ? charSprites.tyranno :
+                (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino :
                 (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
     if (!img) return false;
     const jumpY = p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0;
     const wp = p.walkPhase || 0;
     const moving = Math.hypot(p.vx, p.vy) > 30;
     const bob = Math.sin(wp * 2) * (moving ? 1.8 : 0.4);
-    const scale = p.species === 'diplo' ? 1.08 : (p.species === 'tyranno' ? 1.0 : 0.96);
-    const w = 78 * scale;
-    const h = 116 * scale;
+    let w, h;
+    if (stegoReady) {
+      w = 160;
+      h = w * STEGO_ANIM.frameH / STEGO_ANIM.frameW;
+    } else if (tyrannoReady) {
+      w = 120;
+      h = w * TYRANNO_ANIM.frameH / TYRANNO_ANIM.frameW;
+    } else {
+      const scale = p.species === 'diplo' ? 1.08 : (p.species === 'tyranno' ? 1.0 : 0.96);
+      w = 78 * scale; h = 116 * scale;
+    }
     ctx.save();
     ctx.translate(p.x, p.y - 34 - jumpY + bob);
     if (p.facing === -1) ctx.scale(-1, 1);
     if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
-    ctx.drawImage(img, -w/2, -h/2, w, h);
-    if (p.attackAnim > 0) {
+    if (stegoReady) {
+      const cycle = moving
+        ? (wp / (Math.PI * 2)) * STEGO_ANIM.frames
+        : state.t * 1.5;
+      const frame = ((Math.floor(cycle) % STEGO_ANIM.frames) + STEGO_ANIM.frames) % STEGO_ANIM.frames;
+      ctx.drawImage(img, frame * STEGO_ANIM.frameW, 0, STEGO_ANIM.frameW, STEGO_ANIM.frameH, -w/2, -h/2, w, h);
+    } else if (tyrannoReady) {
+      // Pick animation state: fire breath > melee attack > walk > idle.
+      let band, frame;
+      if (p.attackAnim > 0 && p.attackKind === 'fire') {
+        band = TYRANNO_ANIM.breath;
+        const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
+        frame = Math.min(band.count - 1, Math.floor(progress * band.count));
+      } else if (p.attackAnim > 0) {
+        band = TYRANNO_ANIM.attack;
+        const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
+        frame = Math.min(band.count - 1, Math.floor(progress * band.count));
+      } else {
+        band = TYRANNO_ANIM.walk;
+        const cycle = moving ? (wp / (Math.PI * 2)) * band.count : state.t * 1.5;
+        frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
+      }
+      const sx = (band.start + frame) * TYRANNO_ANIM.frameW;
+      ctx.drawImage(img, sx, 0, TYRANNO_ANIM.frameW, TYRANNO_ANIM.frameH, -w/2, -h/2, w, h);
+    } else {
+      ctx.drawImage(img, -w/2, -h/2, w, h);
+    }
+    if (p.attackAnim > 0 && !tyrannoReady) {
+      // Fallback flash effect when no per-species attack frames are available.
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.beginPath(); ctx.arc(w*0.32, -h*0.12, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
     }
@@ -777,6 +839,7 @@
     }
     p.energy -= cost;
     p.attackAnim = 0.25;
+    p.attackKind = kind;
     // Auto-rotate toward the nearest alien before attacking,
     // so the player just needs to press the button.
     const tgt = autoFaceTarget();
@@ -2264,21 +2327,46 @@
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(0, a.r*0.7, a.r*0.85, a.r*0.25, 0, 0, Math.PI*2); ctx.fill();
 
-    const alienImg = a.type === 'small' ? charSprites.flyer : charSprites.alien;
+    // Pick the source sprite per alien type:
+    //   small  -> animated cute round-robot (FLYER_ANIM)
+    //   walker -> static wide rocket (char-walker.png)
+    //   big    -> animated green-warrior (BIGALIEN_ANIM) with static fallback
+    const walkerReady   = a.type === 'walker' && charSprites.walker.complete   && charSprites.walker.naturalWidth;
+    const bigalienReady = a.type === 'big'    && charSprites.bigalien.complete && charSprites.bigalien.naturalWidth;
+    const alienImg = a.type === 'small' ? charSprites.flyer
+                   : walkerReady        ? charSprites.walker
+                   : bigalienReady      ? charSprites.bigalien
+                                        : charSprites.alien;
     if (alienImg && alienImg.complete && alienImg.naturalWidth) {
       ctx.restore();
       const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 : 0.86);
-      // Small flyer is a tall robot now, drawn from a 6-frame horizontal sprite sheet
-      const w = a.type === 'small' ? a.r * 2.6 * scale : a.r * 2.45 * scale;
-      const h = a.type === 'small' ? a.r * 3.6 * scale : a.r * 3.75 * scale;
+      // Walker is a wide rocket (~2:1), the others are tall.
+      let w, h;
+      if (a.type === 'small') {
+        w = a.r * 2.6 * scale;  h = a.r * 3.6 * scale;
+      } else if (walkerReady) {
+        w = a.r * 4.2 * scale;
+        h = w * WALKER_ANIM.frameH / WALKER_ANIM.frameW;
+      } else {
+        w = a.r * 2.45 * scale; h = a.r * 3.75 * scale;
+      }
       ctx.save();
       ctx.translate(a.x, a.y - a.r*0.52 + bob*0.35);
       if (a.vx < -5) ctx.scale(-1, 1);
       if (a.type === 'small') {
         const frame = Math.floor(state.t * FLYER_ANIM.fps + (a.wob || 0)) % FLYER_ANIM.frames;
-        const sx = frame * FLYER_ANIM.frameW;
         ctx.drawImage(alienImg,
-          sx, 0, FLYER_ANIM.frameW, FLYER_ANIM.frameH,
+          frame * FLYER_ANIM.frameW, 0, FLYER_ANIM.frameW, FLYER_ANIM.frameH,
+          -w/2, -h/2, w, h);
+      } else if (walkerReady) {
+        const frame = Math.floor(state.t * WALKER_ANIM.fps + (a.wob || 0)) % WALKER_ANIM.frames;
+        ctx.drawImage(alienImg,
+          frame * WALKER_ANIM.frameW, 0, WALKER_ANIM.frameW, WALKER_ANIM.frameH,
+          -w/2, -h/2, w, h);
+      } else if (bigalienReady) {
+        const frame = Math.floor(state.t * BIGALIEN_ANIM.fps + (a.wob || 0)) % BIGALIEN_ANIM.frames;
+        ctx.drawImage(alienImg,
+          frame * BIGALIEN_ANIM.frameW, 0, BIGALIEN_ANIM.frameW, BIGALIEN_ANIM.frameH,
           -w/2, -h/2, w, h);
       } else {
         ctx.drawImage(alienImg, -w/2, -h/2, w, h);
