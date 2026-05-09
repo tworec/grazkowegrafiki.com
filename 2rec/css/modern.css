@@ -113,3 +113,72 @@ main > section {
 main > section:first-child {
   padding-block: 0;  /* hero handles its own padding */
 }
+
+/* === Top navigation ==================================================== */
+.topnav {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 100;
+  height: var(--topnav-height);
+  background: rgba(251, 247, 241, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.topnav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.topnav__logo {
+  font-family: var(--f-serif);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.topnav__links {
+  display: flex;
+  gap: var(--s-4);
+}
+
+.topnav__links a {
+  font-size: 0.95rem;
+  position: relative;
+  padding-block: var(--s-1);
+  transition: color var(--t-fast);
+}
+
+.topnav__links a.is-active {
+  color: var(--c-accent);
+}
+
+.topnav__links a.is-active::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--c-accent);
+}
+
+.topnav__hamburger {
+  display: none;  /* shown only on mobile, in Task 12 */
+  width: 32px;
+  height: 32px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.topnav__hamburger span {
+  display: block;
+  height: 2px;
+  background: var(--c-text);
+  border-radius: 1px;
+  transition: transform var(--t-base), opacity var(--t-base);
+}

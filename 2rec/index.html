@@ -16,7 +16,20 @@
 <body>
   <a class="skip-link" href="#prace">Pomiń do prac</a>
 
-  <header class="topnav" id="topnav" hidden></header>
+  <header class="topnav" id="topnav">
+    <div class="topnav__inner container">
+      <a href="#top" class="topnav__logo">Grażkowe Grafiki</a>
+      <nav class="topnav__links" id="topnav-links" aria-label="Główna nawigacja">
+        <a href="#prace" data-section="prace">Prace</a>
+        <a href="#o-mnie" data-section="o-mnie">O mnie</a>
+        <a href="#opinie" data-section="opinie">Opinie</a>
+        <a href="#kontakt" data-section="kontakt">Kontakt</a>
+      </nav>
+      <button class="topnav__hamburger" id="hamburger" aria-label="Menu" aria-expanded="false" aria-controls="topnav-links">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
 
   <main>
     <section id="top" class="hero"></section>
