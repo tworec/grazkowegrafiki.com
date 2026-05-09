@@ -1,2 +1,115 @@
-/* placeholder — will be replaced in Task 2 */
-body { font-family: system-ui, sans-serif; padding: 2rem; }
+/* === Reset (minimal, modern) ============================================ */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { line-height: 1.5; -webkit-font-smoothing: antialiased; }
+img, picture, svg { display: block; max-width: 100%; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+a { color: inherit; }
+
+/* === Design tokens ====================================================== */
+:root {
+  /* Colors */
+  --c-bg:        #FBF7F1;   /* cream */
+  --c-bg-alt:    #F4EEE3;   /* slightly darker cream for alt sections */
+  --c-text:      #2A2A2A;   /* graphite */
+  --c-text-mute: #5A5A5A;
+  --c-accent:    #C66B4A;   /* terracotta — placeholder, may be tuned */
+  --c-accent-soft: #E8B89A;
+  --c-line:      rgba(42, 42, 42, 0.12);
+
+  /* Typography */
+  --f-serif: "Fraunces", Georgia, serif;
+  --f-sans:  "Inter", system-ui, -apple-system, sans-serif;
+
+  /* Spacing scale (8-point grid) */
+  --s-1: 0.5rem;
+  --s-2: 1rem;
+  --s-3: 1.5rem;
+  --s-4: 2rem;
+  --s-5: 3rem;
+  --s-6: 4rem;
+  --s-7: 6rem;
+  --s-8: 8rem;
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-pad: var(--s-3);
+  --topnav-height: 64px;
+
+  /* Motion */
+  --t-fast: 150ms ease-out;
+  --t-base: 200ms ease-out;
+  --t-slow: 400ms ease-out;
+}
+
+/* === Base typography =================================================== */
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--f-sans);
+  font-size: 17px;
+  padding-top: var(--topnav-height);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--f-serif);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
+h2 { font-size: clamp(2rem, 4vw, 3rem); }
+h3 { font-size: 1.5rem; }
+
+p { color: var(--c-text); }
+
+a { text-decoration: none; }
+a:hover { color: var(--c-accent); }
+
+/* === Layout primitives ================================================= */
+.container {
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--container-pad);
+}
+
+.section-title {
+  font-family: var(--f-serif);
+  font-weight: 600;
+  margin-bottom: var(--s-5);
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: var(--c-accent);
+  margin-top: var(--s-2);
+}
+
+/* === Skip link (a11y) ================================================== */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  position: fixed;
+  top: var(--s-2);
+  left: var(--s-2);
+  background: var(--c-text);
+  color: var(--c-bg);
+  padding: var(--s-1) var(--s-2);
+  z-index: 1000;
+}
+
+/* === Section padding ================================================== */
+main > section {
+  padding-block: var(--s-7);
+}
+main > section:first-child {
+  padding-block: 0;  /* hero handles its own padding */
+}
