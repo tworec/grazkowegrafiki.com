@@ -79,7 +79,7 @@ Lista obiektów. Pole `description`/`gallery`/`moreUrl` opcjonalne — występuj
 
 Kategorie (znormalizowane slugi): `komiksowe`, `kreskowkowe`, `akwarelove`, `zaproszenia`, `gadzety`, `gry`.
 
-Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 obecnych podstron galerii (wyciąga `<img src>`, `alt`, mapuje na kategorię na podstawie pliku źródłowego). Po wygenerowaniu Joanna dopina tytuły / opisy ręcznie.
+Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 plików źródłowych: 5 podstron galerii (`portrety-komiksowe.html`, `portrety-kreskowkowe.html`, `portrety-w-praktyce.html`, `portrety-w-praktyce-1.html`, `zaproszenia-i-kartki-okolicznosciowe.html`) + `gra-owoce-ducha.html` (kategoria `gry`, dodaje `description` i `moreUrl`). Skrypt wyciąga `<img src>`, `alt`, mapuje na kategorię na podstawie pliku źródłowego. Po wygenerowaniu Joanna dopina tytuły / opisy ręcznie.
 
 ## Komponenty single-page (`index.html` + `modern.css` + `modern.js`)
 
@@ -149,6 +149,7 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 obe
 - **Brakujący obraz**: `<img>` ma handler `onerror` ukrywający kartę.
 - **Powolne ładowanie**: `loading="lazy"` na thumbnaile gridu, full image w lightboxie z prostym spinnerem.
 - **Backlinki do ukrytych podstron**: pliki dalej dostępne pod URL — żaden istniejący link z zewnątrz nie zepsuje się.
+- **Stare menu w plikach orphan**: `o-mnie.html`, `opinie.html`, `contact.html`, stare galerie i `gra-owoce-ducha.html` zachowują własne, stare menu w środku — z linkami do `jak-zamowic.html` i `cennik.html`. Ktoś, kto trafi na orphan przez stary URL, zobaczy stare menu. Świadoma konsekwencja decyzji „zostaw pliki jako fallback" — czyszczenie legacy nawigacji jest poza zakresem tej iteracji.
 
 ## Plan implementacji (wysokopoziomowy)
 
