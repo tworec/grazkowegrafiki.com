@@ -1,7 +1,7 @@
 # Modernizacja grazkowegrafiki.com — single-page redesign
 
 **Data:** 2026-05-09
-**Zakres:** Przebudowa strony głównej w układ single-page scroll z filtrowaną siatką prac i lightboxem; ukrycie podstron „Jak zamówić" i „Cennik" z menu; refresh typografii i palety w stylu *editorial / minimal*.
+**Zakres:** Nowy single-page redesign zbudowany w izolowanym podkatalogu `2rec/` (testowy URL `grazkowegrafiki.com/2rec/`), bez modyfikacji żadnego z istniejących plików. Single-page scroll z filtrowaną siatką prac i lightboxem; menu nowego single-page nie zawiera „Jak zamówić" ani „Cennik"; typografia i paleta w stylu *editorial / minimal*. Promocja do roota (zastąpienie obecnego `index.html`) — w osobnej, późniejszej iteracji po akceptacji w testach.
 
 ## Cel
 
@@ -9,12 +9,12 @@ Strona ma sprawiać wrażenie nowoczesnego portfolio artystki: jeden ciągły fl
 
 ## Założenia (zatwierdzone w brainstormie)
 
-1. **Single-page scroll** — sekcje Hero · Prace · O mnie · Opinie · Kontakt + footer.
-2. **Filtrowana siatka prac** — masonry grid z chipami filtra (Wszystkie / Komiksowe / Kreskówkowe / AkwareLOVE / Zaproszenia / Gadżety / Gry).
-3. **Lightbox** dla pojedynczej pracy: tryb A (zdjęcie + nawigacja w obrębie filtra), tryb B (zdjęcie + opis + mini-galeria + link do bogatej podstrony — tylko Owoce Ducha).
-4. **Ukrycie z menu** plików `jak-zamowic.html` i `cennik.html` — pliki zostają na dysku, znikają linki w nawigacji.
-5. **Stare podstrony galerii** (`portrety-komiksowe.html`, `portrety-kreskowkowe.html`, `portrety-w-praktyce.html`, `portrety-w-praktyce-1.html`, `zaproszenia-i-kartki-okolicznosciowe.html`) — zostają jako fallback / SEO, brak linków z nowego menu.
-6. **Mini-gry** (`skate.html`, `dino-vs-kosmici/`) — poza zakresem tej iteracji, bez zmian.
+1. **Izolacja w podkatalogu `2rec/`** — wszystkie nowe pliki tworzone wyłącznie w `2rec/`. Żaden istniejący plik w roocie repo nie jest modyfikowany ani przenoszony. Testowy URL: `https://grazkowegrafiki.com/2rec/` — niewidoczny z reszty strony, dostępny tylko dla osoby z linkiem.
+2. **Single-page scroll** — sekcje Hero · Prace · O mnie · Opinie · Kontakt + footer.
+3. **Filtrowana siatka prac** — masonry grid z chipami filtra (Wszystkie / Komiksowe / Kreskówkowe / AkwareLOVE / Zaproszenia / Gadżety / Gry).
+4. **Lightbox** dla pojedynczej pracy: tryb A (zdjęcie + nawigacja w obrębie filtra), tryb B (zdjęcie + opis + mini-galeria + link do bogatej podstrony — tylko Owoce Ducha).
+5. **Menu nowego single-page** zawiera: Prace · O mnie · Opinie · Kontakt. Nie zawiera „Jak zamówić" ani „Cennik". (Stare menu w istniejącym `index.html` i podstronach pozostaje nietknięte — to inny URL, root strony.)
+6. **Mini-gry** (`skate.html`, `dino-vs-kosmici/`) — poza zakresem, bez zmian.
 7. **Aesthetic kierunek:** Editorial / Minimal — kremowe tło, serifowe nagłówki, jeden ciepły accent.
 
 ## Architektura techniczna
@@ -23,31 +23,38 @@ Stack pozostaje: **vanilla HTML + CSS + JS**, hosting GitHub Pages, brak build-s
 
 ### Struktura plików
 
+Wszystkie nowe pliki — wyłącznie w `2rec/`. Reszta repo bez zmian (oznaczona `←  bez zmian`).
+
 ```
 grazkowegrafiki.com/
-├── index.html                      ← PRZEPISANY (single-page)
-├── legacy/
-│   └── index.html                  ← kopia poprzedniej wersji (na wglądu, nie linkowana)
-├── dist/
+├── 2rec/                           ← NOWY KATALOG, cała praca tutaj
+│   ├── index.html                  ← NOWY: single-page
 │   ├── css/
-│   │   ├── main.css                ← zostaje (legacy podstron)
-│   │   └── modern.css              ← NOWY: cały styl single-page
-│   └── js/
-│       ├── main.js                 ← zostaje (legacy podstron)
-│       └── modern.js               ← NOWY: nawigacja, filtr, lightbox
-├── data/
-│   └── works.json                  ← NOWY: lista prac
-├── tools/
-│   └── extract_works.py            ← NOWY: skrypt do wygenerowania works.json z istniejących galerii
+│   │   └── modern.css              ← NOWY: cały styl
+│   ├── js/
+│   │   └── modern.js               ← NOWY: nawigacja, filtr, lightbox
+│   ├── data/
+│   │   └── works.json              ← NOWY: lista prac
+│   └── tools/
+│       └── extract_works.py        ← NOWY: generator works.json
 │
-├── o-mnie.html, opinie.html, contact.html        ← orphan, brak linka z menu
-├── regulamin.html                                 ← link tylko w stopce
-├── jak-zamowic.html, cennik.html                 ← orphan, brak linka
-├── portrety-*.html, zaproszenia-*.html           ← orphan fallback
-├── gra-owoce-ducha.html                          ← zostaje (lightbox może linkować „Zobacz więcej")
-├── skate.html, dino-vs-kosmici/                  ← bez zmian
-└── assets/                                       ← bez zmian
+├── docs/superpowers/specs/         ← NOWY: ten dokument (już zacommitowany)
+│
+├── index.html                      ← bez zmian
+├── dist/css/main.css               ← bez zmian
+├── dist/js/main.js                 ← bez zmian
+├── o-mnie.html, opinie.html, contact.html        ← bez zmian
+├── regulamin.html                                 ← bez zmian
+├── jak-zamowic.html, cennik.html                  ← bez zmian
+├── portrety-*.html, zaproszenia-*.html            ← bez zmian
+├── gra-owoce-ducha.html                           ← bez zmian
+├── skate.html, dino-vs-kosmici/                   ← bez zmian
+└── assets/                                        ← bez zmian (ale używane przez 2rec/)
 ```
+
+**Ścieżki względne:** `2rec/index.html` referuje wszystkie obrazki przez `../assets/...` (parent directory). To działa pod GitHub Pages — `https://grazkowegrafiki.com/2rec/` widzi `https://grazkowegrafiki.com/assets/...` przez `..`. CSS i JS w obrębie `2rec/` mają ścieżki lokalne (`css/modern.css`, `js/modern.js`).
+
+**Promocja do roota** — nie w tej iteracji. Kiedy `2rec/` zostanie zaakceptowany w testach, osobny krok przeniesie zawartość do roota (z odpowiednią korektą ścieżek `../assets/` → `assets/`). Dotąd root pozostaje bez zmian.
 
 ### Dane prac (`data/works.json`)
 
@@ -59,20 +66,20 @@ Lista obiektów. Pole `description`/`gallery`/`moreUrl` opcjonalne — występuj
     "id": "portret-rodzinny-mama-dzieci",
     "category": "komiksowe",
     "title": "Portret rodzinny",
-    "thumb": "assets/portret-rodzinny-mama-dzieci-ramka_rwc_640.png",
-    "full":  "assets/portret-rodzinny-mama-dzieci-ramka_rwc_787.png",
+    "thumb": "../assets/portret-rodzinny-mama-dzieci-ramka_rwc_640.png",
+    "full":  "../assets/portret-rodzinny-mama-dzieci-ramka_rwc_787.png",
     "alt": "Komiksowy portret rodziny — mama z dziećmi"
   },
   {
     "id": "owoce-ducha",
     "category": "gry",
     "title": "Owoce Ducha",
-    "thumb": "assets/owoce-ducha-pudelko-komunia_rwc_640.png",
-    "full":  "assets/owoce-ducha-pudelko-komunia_rwc_1242.png",
+    "thumb": "../assets/owoce-ducha-pudelko-komunia_rwc_640.png",
+    "full":  "../assets/owoce-ducha-pudelko-komunia_rwc_1242.png",
     "alt": "Gra Owoce Ducha — pudełko",
     "description": "Gra wydana przez Wydawnictwo Kościuszko. To była dopiero frajda — współtworzyć grę!",
-    "gallery": ["assets/owoce-ducha-…_1.png", "assets/owoce-ducha-…_2.png"],
-    "moreUrl": "gra-owoce-ducha.html"
+    "gallery": ["../assets/owoce-ducha-…_1.png", "../assets/owoce-ducha-…_2.png"],
+    "moreUrl": "../gra-owoce-ducha.html"
   }
 ]
 ```
@@ -81,7 +88,7 @@ Kategorie (znormalizowane slugi): `komiksowe`, `kreskowkowe`, `akwarelove`, `zap
 
 Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 plików źródłowych: 5 podstron galerii (`portrety-komiksowe.html`, `portrety-kreskowkowe.html`, `portrety-w-praktyce.html`, `portrety-w-praktyce-1.html`, `zaproszenia-i-kartki-okolicznosciowe.html`) + `gra-owoce-ducha.html` (kategoria `gry`, dodaje `description` i `moreUrl`). Skrypt wyciąga `<img src>`, `alt`, mapuje na kategorię na podstawie pliku źródłowego. Po wygenerowaniu Joanna dopina tytuły / opisy ręcznie.
 
-## Komponenty single-page (`index.html` + `modern.css` + `modern.js`)
+## Komponenty single-page (`2rec/index.html` + `2rec/css/modern.css` + `2rec/js/modern.js`)
 
 ### 1. Sticky top nav
 - Wysokość 64px, tło `rgba(251,247,241,0.85)` z `backdrop-filter: blur(12px)`.
@@ -92,7 +99,7 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 pli
 ### 2. Hero (`#top`, ~80vh)
 - Layout dwukolumnowy desktop (60/40), pionowy stack mobile.
 - Lewa kolumna: H1 serifowy „Hej, miło Cię widzieć!", krótki podtytuł (~2 zdania), CTA `[ Zobacz prace → ]` (anchor do `#prace`), scroll-hint (↓) na dole.
-- Prawa kolumna: jedna featured grafika (hardcoded URL w HTML — wybór konkretnej pracy do podjęcia w trakcie implementacji).
+- Prawa kolumna: jedna featured grafika (hardcoded `<img src="../assets/...">` — wybór konkretnej pracy do podjęcia w trakcie implementacji).
 
 ### 3. Prace (`#prace`) — sekcja-bohater
 - Nagłówek H2 + podkreślenie.
@@ -105,18 +112,18 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 pli
 - **Pusta kategoria** → komunikat „Wkrótce więcej!".
 
 ### 4. O mnie (`#o-mnie`)
-- Dwukolumnowy: po lewej zdjęcie Joanny (z `images/Joanna_Chromiec.png`), po prawej tekst (~3-4 akapity skrócone z `o-mnie.html`) + pojedynczy cytat-akcent w serifie.
+- Dwukolumnowy: po lewej zdjęcie Joanny (`../images/Joanna_Chromiec.png`), po prawej tekst (~3-4 akapity skrócone z `../o-mnie.html`) + pojedynczy cytat-akcent w serifie.
 - Mobile: zdjęcie nad tekstem.
 
 ### 5. Opinie (`#opinie`)
 - Grid 3 kolumny desktop, 1 mobile.
 - Karta opinii: duży cudzysłów („) w kolorze accentu, treść, podpis „— Imię".
-- Treść: skopiowana z `opinie.html` (parsowana z istniejącej struktury HTML).
+- Treść: skopiowana z `../opinie.html` (parsowana z istniejącej struktury HTML).
 - Jeśli > 6 opinii: domyślnie wyświetla 6 + przycisk „Pokaż więcej" rozwija resztę (czysty CSS toggle przez `<details>` lub mały JS).
 
 ### 6. Kontakt + footer (`#kontakt`)
-- Sekcja kontakt: tytuł + adres email (mailto link) + ikony social (FB, IG) + formularz zamówienia (przeniesiony 1:1 z `contact.html`, zachowuje istniejącą integrację Web3Forms AJAX).
-- Stopka: cienka linia oddzielająca, po lewej `© 2026 Grażkowe Grafiki`, po prawej link do `regulamin.html`.
+- Sekcja kontakt: tytuł + adres email (mailto link) + ikony social (FB, IG) + formularz zamówienia (skopiowany z `../contact.html` razem z istniejącą integracją Web3Forms AJAX — kopia HTML i powiązanego JS do `2rec/js/modern.js`, oryginał w `contact.html` nietknięty).
+- Stopka: cienka linia oddzielająca, po lewej `© 2026 Grażkowe Grafiki`, po prawej link do `../regulamin.html`.
 
 ### 7. Lightbox
 
@@ -145,45 +152,49 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 pli
 
 ## Edge cases / fallbacks
 
-- **JS wyłączony**: HTML zawiera wszystkie karty wbudowane (przed JS-render), filtry/lightbox nie działają, klik karty prowadzi do starej podstrony galerii (np. `portrety-komiksowe.html`). Strona dalej w pełni czytelna i nawigowalna.
+- **JS wyłączony**: HTML zawiera wszystkie karty wbudowane (przed JS-render), filtry/lightbox nie działają, klik karty prowadzi do starej podstrony galerii (np. `../portrety-komiksowe.html`). Strona dalej w pełni czytelna i nawigowalna.
 - **Brakujący obraz**: `<img>` ma handler `onerror` ukrywający kartę.
 - **Powolne ładowanie**: `loading="lazy"` na thumbnaile gridu, full image w lightboxie z prostym spinnerem.
-- **Backlinki do ukrytych podstron**: pliki dalej dostępne pod URL — żaden istniejący link z zewnątrz nie zepsuje się.
-- **Stare menu w plikach orphan**: `o-mnie.html`, `opinie.html`, `contact.html`, stare galerie i `gra-owoce-ducha.html` zachowują własne, stare menu w środku — z linkami do `jak-zamowic.html` i `cennik.html`. Ktoś, kto trafi na orphan przez stary URL, zobaczy stare menu. Świadoma konsekwencja decyzji „zostaw pliki jako fallback" — czyszczenie legacy nawigacji jest poza zakresem tej iteracji.
+- **Backlinki do istniejących stron**: cały root strony pozostaje bez zmian — żaden istniejący link z zewnątrz nie jest dotknięty.
+- **Klik z `2rec/` na stary content**: klik karty (gdy JS off), klik „Zobacz więcej" w lightboxie tryb B, link „Regulamin" w stopce — wszystkie prowadzą do starych stron w roocie (`../portrety-…`, `../gra-owoce-ducha.html`, `../regulamin.html`). Gdy użytkownik klika, opuszcza nową wersję i ląduje na starej (z jej starym menu wskazującym `jak-zamowic.html`, `cennik.html` itd.). Świadoma konsekwencja modelu „nowy single-page testowy w izolacji" — pełne ujednolicenie nastąpi przy promocji `2rec/` do roota.
 
 ## Plan implementacji (wysokopoziomowy)
 
-1. `tools/extract_works.py` — generator `data/works.json` z istniejących 6 podstron galerii.
-2. Szkielet `index.html` (semantyczny HTML wszystkich sekcji, bez stylowania) + `dist/css/modern.css` (reset + zmienne) + `dist/js/modern.js` (puste hooki).
-3. Sticky top nav + scroll-spy.
-4. Sekcja Hero.
-5. Sekcja Prace: render gridu z `works.json`.
-6. Filtrowanie + URL hash.
-7. Lightbox tryb A (zdjęcie + nawigacja w obrębie filtra).
-8. Lightbox tryb B (mini-galeria + opis + link „Zobacz więcej").
-9. Sekcje O mnie + Opinie + Kontakt + Footer (treść z istniejących podstron).
-10. Responsywność (breakpointy 768px, 1024px) + mobile hamburger menu.
-11. Skopiowanie obecnego `index.html` do `legacy/index.html`.
-12. Smoke test w przeglądarce + Lighthouse.
+Wszystkie kroki tworzą wyłącznie nowe pliki w `2rec/`. Żaden istniejący plik w roocie nie jest modyfikowany na żadnym etapie.
+
+1. Utworzenie struktury `2rec/` (pusty katalog z `css/`, `js/`, `data/`, `tools/`).
+2. `2rec/tools/extract_works.py` — generator `2rec/data/works.json` z 6 plików źródłowych w roocie (5 galerii + `gra-owoce-ducha.html`).
+3. Szkielet `2rec/index.html` (semantyczny HTML wszystkich sekcji, bez stylowania) + `2rec/css/modern.css` (reset + zmienne) + `2rec/js/modern.js` (puste hooki).
+4. Sticky top nav + scroll-spy.
+5. Sekcja Hero.
+6. Sekcja Prace: render gridu z `works.json`.
+7. Filtrowanie + URL hash.
+8. Lightbox tryb A (zdjęcie + nawigacja w obrębie filtra).
+9. Lightbox tryb B (mini-galeria + opis + link „Zobacz więcej").
+10. Sekcje O mnie + Opinie + Kontakt + Footer (treść skopiowana z istniejących podstron, ścieżki `../`).
+11. Responsywność (breakpointy 768px, 1024px) + mobile hamburger menu.
+12. Smoke test w przeglądarce (lokalnie + po deployu na `https://grazkowegrafiki.com/2rec/`) + Lighthouse.
 
 ## Kryteria akceptacji
 
-- Strona główna ładuje się jako single-page z 5 sekcjami w wymienionej kolejności.
+- `https://grazkowegrafiki.com/2rec/` ładuje się jako single-page z 5 sekcjami w wymienionej kolejności.
+- `git status` po implementacji pokazuje wyłącznie nowe pliki w `2rec/` (i ewentualnie aktualizacje docs); żadnego istniejącego pliku w roocie repo nie ruszono.
+- Strona pod `https://grazkowegrafiki.com/` (root) ładuje się dokładnie tak jak przed pracami — żadnej regresji.
 - Filtr w sekcji Prace działa dla wszystkich 6 kategorii + „Wszystkie".
 - Stan filtra zachowuje się przy odświeżeniu (URL hash).
 - Lightbox tryb A: otwarcie z karty, nawigacja ←/→, zamknięcie ESC, działa na mobile (swipe).
-- Lightbox tryb B: pojawia się dla Owoców Ducha z opisem i linkiem do `gra-owoce-ducha.html`.
-- Brak linka „Jak zamówić" i „Cennik" w nawigacji desktop i mobile (pliki dostępne pod URL).
-- Stare podstrony galerii dostępne pod URL, brak linków z nowego menu.
-- Z wyłączonym JS strona pokazuje wszystkie prace (bez filtra) i klik karty prowadzi do starej podstrony galerii.
+- Lightbox tryb B: pojawia się dla Owoców Ducha z opisem i linkiem do `../gra-owoce-ducha.html`.
+- Menu nowego single-page nie zawiera „Jak zamówić" ani „Cennik".
+- Z wyłączonym JS strona pod `/2rec/` pokazuje wszystkie prace (bez filtra) i klik karty prowadzi do starej podstrony galerii w roocie.
 - Lighthouse: Performance / Accessibility / SEO ≥ 90 na desktop i mobile.
 - Wygląda dobrze w Chrome i Safari na 320px / 768px / 1280px / 1920px.
 
 ## Poza zakresem (nie w tej iteracji)
 
+- **Promocja `2rec/` do roota** (zastąpienie obecnego `index.html`, ujednolicenie ścieżek `../assets/` → `assets/`, ukrycie / przekierowanie starych podstron) — osobna iteracja po akceptacji w testach.
+- **Modyfikacje czegokolwiek poza `2rec/` i `docs/`** — wszystkie istniejące pliki w roocie (`index.html`, `dist/`, podstrony, `assets/`) pozostają nietknięte.
 - Refresh `gra-owoce-ducha.html` — zostaje w obecnej formie (lightbox linkuje, ale strona docelowa nie jest przeprojektowywana).
 - Mini-gry `skate.html`, `dino-vs-kosmici/` — bez zmian.
-- Refresh stron `regulamin.html`, `o-mnie.html`, `opinie.html`, `contact.html` — zostają jako orphan fallback w starej formie.
 - CMS / generator statyczny / framework — vanilla zostaje.
 - Internacjonalizacja (strona pozostaje po polsku).
 - Analytics / SEO meta poza standardem (og:image, og:title — kopiujemy z obecnej strony).
