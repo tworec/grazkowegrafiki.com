@@ -113,6 +113,67 @@
     grid.appendChild(p);
   }
 
+  /* --- Filter ---------------------------------------------------------- */
+  const VALID_FILTERS = ['all', 'komiksowe', 'kreskowkowe', 'akwarelove', 'zaproszenia', 'gadzety', 'gry'];
+
+  function initFilters() {
+    const bar = document.getElementById('filters');
+    if (!bar) return;
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip');
+      if (!btn) return;
+      const f = btn.dataset.filter;
+      if (!VALID_FILTERS.includes(f)) return;
+      applyFilter(f);
+      writeFilterToHash(f);
+    });
+    const initial = readFilterFromHash() || 'all';
+    applyFilter(initial);
+    window.addEventListener('hashchange', () => {
+      const f = readFilterFromHash() || 'all';
+      applyFilter(f);
+    });
+  }
+
+  function applyFilter(filter) {
+    document.querySelectorAll('.chip').forEach(c => {
+      const active = c.dataset.filter === filter;
+      c.classList.toggle('is-active', active);
+      c.setAttribute('aria-selected', String(active));
+    });
+    const cards = document.querySelectorAll('.grid__card');
+    let visible = 0;
+    cards.forEach(card => {
+      const match = filter === 'all' || card.dataset.category === filter;
+      card.classList.toggle('is-hidden', !match);
+      if (match) visible++;
+    });
+    const grid = document.getElementById('grid');
+    const existingEmpty = grid.querySelector('.grid__empty');
+    if (existingEmpty) existingEmpty.remove();
+    if (!visible) {
+      const p = document.createElement('p');
+      p.className = 'grid__empty';
+      p.textContent = 'Wkrótce więcej!';
+      grid.appendChild(p);
+    }
+  }
+
+  // URL hash format: #prace?filter=komiksowe   (or #prace, #work=<id>)
+  function readFilterFromHash() {
+    const m = location.hash.match(/[?&]filter=([^&]+)/);
+    if (!m) return null;
+    const f = decodeURIComponent(m[1]);
+    return VALID_FILTERS.includes(f) ? f : null;
+  }
+
+  function writeFilterToHash(filter) {
+    const newHash = filter === 'all' ? '#prace' : `#prace?filter=${filter}`;
+    if (location.hash !== newHash) {
+      history.replaceState(null, '', newHash);
+    }
+  }
+
   /* --- Boot ------------------------------------------------------------- */
   document.addEventListener('DOMContentLoaded', async () => {
     initScrollSpy();
@@ -121,6 +182,7 @@
     try {
       await loadWorks();
       renderGrid();
+      initFilters();
     } catch (e) {
       console.error('Failed to load works:', e);
       setGridMessage('Nie udało się wczytać prac.', 'grid__empty');

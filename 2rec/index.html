@@ -53,6 +53,15 @@
     <section id="prace" class="prace">
       <div class="container">
         <h2 class="section-title">Prace</h2>
+        <div class="filters" id="filters" role="tablist" aria-label="Filtruj kategorie">
+          <button class="chip is-active" role="tab" data-filter="all" aria-selected="true">Wszystkie</button>
+          <button class="chip" role="tab" data-filter="komiksowe"   aria-selected="false">Komiksowe</button>
+          <button class="chip" role="tab" data-filter="kreskowkowe" aria-selected="false">Kreskówkowe</button>
+          <button class="chip" role="tab" data-filter="akwarelove"  aria-selected="false">AkwareLOVE</button>
+          <button class="chip" role="tab" data-filter="zaproszenia" aria-selected="false">Zaproszenia</button>
+          <button class="chip" role="tab" data-filter="gadzety"     aria-selected="false">Gadżety</button>
+          <button class="chip" role="tab" data-filter="gry"         aria-selected="false">Gry</button>
+        </div>
         <div class="grid" id="grid" aria-busy="true">
           <p class="grid__loading">Ładowanie prac…</p>
         </div>

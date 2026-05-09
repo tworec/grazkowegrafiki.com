@@ -314,3 +314,33 @@ main > section:first-child {
 @media (hover: none) {
   .grid__card-title { opacity: 1; }
 }
+
+/* === Filter chips ====================================================== */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin-bottom: var(--s-4);
+}
+
+.chip {
+  padding: var(--s-1) var(--s-3);
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  font-size: 0.9rem;
+  color: var(--c-text);
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.chip:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.chip.is-active {
+  background: var(--c-accent);
+  color: var(--c-bg);
+  border-color: var(--c-accent);
+}
+
+.grid__card.is-hidden { display: none; }
