@@ -419,4 +419,64 @@ main > section:first-child {
   font-size: 0.85rem;
 }
 
+/* --- Lightbox tryb B (work with description) --------------------------- */
+.lightbox__inner.is-tryb-b {
+  flex-direction: row;
+  align-items: stretch;
+  gap: var(--s-5);
+  text-align: left;
+}
+
+.lightbox__inner.is-tryb-b .lightbox__media {
+  flex: 1 1 60%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.lightbox__inner.is-tryb-b .lightbox__caption {
+  flex: 1 1 40%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s-2);
+  max-width: 360px;
+}
+
+.lightbox__description {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.lightbox__more { align-self: flex-start; margin-top: var(--s-2); }
+
+.lightbox__dots {
+  display: flex;
+  gap: var(--s-1);
+  justify-content: center;
+}
+
+.lightbox__dots button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background var(--t-fast);
+}
+
+.lightbox__dots button.is-active { background: #fff; }
+
+@media (max-width: 700px) {
+  .lightbox__inner.is-tryb-b {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .lightbox__inner.is-tryb-b .lightbox__caption { text-align: center; }
+  .lightbox__more { align-self: center; }
+}
+
 body.is-lightbox-open { overflow: hidden; }
