@@ -668,3 +668,58 @@ body.is-lightbox-open { overflow: hidden; }
   justify-content: space-between;
   align-items: center;
 }
+
+/* === Mobile breakpoints ================================================ */
+
+/* Tablet & below */
+@media (max-width: 900px) {
+  .hero__inner       { grid-template-columns: 1fr; }
+  .hero__media       { order: -1; }
+  .about__inner      { grid-template-columns: 1fr; }
+  .about__photo      { max-width: 320px; margin-inline: auto; }
+}
+
+/* Phone */
+@media (max-width: 700px) {
+  :root { --container-pad: var(--s-2); }
+
+  body { font-size: 16px; }
+
+  /* Topnav: hamburger replaces inline links */
+  .topnav__hamburger { display: flex; }
+
+  .topnav__links {
+    position: fixed;
+    inset-block-start: var(--topnav-height);
+    inset-inline: 0;
+    flex-direction: column;
+    background: var(--c-bg);
+    padding: var(--s-3);
+    gap: var(--s-2);
+    transform: translateY(-100%);
+    transition: transform var(--t-base);
+    border-bottom: 1px solid var(--c-line);
+  }
+
+  .topnav__links.is-open { transform: translateY(0); }
+
+  .topnav__hamburger[aria-expanded="true"] span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .topnav__hamburger[aria-expanded="true"] span:nth-child(2) {
+    opacity: 0;
+  }
+  .topnav__hamburger[aria-expanded="true"] span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+
+  /* Hero copy bigger on phone so it doesn't feel cramped */
+  .hero__title { font-size: clamp(2rem, 8vw, 3rem); }
+
+  /* Tighter section padding on phone */
+  main > section { padding-block: var(--s-5); }
+
+  /* Lightbox nav buttons closer to edges */
+  .lightbox__nav--prev { left: 4px; }
+  .lightbox__nav--next { right: 4px; }
+}
