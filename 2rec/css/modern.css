@@ -511,3 +511,59 @@ body.is-lightbox-open { overflow: hidden; }
   font-style: italic;
   color: var(--c-text-mute);
 }
+
+/* === Opinions ========================================================== */
+.opinions__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+}
+
+@media (max-width: 900px) {
+  .opinions__grid { grid-template-columns: 1fr; }
+}
+
+.opinion {
+  background: var(--c-bg-alt);
+  border-radius: 4px;
+  padding: var(--s-4);
+  position: relative;
+}
+
+.opinion::before {
+  content: "\201C";
+  position: absolute;
+  top: -10px;
+  left: var(--s-3);
+  font-family: var(--f-serif);
+  font-size: 4rem;
+  line-height: 1;
+  color: var(--c-accent);
+}
+
+.opinion blockquote {
+  font-family: var(--f-serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--c-text);
+  margin-bottom: var(--s-2);
+}
+
+.opinion figcaption {
+  font-size: 0.9rem;
+  color: var(--c-text-mute);
+}
+
+.opinions__more { margin-top: var(--s-3); }
+
+.opinions__more summary {
+  cursor: pointer;
+  color: var(--c-accent);
+  font-weight: 500;
+  list-style: none;
+  text-align: center;
+  padding: var(--s-2);
+}
+
+.opinions__more summary::after { content: " \2193"; }
+.opinions__more[open] summary::after { content: " \2191"; }
