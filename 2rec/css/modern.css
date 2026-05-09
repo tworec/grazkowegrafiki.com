@@ -480,3 +480,34 @@ main > section:first-child {
 }
 
 body.is-lightbox-open { overflow: hidden; }
+
+/* === About / O mnie ==================================================== */
+.about { background: var(--c-bg-alt); }
+
+.about__inner {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: var(--s-5);
+  align-items: center;
+}
+
+.about__photo img {
+  width: 100%;
+  border-radius: 4px;
+  box-shadow: 0 16px 32px -12px rgba(0, 0, 0, 0.18);
+}
+
+.about__text p {
+  margin-bottom: var(--s-2);
+  color: var(--c-text);
+}
+
+.about__quote {
+  margin-top: var(--s-3);
+  padding-left: var(--s-3);
+  border-left: 3px solid var(--c-accent);
+  font-family: var(--f-serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--c-text-mute);
+}
