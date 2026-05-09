@@ -673,3 +673,89 @@ body.is-lightbox-open { overflow: hidden; }
   .lightbox__nav--prev { left: 4px; }
   .lightbox__nav--next { right: 4px; }
 }
+
+/* === Prose (regulamin and similar text-heavy pages) ==================== */
+.prose {
+  max-width: 720px;
+  padding-block: var(--s-7);
+}
+
+.prose__title {
+  font-family: var(--f-serif);
+  font-size: clamp(2.25rem, 4vw, 3rem);
+  margin-bottom: var(--s-2);
+}
+
+.prose__title::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: var(--c-accent);
+  margin-top: var(--s-2);
+}
+
+.prose__lead {
+  font-family: var(--f-serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--c-text-mute);
+  margin-bottom: var(--s-5);
+}
+
+.prose__list {
+  display: grid;
+  gap: var(--s-4);
+  padding-left: var(--s-3);
+  counter-reset: rule;
+  list-style: none;
+}
+
+.prose__list > li {
+  counter-increment: rule;
+  position: relative;
+  padding-left: var(--s-4);
+  line-height: 1.65;
+  color: var(--c-text);
+}
+
+.prose__list > li::before {
+  content: counter(rule) ".";
+  position: absolute;
+  left: -0.25rem;
+  top: 0;
+  font-family: var(--f-serif);
+  font-weight: 600;
+  color: var(--c-accent);
+  width: var(--s-3);
+  text-align: right;
+}
+
+.prose__list ul {
+  margin: var(--s-1) 0 var(--s-2);
+  padding-left: var(--s-3);
+}
+
+.prose__list ul li {
+  margin-bottom: 4px;
+  color: var(--c-text);
+}
+
+.prose__list strong { color: var(--c-text); font-weight: 600; }
+
+.prose a { color: var(--c-accent); border-bottom: 1px solid currentColor; }
+.prose a:hover { color: var(--c-text); }
+
+.prose__back {
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-line);
+  font-family: var(--f-serif);
+}
+
+.prose__back a { border-bottom: 0; }
+.prose__back a:hover { color: var(--c-accent); }
+
+.topnav__links a[aria-current="page"] {
+  color: var(--c-accent);
+}
