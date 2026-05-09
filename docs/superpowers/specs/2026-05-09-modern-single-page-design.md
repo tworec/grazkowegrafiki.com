@@ -122,7 +122,7 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 pli
 - Jeśli > 6 opinii: domyślnie wyświetla 6 + przycisk „Pokaż więcej" rozwija resztę (czysty CSS toggle przez `<details>` lub mały JS).
 
 ### 6. Kontakt + footer (`#kontakt`)
-- Sekcja kontakt: tytuł + adres email (mailto link) + ikony social (FB, IG) + formularz zamówienia (skopiowany z `../contact.html` razem z istniejącą integracją Web3Forms AJAX — kopia HTML i powiązanego JS do `2rec/js/modern.js`, oryginał w `contact.html` nietknięty).
+- Sekcja kontakt: tytuł + adres email i ikony social (skopiowane z `../contact.html`) + formularz zamówienia (skopiowany z `../jak-zamowic.html` razem z istniejącą integracją Web3Forms AJAX, ten sam `access_key`). Formularz konsoliduje funkcjonalność dwóch ukrywanych stron w jednym miejscu.
 - Stopka: cienka linia oddzielająca, po lewej `© 2026 Grażkowe Grafiki`, po prawej link do `../regulamin.html`.
 
 ### 7. Lightbox
@@ -152,7 +152,7 @@ Wstępną wersję `works.json` generuje `tools/extract_works.py` parsując 6 pli
 
 ## Edge cases / fallbacks
 
-- **JS wyłączony**: HTML zawiera wszystkie karty wbudowane (przed JS-render), filtry/lightbox nie działają, klik karty prowadzi do starej podstrony galerii (np. `../portrety-komiksowe.html`). Strona dalej w pełni czytelna i nawigowalna.
+- **JS wyłączony**: Hero, O mnie, Opinie, Kontakt (statyczny HTML formularza z `action`/`method` + `noscript`-friendly social/email) renderują się normalnie; sekcja Prace pokazuje placeholder „Ładowanie prac…" (grid renderowany z `works.json` przez JS — bez SSR). Formularz fallbackuje do tradycyjnego POST do Web3Forms (działa, ale bez ładnego komunikatu zwrotnego). Akceptowalne: docelowi użytkownicy strony mają JS włączony; pełne SSR siatki to przyszłe usprawnienie.
 - **Brakujący obraz**: `<img>` ma handler `onerror` ukrywający kartę.
 - **Powolne ładowanie**: `loading="lazy"` na thumbnaile gridu, full image w lightboxie z prostym spinnerem.
 - **Backlinki do istniejących stron**: cały root strony pozostaje bez zmian — żaden istniejący link z zewnątrz nie jest dotknięty.
@@ -185,7 +185,7 @@ Wszystkie kroki tworzą wyłącznie nowe pliki w `2rec/`. Żaden istniejący pli
 - Lightbox tryb A: otwarcie z karty, nawigacja ←/→, zamknięcie ESC, działa na mobile (swipe).
 - Lightbox tryb B: pojawia się dla Owoców Ducha z opisem i linkiem do `../gra-owoce-ducha.html`.
 - Menu nowego single-page nie zawiera „Jak zamówić" ani „Cennik".
-- Z wyłączonym JS strona pod `/2rec/` pokazuje wszystkie prace (bez filtra) i klik karty prowadzi do starej podstrony galerii w roocie.
+- Z wyłączonym JS hero, o mnie, opinie i kontakt renderują się; sekcja Prace pokazuje „Ładowanie prac…" (świadomie zaakceptowane).
 - Lighthouse: Performance / Accessibility / SEO ≥ 90 na desktop i mobile.
 - Wygląda dobrze w Chrome i Safari na 320px / 768px / 1280px / 1920px.
 
