@@ -58,10 +58,72 @@
     document.documentElement.style.scrollBehavior = 'smooth';
   }
 
+  /* --- Works data + grid render ----------------------------------------- */
+  let WORKS = [];   // module-scoped cache (used by filter + lightbox in later tasks)
+
+  async function loadWorks() {
+    const res = await fetch('data/works.json');
+    if (!res.ok) throw new Error(`works.json HTTP ${res.status}`);
+    WORKS = await res.json();
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    grid.replaceChildren();
+    grid.removeAttribute('aria-busy');
+    if (!WORKS.length) {
+      const p = document.createElement('p');
+      p.className = 'grid__empty';
+      p.textContent = 'Wkrótce więcej!';
+      grid.appendChild(p);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    WORKS.forEach((w, idx) => {
+      const card = document.createElement('a');
+      card.className = 'grid__card';
+      card.href = `#work=${encodeURIComponent(w.id)}`;
+      card.dataset.category = w.category;
+      card.dataset.index = String(idx);
+
+      const img = document.createElement('img');
+      img.src = w.thumb;
+      img.alt = w.alt;
+      img.loading = 'lazy';
+      img.addEventListener('error', () => { card.style.display = 'none'; });
+
+      const title = document.createElement('span');
+      title.className = 'grid__card-title';
+      title.textContent = w.title;
+
+      card.append(img, title);
+      frag.appendChild(card);
+    });
+    grid.appendChild(frag);
+  }
+
+  function setGridMessage(text, cls) {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    grid.replaceChildren();
+    const p = document.createElement('p');
+    p.className = cls;
+    p.textContent = text;
+    grid.appendChild(p);
+  }
+
   /* --- Boot ------------------------------------------------------------- */
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     initScrollSpy();
     initHamburger();
     initSmoothScroll();
+    try {
+      await loadWorks();
+      renderGrid();
+    } catch (e) {
+      console.error('Failed to load works:', e);
+      setGridMessage('Nie udało się wczytać prac.', 'grid__empty');
+    }
   });
 })();

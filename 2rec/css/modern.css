@@ -250,3 +250,67 @@ main > section:first-child {
   color: var(--c-bg);
   transform: translateY(-1px);
 }
+
+/* === Prace / grid ====================================================== */
+.grid {
+  column-count: 3;
+  column-gap: var(--s-3);
+}
+
+@media (max-width: 1024px) {
+  .grid { column-count: 2; }
+}
+@media (max-width: 600px) {
+  .grid { column-count: 1; }
+}
+
+.grid__loading,
+.grid__empty {
+  color: var(--c-text-mute);
+  text-align: center;
+  padding: var(--s-5);
+}
+
+.grid__card {
+  break-inside: avoid;
+  margin-bottom: var(--s-3);
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--c-bg-alt);
+  cursor: pointer;
+  transition: transform var(--t-base), box-shadow var(--t-base);
+}
+
+.grid__card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.18);
+}
+
+.grid__card img {
+  width: 100%;
+  height: auto;
+  transition: transform var(--t-slow);
+}
+
+.grid__card:hover img { transform: scale(1.03); }
+
+.grid__card-title {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: var(--s-2) var(--s-3);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.65));
+  color: #fff;
+  font-size: 0.95rem;
+  opacity: 0;
+  transition: opacity var(--t-base);
+}
+
+.grid__card:hover .grid__card-title,
+.grid__card:focus-visible .grid__card-title { opacity: 1; }
+
+@media (hover: none) {
+  .grid__card-title { opacity: 1; }
+}
