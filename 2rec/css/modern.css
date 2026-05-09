@@ -182,3 +182,71 @@ main > section:first-child {
   border-radius: 1px;
   transition: transform var(--t-base), opacity var(--t-base);
 }
+
+/* === Hero ============================================================== */
+.hero {
+  position: relative;
+  min-height: calc(80vh - var(--topnav-height));
+  display: flex;
+  align-items: center;
+  padding-block: var(--s-6);
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--s-6);
+  align-items: center;
+  width: 100%;
+}
+
+.hero__title { margin-bottom: var(--s-3); }
+
+.hero__lead {
+  font-size: 1.125rem;
+  color: var(--c-text-mute);
+  margin-bottom: var(--s-4);
+  max-width: 32ch;
+}
+
+.hero__media img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.18);
+}
+
+.hero__scroll {
+  position: absolute;
+  left: 50%;
+  bottom: var(--s-3);
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  color: var(--c-text-mute);
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(8px); }
+}
+
+/* === Buttons =========================================================== */
+.btn {
+  display: inline-block;
+  padding: var(--s-2) var(--s-3);
+  border-radius: 999px;
+  font-weight: 500;
+  transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+
+.btn--primary {
+  background: var(--c-text);
+  color: var(--c-bg);
+}
+
+.btn--primary:hover {
+  background: var(--c-accent);
+  color: var(--c-bg);
+  transform: translateY(-1px);
+}
