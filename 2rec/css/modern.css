@@ -518,60 +518,44 @@ body.is-lightbox-open { overflow: hidden; }
 }
 
 /* === Opinions ========================================================== */
-.opinions__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-3);
-}
-
-@media (max-width: 900px) {
-  .opinions__grid { grid-template-columns: 1fr; }
-}
-
-.opinion {
-  background: var(--c-bg-alt);
-  border-radius: 4px;
-  padding: var(--s-4);
-  position: relative;
-}
-
-.opinion::before {
-  content: "\201C";
-  position: absolute;
-  top: -10px;
-  left: var(--s-3);
-  font-family: var(--f-serif);
-  font-size: 4rem;
-  line-height: 1;
-  color: var(--c-accent);
-}
-
-.opinion blockquote {
-  font-family: var(--f-serif);
-  font-size: 1.05rem;
-  line-height: 1.5;
-  color: var(--c-text);
-  margin-bottom: var(--s-2);
-}
-
-.opinion figcaption {
-  font-size: 0.9rem;
+.opinions__intro {
+  max-width: 60ch;
+  margin: 0 auto var(--s-4);
   color: var(--c-text-mute);
-}
-
-.opinions__more { margin-top: var(--s-3); }
-
-.opinions__more summary {
-  cursor: pointer;
-  color: var(--c-accent);
-  font-weight: 500;
-  list-style: none;
   text-align: center;
-  padding: var(--s-2);
+  font-size: 1.05rem;
 }
 
-.opinions__more summary::after { content: " \2193"; }
-.opinions__more[open] summary::after { content: " \2191"; }
+.opinions__grid {
+  column-count: 4;
+  column-gap: var(--s-3);
+}
+
+@media (max-width: 1024px) { .opinions__grid { column-count: 3; } }
+@media (max-width: 700px)  { .opinions__grid { column-count: 2; } }
+@media (max-width: 480px)  { .opinions__grid { column-count: 1; } }
+
+.opinion-shot {
+  break-inside: avoid;
+  display: block;
+  margin-bottom: var(--s-3);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--c-bg-alt);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.1);
+  transition: transform var(--t-base), box-shadow var(--t-base);
+}
+
+.opinion-shot:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.18);
+}
+
+.opinion-shot img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
 
 /* === Contact =========================================================== */
 .contact__inner {
