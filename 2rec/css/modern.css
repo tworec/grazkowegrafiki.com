@@ -459,6 +459,11 @@ main > section:first-child {
   justify-content: center;
 }
 
+/* `display: flex/inline-block` overrides the default [hidden] behaviour;
+   restore it explicitly so dots and the moreUrl button hide between works. */
+.lightbox__dots[hidden],
+.btn[hidden] { display: none; }
+
 .lightbox__dots button {
   width: 10px;
   height: 10px;
