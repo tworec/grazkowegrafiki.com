@@ -567,3 +567,104 @@ body.is-lightbox-open { overflow: hidden; }
 
 .opinions__more summary::after { content: " \2193"; }
 .opinions__more[open] summary::after { content: " \2191"; }
+
+/* === Contact =========================================================== */
+.contact__inner {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--s-5);
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .contact__inner { grid-template-columns: 1fr; }
+}
+
+.contact__head p { margin-bottom: var(--s-2); color: var(--c-text-mute); }
+
+.contact__email a {
+  font-family: var(--f-serif);
+  font-size: 1.25rem;
+  color: var(--c-accent);
+}
+
+.contact__social {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.contact__social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--c-line);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c-text-mute);
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.contact__social a:hover {
+  background: var(--c-accent);
+  color: var(--c-bg);
+  border-color: var(--c-accent);
+}
+
+.contact__form {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.contact__form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--c-text-mute);
+}
+
+.contact__form input,
+.contact__form textarea {
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: 4px;
+  background: var(--c-bg);
+  font-size: 1rem;
+  color: var(--c-text);
+}
+
+.contact__form input:focus,
+.contact__form textarea:focus {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+  border-color: var(--c-accent);
+}
+
+.contact__form button {
+  justify-self: start;
+  margin-top: var(--s-1);
+}
+
+.contact__msg { font-size: 0.9rem; }
+.contact__msg.is-success { color: #2f7a2f; }
+.contact__msg.is-error   { color: #b03030; }
+
+/* === Footer ============================================================ */
+.footer {
+  border-top: 1px solid var(--c-line);
+  padding-block: var(--s-3);
+  font-size: 0.9rem;
+  color: var(--c-text-mute);
+}
+
+.footer__inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

@@ -316,6 +316,46 @@
     });
   }
 
+  /* --- Contact form (Web3Forms AJAX) ----------------------------------- */
+  function initOrderForm() {
+    const form = document.getElementById('orderForm');
+    if (!form) return;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitTxt = submitBtn.querySelector('.submit-text');
+    const msg = document.getElementById('formMessage');
+    const subject = document.getElementById('formSubject');
+    const imie = document.getElementById('imie');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      subject.value = 'Zamówienie portretu — ' + imie.value.trim();
+      const original = submitTxt.textContent;
+      submitTxt.textContent = 'Wysyłanie…';
+      submitBtn.disabled = true;
+      msg.hidden = true;
+      msg.classList.remove('is-success', 'is-error');
+      try {
+        const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+        const data = await res.json();
+        if (res.ok) {
+          form.reset();
+          msg.textContent = 'Wiadomość wysłana! Odezwę się wkrótce.';
+          msg.classList.add('is-success');
+        } else {
+          msg.textContent = 'Błąd: ' + (data.message || 'spróbuj jeszcze raz');
+          msg.classList.add('is-error');
+        }
+      } catch {
+        msg.textContent = 'Błąd połączenia. Napisz bezpośrednio na grazkowegrafiki@gmail.com.';
+        msg.classList.add('is-error');
+      } finally {
+        submitTxt.textContent = original;
+        submitBtn.disabled = false;
+        msg.hidden = false;
+      }
+    });
+  }
+
   /* --- Boot ------------------------------------------------------------- */
   document.addEventListener('DOMContentLoaded', async () => {
     initScrollSpy();
@@ -326,6 +366,7 @@
       renderGrid();
       initFilters();
       initLightbox();
+      initOrderForm();
     } catch (e) {
       console.error('Failed to load works:', e);
       setGridMessage('Nie udało się wczytać prac.', 'grid__empty');

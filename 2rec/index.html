@@ -100,10 +100,68 @@
         </div>
       </div>
     </section>
-    <section id="kontakt" class="contact"></section>
+    <section id="kontakt" class="contact">
+      <div class="container contact__inner">
+        <div class="contact__head">
+          <h2 class="section-title">Skontaktuj się</h2>
+          <p>Masz pytania? Chcesz zamówić portret, zaproszenia, kartkę? Napisz przez formularz albo bezpośrednio:</p>
+          <p class="contact__email">
+            <a href="mailto:grazkowegrafiki@gmail.com">grazkowegrafiki@gmail.com</a>
+          </p>
+          <ul class="contact__social">
+            <li><a href="https://www.facebook.com/grazkowegrafiki/" target="_blank" rel="noopener" aria-label="Facebook">FB</a></li>
+            <li><a href="https://www.instagram.com/grazkowe_grafiki/" target="_blank" rel="noopener" aria-label="Instagram">IG</a></li>
+          </ul>
+        </div>
+        <form class="contact__form" id="orderForm" action="https://api.web3forms.com/submit" method="POST">
+          <input type="hidden" name="access_key" value="7695e549-7f53-4451-84ef-6f191885ddb7">
+          <input type="hidden" name="subject" id="formSubject" value="Zamówienie portretu">
+          <input type="hidden" name="from_name" value="Formularz zamówienia — Grażkowe Grafiki">
+          <label>Imię *
+            <input id="imie" name="Imię" type="text" required>
+          </label>
+          <label>E-mail (do odpowiedzi) *
+            <input id="email" name="email" type="email" required>
+          </label>
+          <label>Jaki rodzaj portretu? *
+            <input name="Rodzaj portretu" type="text" required placeholder="Komiks, kreskówka, akwarela?">
+          </label>
+          <label>Ile osób na portrecie? *
+            <input name="Liczba osób" type="text" required>
+          </label>
+          <label>Jak kadrujemy? *
+            <input name="Kadrowanie" type="text" required placeholder="Głowa i ramiona, do pasa, cała sylwetka?">
+          </label>
+          <label>Preferowany termin? *
+            <input name="Preferowany termin" type="text" required placeholder="Zwykle ok. 2-3 tygodnie">
+          </label>
+          <label>Preferowane kolory?
+            <input name="Preferowane kolory" type="text">
+          </label>
+          <label>Dodatkowe elementy / tło?
+            <textarea name="Dodatkowe elementy / tło" rows="3"></textarea>
+          </label>
+          <label>Format / wydruk?
+            <textarea name="Format / wydruk" rows="2" placeholder="JPG, kubek, A4, zeszyt, zaproszenia, etc."></textarea>
+          </label>
+          <label>Dodatkowe uwagi
+            <textarea name="Dodatkowe uwagi" rows="3" placeholder="Np. paczkomat, telefon do dostawy"></textarea>
+          </label>
+          <button type="submit" class="btn btn--primary" id="submitOrderBtn">
+            <span class="submit-text">Wyślij</span>
+          </button>
+          <p id="formMessage" class="contact__msg" hidden></p>
+        </form>
+      </div>
+    </section>
   </main>
 
-  <footer class="footer" id="footer" hidden></footer>
+  <footer class="footer" id="footer">
+    <div class="container footer__inner">
+      <span>© 2026 Grażkowe Grafiki</span>
+      <a href="../regulamin.html">Regulamin</a>
+    </div>
+  </footer>
 
   <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
     <button class="lightbox__close" id="lightbox-close" aria-label="Zamknij">×</button>
