@@ -63,12 +63,15 @@ class ImgCollector(HTMLParser):
 
 
 def collect_assets_by_slug() -> dict[str, list[str]]:
-    """Map slug -> list of all variant filenames in assets/."""
+    """Map slug -> list of all variant filenames in assets/.
+    Skips _orig.* variants so they can't accidentally land as a thumb."""
     by_slug: dict[str, list[str]] = {}
     for f in ASSETS_DIR.iterdir():
         if not f.is_file():
             continue
         if f.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            continue
+        if ORIG_RE.search(f.name):
             continue
         by_slug.setdefault(slug(f.name), []).append(f.name)
     return by_slug
