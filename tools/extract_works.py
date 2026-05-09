@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate 2rec/data/works.json from root-level gallery HTML pages.
+"""Generate data/works.json from the legacy gallery HTML pages in old/.
 
 Parses 5 gallery pages + gra-owoce-ducha.html for <img> tags pointing
-to assets/, deduplicates, and emits a JSON list with thumb/full URLs
-relative to 2rec/index.html (i.e. prefixed with ../).
+to assets/ (or ../assets/, normalised on the fly), deduplicates, and
+emits a JSON list with thumb/full URLs relative to the root index.html.
 
-Usage: python3 2rec/tools/extract_works.py
+Usage: python3 tools/extract_works.py
 """
 from __future__ import annotations
 import json
@@ -13,18 +13,19 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 ASSETS_DIR = REPO_ROOT / "assets"
-OUT_FILE = REPO_ROOT / "2rec" / "data" / "works.json"
+OUT_FILE = REPO_ROOT / "data" / "works.json"
 
-# (filename in repo root, target category slug)
+# Source HTML pages live under old/ after the new layout was promoted to root.
+# (filename relative to REPO_ROOT, target category slug)
 SOURCES = [
-    ("portrety-komiksowe.html",                  "komiksowe"),
-    ("portrety-kreskowkowe.html",                "kreskowkowe"),
-    ("portrety-w-praktyce.html",                 "akwarelove"),
-    ("portrety-w-praktyce-1.html",               "gadzety"),
-    ("zaproszenia-i-kartki-okolicznosciowe.html","zaproszenia"),
-    ("gra-owoce-ducha.html",                     "gry"),
+    ("old/portrety-komiksowe.html",                  "komiksowe"),
+    ("old/portrety-kreskowkowe.html",                "kreskowkowe"),
+    ("old/portrety-w-praktyce.html",                 "akwarelove"),
+    ("old/portrety-w-praktyce-1.html",               "gadzety"),
+    ("old/zaproszenia-i-kartki-okolicznosciowe.html","zaproszenia"),
+    ("old/gra-owoce-ducha.html",                     "gry"),
 ]
 
 SIZE_RE = re.compile(r"_(?:rwc_)?(\d+)\.(png|jpe?g)$", re.I)
@@ -56,6 +57,10 @@ class ImgCollector(HTMLParser):
             return
         d = dict(attrs)
         src = d.get("data-src") or d.get("src") or ""
+        # Source HTML in old/ was rewritten to "../assets/...";
+        # normalise both forms to bare "assets/".
+        if src.startswith("../assets/"):
+            src = src[3:]
         if not src.startswith("assets/"):
             return
         alt = d.get("alt", "")
@@ -111,8 +116,8 @@ def main():
                 "id": s,
                 "category": category,
                 "title": alt.strip() or title_from_slug(s),
-                "thumb": f"../assets/{thumb}",
-                "full":  f"../assets/{full}",
+                "thumb": f"assets/{thumb}",
+                "full":  f"assets/{full}",
                 "alt":   alt.strip() or title_from_slug(s),
             })
 
@@ -128,7 +133,7 @@ def main():
             "To była dopiero frajda — współtworzyć grę!"
         )
         first["gallery"] = [w["full"] for w in gry[1:]]
-        first["moreUrl"] = "../gra-owoce-ducha.html"
+        first["moreUrl"] = "old/gra-owoce-ducha.html"
         works = [w for w in works if w["category"] != "gry" or w is first]
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
