@@ -74,7 +74,20 @@
 
   <footer class="footer" id="footer" hidden></footer>
 
-  <div class="lightbox" id="lightbox" hidden></div>
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+    <button class="lightbox__close" id="lightbox-close" aria-label="Zamknij">×</button>
+    <button class="lightbox__nav lightbox__nav--prev" id="lightbox-prev" aria-label="Poprzednia praca">‹</button>
+    <button class="lightbox__nav lightbox__nav--next" id="lightbox-next" aria-label="Następna praca">›</button>
+    <div class="lightbox__inner" id="lightbox-inner">
+      <div class="lightbox__media">
+        <img id="lightbox-img" src="" alt="">
+      </div>
+      <div class="lightbox__caption">
+        <h3 id="lightbox-title"></h3>
+        <p class="lightbox__counter" id="lightbox-counter"></p>
+      </div>
+    </div>
+  </div>
 
   <script src="js/modern.js"></script>
 </body>

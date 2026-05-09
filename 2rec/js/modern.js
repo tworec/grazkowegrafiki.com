@@ -174,6 +174,96 @@
     }
   }
 
+  /* --- Lightbox -------------------------------------------------------- */
+  const lb = {
+    el: null, img: null, title: null, counter: null,
+    closeBtn: null, prevBtn: null, nextBtn: null,
+    visibleIds: [], currentIdx: -1,
+    touchStartX: 0,
+  };
+
+  function initLightbox() {
+    lb.el       = document.getElementById('lightbox');
+    lb.img      = document.getElementById('lightbox-img');
+    lb.title    = document.getElementById('lightbox-title');
+    lb.counter  = document.getElementById('lightbox-counter');
+    lb.closeBtn = document.getElementById('lightbox-close');
+    lb.prevBtn  = document.getElementById('lightbox-prev');
+    lb.nextBtn  = document.getElementById('lightbox-next');
+    if (!lb.el) return;
+
+    document.getElementById('grid').addEventListener('click', (e) => {
+      const card = e.target.closest('.grid__card');
+      if (!card) return;
+      e.preventDefault();
+      openLightbox(card.dataset.index);
+    });
+
+    lb.closeBtn.addEventListener('click', closeLightbox);
+    lb.prevBtn.addEventListener('click', () => navigate(-1));
+    lb.nextBtn.addEventListener('click', () => navigate(+1));
+    lb.el.addEventListener('click', (e) => { if (e.target === lb.el) closeLightbox(); });
+
+    document.addEventListener('keydown', (e) => {
+      if (lb.el.hidden) return;
+      if (e.key === 'Escape')    closeLightbox();
+      if (e.key === 'ArrowLeft') navigate(-1);
+      if (e.key === 'ArrowRight') navigate(+1);
+    });
+
+    lb.el.addEventListener('touchstart', (e) => { lb.touchStartX = e.touches[0].clientX; }, { passive: true });
+    lb.el.addEventListener('touchend',   (e) => {
+      const dx = e.changedTouches[0].clientX - lb.touchStartX;
+      if (Math.abs(dx) > 50) navigate(dx > 0 ? -1 : +1);
+    });
+
+    // Deep-link via hash
+    if (location.hash.startsWith('#work=')) {
+      const id = decodeURIComponent(location.hash.slice('#work='.length));
+      const idx = WORKS.findIndex(w => w.id === id);
+      if (idx >= 0) openLightbox(idx);
+    }
+  }
+
+  function refreshVisibleIds() {
+    lb.visibleIds = [...document.querySelectorAll('.grid__card:not(.is-hidden)')]
+      .map(c => Number(c.dataset.index));
+  }
+
+  function openLightbox(indexAttr) {
+    refreshVisibleIds();
+    const targetIdx = Number(indexAttr);
+    const pos = lb.visibleIds.indexOf(targetIdx);
+    lb.currentIdx = pos >= 0 ? pos : 0;
+    showCurrent();
+    lb.el.hidden = false;
+    document.body.classList.add('is-lightbox-open');
+  }
+
+  function closeLightbox() {
+    lb.el.hidden = true;
+    document.body.classList.remove('is-lightbox-open');
+    if (location.hash.startsWith('#work=')) {
+      history.replaceState(null, '', '#prace');
+    }
+  }
+
+  function navigate(delta) {
+    if (!lb.visibleIds.length) return;
+    lb.currentIdx = (lb.currentIdx + delta + lb.visibleIds.length) % lb.visibleIds.length;
+    showCurrent();
+  }
+
+  function showCurrent() {
+    const work = WORKS[lb.visibleIds[lb.currentIdx]];
+    if (!work) return;
+    lb.img.src = work.full;
+    lb.img.alt = work.alt;
+    lb.title.textContent = work.title;
+    lb.counter.textContent = `${lb.currentIdx + 1} / ${lb.visibleIds.length}`;
+    history.replaceState(null, '', `#work=${encodeURIComponent(work.id)}`);
+  }
+
   /* --- Boot ------------------------------------------------------------- */
   document.addEventListener('DOMContentLoaded', async () => {
     initScrollSpy();
@@ -183,6 +273,7 @@
       await loadWorks();
       renderGrid();
       initFilters();
+      initLightbox();
     } catch (e) {
       console.error('Failed to load works:', e);
       setGridMessage('Nie udało się wczytać prac.', 'grid__empty');
