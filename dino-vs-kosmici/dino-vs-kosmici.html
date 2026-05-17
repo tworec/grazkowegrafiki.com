@@ -597,13 +597,13 @@
     tier = tier || 'main';
     if (tier === 'main') {
       // The HQ — the biggest, toughest one
-      return tuned({x, y, w:160, h:80, hp:220, maxHp:220, eggs:3, fireCd: 0,
+      return tuned({x, y, w:160, h:80, hp:700, maxHp:700, eggs:3, fireCd: 0,
               tier, dmg: 8, fireRate: 2.6, color: '#4f7fb5', dark: '#2c5990', cones: 5});
     } else if (tier === 'secondary') {
-      return tuned({x, y, w:110, h:60, hp:90, maxHp:90, eggs:1, fireCd: rand(1, 3),
+      return tuned({x, y, w:110, h:60, hp:260, maxHp:260, eggs:1, fireCd: rand(1, 3),
               tier, dmg: 6, fireRate: 3.6, color: '#3f6585', dark: '#1f4060', cones: 3});
     } else { // tertiary or any further
-      return tuned({x, y, w:90, h:50, hp:60, maxHp:60, eggs:1, fireCd: rand(1, 3),
+      return tuned({x, y, w:90, h:50, hp:160, maxHp:160, eggs:1, fireCd: rand(1, 3),
               tier, dmg: 5, fireRate: 4.4, color: '#2f5070', dark: '#162a45', cones: 2});
     }
   }
