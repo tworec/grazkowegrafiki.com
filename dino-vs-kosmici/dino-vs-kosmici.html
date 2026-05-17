@@ -195,6 +195,7 @@
     flyer: new Image(),
     stego: new Image(),
     tyranno: new Image(),
+    diplo: new Image(),
     bigalien: new Image(),
     walker: new Image()
   };
@@ -203,12 +204,27 @@
   charSprites.flyer.src = 'assets/char-flyer.png';
   charSprites.stego.src = 'assets/char-stego.png';
   charSprites.tyranno.src = 'assets/char-tyranno.png';
+  charSprites.diplo.src = 'assets/char-diplo.png';
   charSprites.bigalien.src = 'assets/char-bigalien.png';
   charSprites.walker.src = 'assets/char-walker.png';
   // Sprite-sheet animation metadata (horizontal strips).
   const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7 };
-  // Stego frames face LEFT in the source — render code flips when facing right.
-  const STEGO_ANIM = { frames: 10, frameW: 397, frameH: 181, fps: 12 };
+  // Stego: 18 frames laid out as idle(6) + walk(8) + shoot(4). Each frame is
+  // pre-normalized so the dino body is at constant size, centered, feet at
+  // bottom — no per-frame bbox handling needed.
+  const STEGO_ANIM = {
+    frameW: 256, frameH: 168,
+    idle:  { start:  0, count: 6 },
+    walk:  { start:  6, count: 8 },
+    shoot: { start: 14, count: 4 }
+  };
+  // Diplo: same layout as stego — idle(6) + walk(8) + shoot(4).
+  const DIPLO_ANIM = {
+    frameW: 256, frameH: 168,
+    idle:  { start:  0, count: 6 },
+    walk:  { start:  6, count: 8 },
+    shoot: { start: 14, count: 4 }
+  };
   // Tyranno: 4 walk + 3 attack + 3 breath frames laid side-by-side.
   const TYRANNO_ANIM = {
     frameW: 233, frameH: 188,
@@ -257,8 +273,10 @@
     // shared front-facing char-dino.png.
     const stegoReady   = p.species === 'stego'   && charSprites.stego.complete   && charSprites.stego.naturalWidth;
     const tyrannoReady = p.species === 'tyranno' && charSprites.tyranno.complete && charSprites.tyranno.naturalWidth;
+    const diploReady   = p.species === 'diplo'   && charSprites.diplo.complete   && charSprites.diplo.naturalWidth;
     const img = stegoReady   ? charSprites.stego   :
                 tyrannoReady ? charSprites.tyranno :
+                diploReady   ? charSprites.diplo   :
                 (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino :
                 (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
     if (!img) return false;
@@ -268,8 +286,11 @@
     const bob = Math.sin(wp * 2) * (moving ? 1.8 : 0.4);
     let w, h;
     if (stegoReady) {
-      w = 160;
-      h = w * STEGO_ANIM.frameH / STEGO_ANIM.frameW;
+      h = 90;
+      w = STEGO_ANIM.frameW * h / STEGO_ANIM.frameH;
+    } else if (diploReady) {
+      h = 96;  // diplo is the biggest dino
+      w = DIPLO_ANIM.frameW * h / DIPLO_ANIM.frameH;
     } else if (tyrannoReady) {
       w = 120;
       h = w * TYRANNO_ANIM.frameH / TYRANNO_ANIM.frameW;
@@ -281,12 +302,25 @@
     ctx.translate(p.x, p.y - 34 - jumpY + bob);
     if (p.facing === -1) ctx.scale(-1, 1);
     if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
-    if (stegoReady) {
-      const cycle = moving
-        ? (wp / (Math.PI * 2)) * STEGO_ANIM.frames
-        : state.t * 1.5;
-      const frame = ((Math.floor(cycle) % STEGO_ANIM.frames) + STEGO_ANIM.frames) % STEGO_ANIM.frames;
-      ctx.drawImage(img, frame * STEGO_ANIM.frameW, 0, STEGO_ANIM.frameW, STEGO_ANIM.frameH, -w/2, -h/2, w, h);
+    if (stegoReady || diploReady) {
+      // Shared band-picker: fire breath > walk (moving) > idle.
+      const ANIM = stegoReady ? STEGO_ANIM : DIPLO_ANIM;
+      let band, frame;
+      if (p.attackAnim > 0 && p.attackKind === 'fire') {
+        band = ANIM.shoot;
+        const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
+        frame = Math.min(band.count - 1, Math.floor(progress * band.count));
+      } else if (moving) {
+        band = ANIM.walk;
+        const cycle = (wp / (Math.PI * 2)) * band.count;
+        frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
+      } else {
+        band = ANIM.idle;
+        const cycle = state.t * 4;
+        frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
+      }
+      const sx = (band.start + frame) * ANIM.frameW;
+      ctx.drawImage(img, sx, 0, ANIM.frameW, ANIM.frameH, -w/2, -h/2, w, h);
     } else if (tyrannoReady) {
       // Pick animation state: fire breath > melee attack > walk > idle.
       let band, frame;
