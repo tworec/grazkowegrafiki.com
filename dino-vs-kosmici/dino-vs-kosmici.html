@@ -25,27 +25,86 @@
   #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #hud {
     position: absolute; top: 8px; left: 8px;
-    background: var(--hud-bg); border-radius: 12px;
-    padding: 8px 10px; font-size: 13px; line-height: 1.3;
-    pointer-events: auto; min-width: 190px;
+    background: url('assets/hud-plank.png') center/cover, #3a2a1a;
+    border-radius: 14px;
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 235, 200, 0.08),
+      inset 0 0 14px rgba(0, 0, 0, 0.55),
+      0 4px 10px rgba(0, 0, 0, 0.5);
+    padding: 10px 12px; font-size: 13px; line-height: 1.35;
+    pointer-events: auto; min-width: 220px;
+    color: #f7eccd;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
   }
-  .bar { width: 140px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin: 2px 0 4px; }
-  .bar > div { height: 100%; transition: width 120ms linear; }
-  .bar.hp > div { background: var(--hp); }
-  .bar.en > div { background: var(--energy); }
-  .bar.xp > div { background: var(--xp); }
+  /* Bitmap digits — wooden-style numbers cut from the asset sheet. */
+  .digits { display: inline-flex; align-items: center; vertical-align: middle; gap: 0; }
+  .digits img { display: block; image-rendering: -webkit-optimize-contrast; }
+  .digits.lvl img { height: 22px; }
+  .digits.num img { height: 16px; }
+  /* Wooden bars (HP/Energy/XP) — 3-slice border-image, no center seam.
+     Sliced assets are 90x{H} = [30 LCAP][30 MID][30 RCAP]. */
+  .bar {
+    position: relative;
+    width: 220px; margin: 2px 0 6px;
+    border-style: solid; border-color: transparent;
+    border-width: 0 14px;             /* horizontal caps; vertical = 0 */
+    border-image-slice: 0 30 fill;    /* fill = also draws middle slice into content */
+    border-image-width: 0 14px;
+    border-image-repeat: stretch;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .bar > div {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    border-style: solid; border-color: transparent;
+    border-width: 0 14px;
+    border-image-slice: 0 30 fill;
+    border-image-width: 0 14px;
+    border-image-repeat: stretch;
+    transition: width 120ms linear;
+    pointer-events: none;
+    box-sizing: border-box;
+  }
+  .bar.hp     { height: 24px; border-image-source: url('assets/bar-hp-frame.png'); }
+  .bar.hp > div                    { border-image-source: url('assets/bar-hp-fill.png'); }
+  .bar.en     { height: 18px; border-image-source: url('assets/bar-en-frame.png'); }
+  .bar.en > div                    { border-image-source: url('assets/bar-en-fill.png'); }
+  .bar.xp     { height: 18px; border-image-source: url('assets/bar-xp-frame.png'); }
+  .bar.xp > div                    { border-image-source: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
   #stats span small { font-weight: 400; opacity: .8; }
   #goalLine, #upgradeLine { font-size: 11px; opacity: .95; margin-top: 3px; }
   #settings {
-    display: flex; gap: 6px; align-items: center; margin-top: 6px;
+    display: flex; gap: 8px; align-items: center; margin-top: 8px;
     pointer-events: auto;
   }
   #settings select, #settings button {
-    height: 24px; border: 0; border-radius: 6px; padding: 0 6px;
-    background: rgba(255,255,255,0.9); color: #123; font: 700 11px system-ui;
+    height: 28px; border: 0; border-radius: 10px;
+    padding: 0 12px;
+    background: url('assets/btn-wood-tile.png'), #8a6131;
+    background-size: 60px 60px, auto;
+    color: #2a160a;
+    font: 800 12px system-ui;
+    text-shadow: 0 1px 0 rgba(255, 230, 180, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 235, 200, 0.4),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+      0 2px 3px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    -webkit-appearance: none; appearance: none;
   }
-  #settings button { min-width: 54px; cursor: pointer; }
+  #settings select {
+    padding-right: 22px;
+    background:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='8' viewBox='0 0 10 8'><path fill='%232a160a' d='M0 0l5 8 5-8z'/></svg>") no-repeat right 8px center,
+      url('assets/btn-wood-tile.png'), #8a6131;
+    background-size: 10px 8px, 60px 60px, auto;
+  }
+  #settings button { min-width: 64px; }
+  #settings button:active, #settings select:active {
+    box-shadow:
+      inset 0 2px 3px rgba(0, 0, 0, 0.5),
+      inset 0 -1px 0 rgba(255, 235, 200, 0.2);
+  }
 
   /* Attack buttons */
   #attacks {
@@ -119,11 +178,11 @@
 <div id="hud">
   <div id="speciesLine" style="font-weight:700; color:#9aff9a; margin-bottom:2px">Tyranozaur</div>
   <div id="stats">
-    <span>LVL <small id="lvl">1</small></span>
-    <span>$ <small id="money">0</small></span>
+    <span>LVL <span id="lvl" class="digits lvl"></span></span>
+    <span>$ <span id="money" class="digits num"></span></span>
   </div>
-  <div id="goalLine">Bazy: 1</div>
-  <div>HP <span id="hpTxt">100/100</span></div>
+  <div id="goalLine">Bazy: <span id="bazyCnt" class="digits num"></span>/<span id="bazyMax" class="digits num"></span> | Kosmici: <span id="kosmiciCnt" class="digits num"></span></div>
+  <div>HP <span id="hpTxt" class="digits num"></span><span id="hpShield"></span></div>
   <div class="bar hp"><div id="hpBar" style="width:100%"></div></div>
   <div>Energia</div>
   <div class="bar en"><div id="enBar" style="width:100%"></div></div>
@@ -423,7 +482,11 @@
     lvl: document.getElementById('lvl'),
     money: document.getElementById('money'),
     goalLine: document.getElementById('goalLine'),
+    bazyCnt: document.getElementById('bazyCnt'),
+    bazyMax: document.getElementById('bazyMax'),
+    kosmiciCnt: document.getElementById('kosmiciCnt'),
     hpTxt: document.getElementById('hpTxt'),
+    hpShield: document.getElementById('hpShield'),
     hpBar: document.getElementById('hpBar'),
     enBar: document.getElementById('enBar'),
     xpBar: document.getElementById('xpBar'),
@@ -437,6 +500,24 @@
       C: document.querySelector('.attackBtn[data-key="C"] .cd')
     }
   };
+
+  // Bitmap digit rendering — composes a number from sprite PNGs.
+  // Caches last value per element so we only rebuild on change.
+  const _digitsCache = new WeakMap();
+  function setDigits(target, value, font) {
+    const s = String(value);
+    const key = font + '|' + s;
+    if (_digitsCache.get(target) === key) return;
+    _digitsCache.set(target, key);
+    target.replaceChildren();
+    for (const ch of s) {
+      const name = ch === '/' ? 'slash' : ch;
+      const img = document.createElement('img');
+      img.src = `assets/digits/${font}-${name}.png`;
+      img.alt = ch;
+      target.appendChild(img);
+    }
+  }
 
   const DIFFICULTY = {
     easy:   {spawn: 0.11, extraSpawn: 0.04, maxBase: 4, hpMul: 0.82, dmgMul: 0.75, label: 'Easy'},
@@ -1553,10 +1634,13 @@
     const aliveBases = state.bases.reduce((n, b) => n + (b.dead ? 0 : 1), 0);
     const up = p.upgrades || {hp:0, energy:0, cooldown:0, ally:0};
     el.speciesLine.textContent = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
-    el.lvl.textContent = p.level;
-    el.money.textContent = p.money;
-    el.goalLine.textContent = `Bazy: ${aliveBases}/${state.bases.length} | Kosmici: ${state.aliens.length}`;
-    el.hpTxt.textContent = `${Math.max(0,Math.round(p.hp))}/${p.maxHp}` + (p.shield > 0 ? ' + tarcza' : '');
+    setDigits(el.lvl, p.level, 'lvl');
+    setDigits(el.money, p.money, 'num');
+    setDigits(el.bazyCnt, aliveBases, 'num');
+    setDigits(el.bazyMax, state.bases.length, 'num');
+    setDigits(el.kosmiciCnt, state.aliens.length, 'num');
+    setDigits(el.hpTxt, `${Math.max(0,Math.round(p.hp))}/${p.maxHp}`, 'num');
+    el.hpShield.textContent = p.shield > 0 ? ' + tarcza' : '';
     el.hpBar.style.width = (100 * p.hp / p.maxHp) + '%';
     el.enBar.style.width = (100 * p.energy / p.maxEnergy) + '%';
     el.xpBar.style.width = (100 * p.xp / p.xpNeed) + '%';
