@@ -42,34 +42,33 @@
   .digits.lvl img { height: 22px; }
   .digits.num img { height: 16px; }
   /* Wooden bars (HP/Energy/XP) — 3-slice border-image, no center seam.
+     One shared empty frame; each color has its own fill plank.
      Sliced assets are 90x{H} = [30 LCAP][30 MID][30 RCAP]. */
   .bar {
     position: relative;
-    width: 220px; margin: 2px 0 6px;
+    width: 220px; height: 24px; margin: 4px 0 6px;
     border-style: solid; border-color: transparent;
-    border-width: 0 14px;             /* horizontal caps; vertical = 0 */
+    border-width: 0 18px;             /* horizontal caps; vertical = 0 */
     border-image-slice: 0 30 fill;    /* fill = also draws middle slice into content */
-    border-image-width: 0 14px;
+    border-image-width: 0 18px;
     border-image-repeat: stretch;
+    border-image-source: url('assets/bar-frame.png');
     image-rendering: -webkit-optimize-contrast;
   }
   .bar > div {
     position: absolute; left: 0; top: 0; bottom: 0;
     border-style: solid; border-color: transparent;
-    border-width: 0 14px;
+    border-width: 0 18px;
     border-image-slice: 0 30 fill;
-    border-image-width: 0 14px;
+    border-image-width: 0 18px;
     border-image-repeat: stretch;
     transition: width 120ms linear;
     pointer-events: none;
     box-sizing: border-box;
   }
-  .bar.hp     { height: 24px; border-image-source: url('assets/bar-hp-frame.png'); }
-  .bar.hp > div                    { border-image-source: url('assets/bar-hp-fill.png'); }
-  .bar.en     { height: 18px; border-image-source: url('assets/bar-en-frame.png'); }
-  .bar.en > div                    { border-image-source: url('assets/bar-en-fill.png'); }
-  .bar.xp     { height: 18px; border-image-source: url('assets/bar-xp-frame.png'); }
-  .bar.xp > div                    { border-image-source: url('assets/bar-xp-fill.png'); }
+  .bar.hp > div { border-image-source: url('assets/bar-hp-fill.png'); }
+  .bar.en > div { border-image-source: url('assets/bar-en-fill.png'); }
+  .bar.xp > div { border-image-source: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
   #stats span small { font-weight: 400; opacity: .8; }
   #goalLine, #upgradeLine { font-size: 11px; opacity: .95; margin-top: 3px; }
