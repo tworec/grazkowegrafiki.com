@@ -48,27 +48,33 @@
     position: relative;
     width: 220px; height: 24px; margin: 4px 0 6px;
     border-style: solid; border-color: transparent;
-    border-width: 0 18px;             /* horizontal caps; vertical = 0 */
-    border-image-slice: 0 30 fill;    /* fill = also draws middle slice into content */
-    border-image-width: 0 18px;
+    /* The wooden caps occupy only ~9px at each edge of the 90px frame asset;
+       slice there (not at 30) so the cap region is pure wood and the dark
+       interior is the stretched middle. border-width matches the natural
+       scale (9px × 220/90 ≈ 22px) so the fill starts right where wood ends. */
+    border-width: 0 22px;
+    border-image-slice: 0 9 fill;
+    border-image-width: 0 22px;
     border-image-repeat: stretch;
     border-image-source: url('assets/bar-frame.png');
     image-rendering: -webkit-optimize-contrast;
   }
   .bar > div {
-    position: absolute; left: 0; top: 0; bottom: 0;
-    border-style: solid; border-color: transparent;
-    border-width: 0 18px;
-    border-image-slice: 0 30 fill;
-    border-image-width: 0 18px;
-    border-image-repeat: stretch;
+    /* Plain colored fill, inset into the frame's interior (left:0 of the
+       padding box = just inside the left wooden cap). width% (set by JS) is
+       relative to the interior, so the fill touches the caps exactly. */
+    position: absolute; left: 0;
+    top: 20%; height: 60%;
+    background-repeat: repeat-x;
+    background-position: left center;
+    background-size: auto 100%;
+    border-radius: 2px;
     transition: width 120ms linear;
     pointer-events: none;
-    box-sizing: border-box;
   }
-  .bar.hp > div { border-image-source: url('assets/bar-hp-fill.png'); }
-  .bar.en > div { border-image-source: url('assets/bar-en-fill.png'); }
-  .bar.xp > div { border-image-source: url('assets/bar-xp-fill.png'); }
+  .bar.hp > div { background-image: url('assets/bar-hp-fill.png'); }
+  .bar.en > div { background-image: url('assets/bar-en-fill.png'); }
+  .bar.xp > div { background-image: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
   #stats span small { font-weight: 400; opacity: .8; }
   #goalLine, #upgradeLine { font-size: 11px; opacity: .95; margin-top: 3px; }
