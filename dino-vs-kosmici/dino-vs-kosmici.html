@@ -1127,7 +1127,7 @@
     while (p.xp >= p.xpNeed) {
       p.xp -= p.xpNeed;
       p.level += 1;
-      p.maxHp += 20; p.hp = p.maxHp;
+      p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20);
       p.xpNeed = Math.round(p.xpNeed * 1.6);
       sfx.levelup();
       flashRing(p.x, p.y, 80, '#9aff9a');
