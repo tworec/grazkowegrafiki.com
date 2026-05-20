@@ -308,8 +308,8 @@
     treeA:   {x:292,  y:745, w:205, h:240},
     pine:    {x:525,  y:762, w:160, h:225},
     bush:    {x:705,  y:800, w:215, h:170},
-    rock:    {x:875,  y:810, w:305, h:155},
-    treeB:   {x:1240, y:680, w:250, h:305},
+    rock:    {x:979,  y:769, w:306, h:231},
+    treeB:   {x:1299, y:669, w:223, h:290},
     stick:   {x:70,   y:368, w:240, h:185}
   };
   function drawSprite(name, x, y, w, h, opts) {
@@ -831,8 +831,10 @@
     }
 
     // Trees — random decoration, also avoiding the placed elements
-    const treeCount = 10;
-    for (let i=0;i<treeCount;i++) {
+    const treeTarget = 10;
+    let treeTries = 0;
+    while (state.trees.length < treeTarget && treeTries < 200) {
+      treeTries++;
       const tx = rand(40, W-40);
       const ty = rand(140, H-90);
       if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
@@ -843,6 +845,10 @@
       let onRock = false;
       for (const rk of state.rocks) if (Math.hypot(tx-rk.x, ty-rk.y) < rk.r + 18) { onRock = true; break; }
       if (onRock) continue;
+      // Keep trees from overlapping each other (pine creeping onto treeB etc.).
+      let tooClose = false;
+      for (const t of state.trees) if (Math.hypot(tx - t.x, ty - t.y) < 64) { tooClose = true; break; }
+      if (tooClose) continue;
       const variants = ['treeA', 'pine', 'bush', 'treeB'];
       state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v: variants[Math.floor(Math.random()*variants.length)]});
     }
@@ -1704,7 +1710,9 @@
   }
 
   function drawRock(r) {
-    if (drawSprite('rock', r.x, r.y + r.r*0.1, r.r*2.55, r.r*1.35)) return;
+    // Rock atlas art is ~1.32:1 (mossy mound on top, stone disk below); keep
+    // that aspect and anchor the stone disk near the collision centre.
+    if (drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92)) return;
     ctx.save();
     ctx.translate(r.x, r.y);
     // shadow on the grass
