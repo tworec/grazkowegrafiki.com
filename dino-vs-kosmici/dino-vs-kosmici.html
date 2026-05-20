@@ -278,7 +278,7 @@
   // Base destruction: 8 frames. 0-1 intact, 2 fire starts, 3 explosion,
   // 4-5 collapsing, 6-7 burning ruins. Living bases show 0/1/2 by HP; on
   // death we play 3→7 and hold on the ruins.
-  const BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 175, deathFps: 6 };
+  const BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 150, deathFps: 6 };
   // Stego: 18 frames laid out as idle(6) + walk(8) + shoot(4). Each frame is
   // pre-normalized so the dino body is at constant size, centered, feet at
   // bottom — no per-frame bbox handling needed.
@@ -2048,9 +2048,10 @@
         frame = f > 0.5 ? 0 : (f > 0.22 ? 1 : 2);
       }
       // Scale to base width; anchor the grass row at the base's bottom edge.
-      const drawW = b.w * 1.5;
+      // Keep close to the 150px native size so it doesn't pixelate.
+      const drawW = b.w * 1.05;
       const drawH = drawW * BASE_DESTRUCT.frameH / BASE_DESTRUCT.frameW;
-      const grassFrac = 0.045; // grass sits ~4.5% above the cell bottom
+      const grassFrac = 0.04; // grass sits ~4% above the cell bottom
       const topY = (b.y + b.h/2) - drawH * (1 - grassFrac);
       ctx.drawImage(sheet,
         frame * BASE_DESTRUCT.frameW, 0, BASE_DESTRUCT.frameW, BASE_DESTRUCT.frameH,
