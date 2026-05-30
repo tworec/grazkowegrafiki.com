@@ -338,7 +338,7 @@
     return true;
   }
 
-  function drawDinoSprite(p) {
+  function drawDinoSprite(p, scaleOpt) {
     // Per-species side-view sprite sheets; other species fall back to the
     // shared front-facing char-dino.png.
     const stegoReady   = p.species === 'stego'   && charSprites.stego.complete   && charSprites.stego.naturalWidth;
@@ -368,8 +368,10 @@
       const scale = p.species === 'diplo' ? 1.08 : (p.species === 'tyranno' ? 1.0 : 0.96);
       w = 78 * scale; h = 116 * scale;
     }
+    const s = scaleOpt || 1;
+    w *= s; h *= s;
     ctx.save();
-    ctx.translate(p.x, p.y - 34 - jumpY + bob);
+    ctx.translate(p.x, p.y - 34 * s - jumpY + bob);
     if (p.facing === -1) ctx.scale(-1, 1);
     if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
     if (stegoReady || diploReady) {
@@ -629,6 +631,8 @@
   // ---------- Game state ----------
   const state = {
     t: 0,
+    wave: 1,
+    nextWaveAt: null,
     gameOver: false,
     won: false,
     cam: {x:0, y:0}, // (we keep camera at 0 because world == screen for now)
@@ -738,14 +742,17 @@
     state.fx.push({kind:'notify', x: W/2, y: H*0.28, text, color: color || '#fff', life: 2.5, t: 0, vy: -10});
   }
 
-  function makeAlly(x, y) {
-    // tiny stegosaur — auto-attacks aliens, low HP
+  function makeAlly(x, y, species) {
+    // small dino sidekick — auto-attacks aliens, low HP
     const allyUp = state.player && state.player.upgrades ? state.player.upgrades.ally : 0;
     return {
       x, y, vx: 0, vy: 0,
       r: 14, hp: 25, maxHp: 25,
       speed: 150, dmg: 3 + allyUp, attackCd: 0,
-      bob: rand(0, Math.PI*2), facing: 1, flash: 0
+      bob: rand(0, Math.PI*2), facing: 1, flash: 0,
+      species: species || null,
+      jump: 0, attackAnim: 0, attackKind: null,
+      walkPhase: 0
     };
   }
 
@@ -761,17 +768,17 @@
     state.allies = [];
 
     // ----- Randomized layout — picked fresh every game -----
-    // Alien HQ: somewhere in the upper band of the map
-    const baseX = rand(W*0.18, W*0.82);
-    const baseY = rand(80, Math.max(90, Math.min(180, H*0.22)));
+    // Alien HQ: anywhere on the map (with margin from edges)
+    const baseX = rand(W*0.15, W*0.85);
+    const baseY = rand(90, H - 110);
 
-    // Player spawn: lower band, far from the HQ
+    // Player spawn: anywhere far from the HQ
     let pX, pY, tries = 0;
     do {
-      pX = rand(W*0.15, W*0.85);
-      pY = rand(H*0.70, H - 80);
+      pX = rand(W*0.10, W*0.90);
+      pY = rand(120, H - 80);
       tries++;
-    } while (tries < 30 && Math.hypot(pX - baseX, pY - baseY) < Math.min(W*0.4, H*0.5));
+    } while (tries < 60 && Math.hypot(pX - baseX, pY - baseY) < Math.min(W*0.45, H*0.55));
     state.player.x = pX; state.player.y = pY;
 
     // Heal pad — middle band, away from HQ and player
@@ -806,7 +813,7 @@
     const hpdSide = Math.random() < 0.5 ? -1 : 1;
     state.helipad = {
       x: clamp(baseX + hpdSide * rand(95, 135), 60, W - 50),
-      y: clamp(baseY + rand(-20, 25), 50, Math.max(70, H*0.18)),
+      y: clamp(baseY + rand(-20, 25), 60, H - 80),
       r: 38
     };
     // If helipad ends up overlapping the HQ horizontally, push it further out
@@ -869,6 +876,7 @@
     spawnAlien();
 
     state.t = 0; state.hudAcc = 1; state.gameOver = false; state.won = false;
+    state.wave = 1; state.nextWaveAt = null;
     perf.staticDirty = true;
     el.banner.style.display = 'none';
     updateHUD();
@@ -1114,12 +1122,13 @@
         state.fx.push({kind:'egg', x:b.x+rand(-30,30), y:b.y+rand(-15,15),
                        vx:rand(-30,30), vy:rand(-100,-40), life:2.5, t:0});
       }
-      // Check if ALL bases (main + secondaries) are gone
+      // Check if ALL bases (main + secondaries) are gone — start the next wave
       const allDead = state.bases.every(bb => bb.dead);
       if (allDead) {
         sfx.win();
-        state.won = true;
-        showBanner('🥚 URATOWANE! 🦖<br><small>Pokonałeś WSZYSTKIE bazy kosmitów<br>i odzyskałeś jaja dinozaurów!</small>', true);
+        state.wave = (state.wave || 1) + 1;
+        state.nextWaveAt = state.t + 3.0;
+        notify(`FALA ${state.wave} nadlatuje — większa baza!`, '#ffd166');
       } else {
         sfx.coin();
         notify(isMain ? 'KWATERA GŁÓWNA padła!' : 'Baza kosmitów zniszczona!', '#9aff9a');
@@ -1150,6 +1159,11 @@
       p.xpNeed = Math.round(p.xpNeed * 1.6);
       sfx.levelup();
       flashRing(p.x, p.y, 80, '#9aff9a');
+      if (p.level >= 10 && !state.won && !state.gameOver) {
+        state.won = true;
+        sfx.win();
+        showBanner('🏆 ZWYCIĘSTWO! 🦖<br><small>Osiągnąłeś 10. poziom!</small>', true);
+      }
     }
   }
 
@@ -1490,7 +1504,7 @@
       const onAp = Math.hypot(p.x - ap.x, p.y - ap.y) < ap.r + p.r;
       ap.glow = onAp ? 1 : Math.max(0, (ap.glow||0) - dt*2);
       ap.tickAcc = (ap.tickAcc || 0) + (onAp ? dt : 0);
-      if (onAp && ap.tickAcc >= 1.5) {
+      if (onAp && ap.tickAcc >= 2) {
         ap.tickAcc = 0;
         const aliveCount = state.allies.filter(a => !a.dead).length;
         // Need full slots for the whole herd, so 3 always show up together.
@@ -1499,7 +1513,7 @@
           for (let i = 0; i < ALLY_PER_BUY; i++) {
             const ang = rand(0, Math.PI*2);
             const dist = rand(20, 45);
-            state.allies.push(makeAlly(p.x + Math.cos(ang)*dist, p.y + Math.sin(ang)*dist));
+            state.allies.push(makeAlly(p.x + Math.cos(ang)*dist, p.y + Math.sin(ang)*dist, p.species));
           }
           sfx.coin();
           flashRing(p.x, p.y, 70, '#9aff9a');
@@ -1576,9 +1590,24 @@
       if (f.kind === 'puff' || f.kind === 'egg') {
         f.x += f.vx * dt; f.y += f.vy * dt;
         f.vy += 240 * dt; f.vx *= 0.98;
+        if (f.kind === 'egg') {
+          // settle on the ground band so eggs don't fall off-screen before hatching
+          const groundY = H - 70;
+          if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= 0.6; }
+        }
       } else if (f.kind === 'notify') {
         f.y += (f.vy || 0) * dt;
         f.vy = (f.vy || 0) * 0.93;
+      }
+      // Eggs hatch into baby allied dinosaurs (same species as the player)
+      if (f.kind === 'egg' && f.life <= 0 && !f.hatched) {
+        f.hatched = true;
+        const ax = clamp(f.x, 30, W - 30);
+        const ay = clamp(f.y, 100, H - 60);
+        const sp = state.player ? state.player.species : currentSpecies();
+        state.allies.push(makeAlly(ax, ay, sp));
+        flashRing(ax, ay, 22, '#9aff9a');
+        sfx.coin();
       }
     }
     state.fx = state.fx.filter(f => f.life > 0);
@@ -1593,12 +1622,20 @@
       spawnAlien(aliveBases[Math.floor(Math.random() * aliveBases.length)]);
     }
 
+    // Next-wave HQ: after the player clears every base, a bigger one sprouts
+    // somewhere else. Then secondary/tertiary backfill kicks back in.
+    if (state.nextWaveAt != null && state.t >= state.nextWaveAt) {
+      state.nextWaveAt = null;
+      spawnNextWaveBase();
+    }
+
     // Reinforcement bases are built from a real group of at least 5 aliens,
     // so they never appear out of empty grass.
-    if (state.bases.length < 2) {
+    const haveLiveBase = state.bases.some(bb => !bb.dead);
+    if (haveLiveBase && state.bases.filter(b => !b.dead).length < 2) {
       spawnBaseFromAlienCluster('secondary', 'Druga baza zbudowana przez kosmitów!');
     }
-    if (state.bases.length < 3) {
+    if (haveLiveBase && state.bases.filter(b => !b.dead).length < 3) {
       spawnBaseFromAlienCluster('tertiary', 'Trzecia baza zbudowana przez kosmitów!');
     }
 
@@ -1607,6 +1644,35 @@
       state.hudAcc = 0;
       updateHUD();
     }
+  }
+
+  function spawnNextWaveBase() {
+    const wave = state.wave || 2;
+    const hpMul  = 1 + (wave - 1) * 0.55;
+    const dmgMul = 1 + (wave - 1) * 0.22;
+    const sizeMul = 1 + (wave - 1) * 0.12;
+    const p = state.player;
+    let bx, by, tries = 0;
+    do {
+      bx = rand(W*0.10, W*0.90);
+      by = rand(90, H - 110);
+      tries++;
+    } while (tries < 80 && (
+      Math.hypot(bx - p.x, by - p.y) < Math.min(W*0.45, H*0.55) ||
+      !canPlaceReinforcementBase(bx, by)
+    ));
+    const base = makeBase(bx, by, 'main');
+    base.w = Math.round(base.w * sizeMul);
+    base.h = Math.round(base.h * sizeMul);
+    base.hp = Math.round(base.hp * hpMul);
+    base.maxHp = base.hp;
+    base.dmg = Math.round(base.dmg * dmgMul);
+    base.eggs = 3 + wave;
+    state.bases.push(base);
+    perf.staticDirty = true;
+    flashRing(bx, by, 110, '#ffd166');
+    notify(`FALA ${wave}! Nowa kwatera główna!`, '#ffd166');
+    sfx.alienHit();
   }
 
   function spawnBaseFromAlienCluster(tier, message) {
@@ -1664,7 +1730,8 @@
     const p = state.player;
     const aliveBases = state.bases.reduce((n, b) => n + (b.dead ? 0 : 1), 0);
     const up = p.upgrades || {hp:0, energy:0, cooldown:0, ally:0};
-    el.speciesLine.textContent = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
+    const speciesName = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
+    el.speciesLine.textContent = (state.wave > 1 ? `Fala ${state.wave} · ` : '') + speciesName;
     setDigits(el.lvl, p.level, 'lvl');
     setDigits(el.money, p.money, 'num');
     setDigits(el.bazyCnt, aliveBases, 'num');
@@ -1839,6 +1906,17 @@
   }
 
   function drawAlly(al) {
+    // Hatched allies share the player's species — render with the player sprite
+    // at ~half scale so they read as "baby" versions, then add a tiny HP bar.
+    if (al.species && drawDinoSprite(al, 0.5)) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(al.x - 12, al.y - al.r - 12, 24, 3);
+      ctx.fillStyle = '#9aff9a';
+      ctx.fillRect(al.x - 12, al.y - al.r - 12, 24 * (al.hp / al.maxHp), 3);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.translate(al.x, al.y);
     if (al.facing === -1) ctx.scale(-1, 1);
@@ -2132,47 +2210,37 @@
   }
 
   function drawCoin(c) {
-    // little gold-tinged dinosaur tail with vertebra-bones sticking out the top
+    // simple round gold coin with a $ sign, gently bobbing
     ctx.save();
-    ctx.translate(c.x, c.y);
-    const wob = Math.sin((c.t)*8)*1.2;
-    const flip = Math.sin(c.t*2 + (c.x+c.y)*0.01) > 0 ? 1 : -1; // gentle pseudo-spin
-    ctx.translate(0, wob);
-    ctx.scale(flip, 1);
+    ctx.translate(c.x, c.y + Math.sin(c.t*6) * 1.2);
 
-    // gold glow halo
-    ctx.fillStyle = 'rgba(255, 220, 100, 0.4)';
+    // soft glow halo
+    ctx.fillStyle = 'rgba(255, 220, 100, 0.35)';
     ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI*2); ctx.fill();
 
-    // tail (curving) - gold body
-    ctx.fillStyle = '#ffcc33';
-    ctx.strokeStyle = '#9a6b00';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-9, 1);
-    ctx.quadraticCurveTo(0, 0, 9, -1);
-    ctx.quadraticCurveTo(11, 1, 8, 3);
-    ctx.quadraticCurveTo(0, 4, -9, 4);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
+    // outer rim (dark gold)
+    ctx.fillStyle = '#9a6b00';
+    ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI*2); ctx.fill();
 
-    // 3 little bone-spikes on top (like stegosaur plates / vertebrae)
-    ctx.fillStyle = '#fff8d6';
-    ctx.strokeStyle = '#7a5500';
-    ctx.lineWidth = 0.6;
-    for (let i=0; i<3; i++) {
-      const x = -5 + i*5;
-      const yTop = -0.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 1.6, yTop);
-      ctx.lineTo(x,       yTop - 4);
-      ctx.lineTo(x + 1.6, yTop);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-    }
-    // tail tip darker
-    ctx.fillStyle = '#a07000';
-    ctx.beginPath(); ctx.arc(-9, 2.5, 1.5, 0, Math.PI*2); ctx.fill();
+    // gold face
+    ctx.fillStyle = '#ffcc33';
+    ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI*2); ctx.fill();
+
+    // inner engraved ring
+    ctx.strokeStyle = '#c89110';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.stroke();
+
+    // highlight blob
+    ctx.fillStyle = 'rgba(255, 245, 200, 0.55)';
+    ctx.beginPath(); ctx.arc(-2.2, -2.4, 2.6, 0, Math.PI*2); ctx.fill();
+
+    // $ sign
+    ctx.fillStyle = '#6a3a00';
+    ctx.font = 'bold 10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', 0, 0.5);
 
     ctx.restore();
   }
