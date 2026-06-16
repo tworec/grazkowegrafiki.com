@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="193 239 870 733" fill="none">
+  <g stroke="#0A2F86" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <!-- house outline with roof and chimney as one continuous line -->
+    <path d="M327 502 L626 253 L786 392 L786 286 L871 286 L871 445 L922 501 L883 501 L883 744"/>
+    <path d="M383 744 L383 501 L327 501"/>
+    <!-- rocks base -->
+    <path d="M207 958 H1049"/>
+    <path d="M207 958 L289 780 L383 744 L512 804"/>
+    <path d="M289 780 L512 804"/>
+    <path d="M289 780 L230 927"/>
+    <path d="M230 927 L512 804"/>
+    <path d="M512 804 L626 870"/>
+    <path d="M383 744 L626 870"/>
+    <path d="M512 804 L626 870 L752 807"/>
+    <path d="M626 870 L536 958"/>
+    <path d="M536 958 L752 807"/>
+    <path d="M626 870 L753 958"/>
+    <path d="M752 807 L848 874"/>
+    <path d="M848 874 L752 958"/>
+    <path d="M848 874 L946 952"/>
+    <path d="M946 952 L753 958"/>
+    <path d="M883 744 L968 780"/>
+    <path d="M968 780 L1049 958"/>
+    <path d="M883 744 L946 952"/>
+    <path d="M848 874 L968 780"/>
+  </g>
+  <g fill="#0A2F86">
+    <rect x="538" y="482" width="72" height="68" rx="2"/>
+    <rect x="635" y="482" width="72" height="68" rx="2"/>
+    <rect x="538" y="581" width="72" height="149" rx="2"/>
+    <rect x="635" y="581" width="72" height="149" rx="2"/>
+  </g>
+</svg>
