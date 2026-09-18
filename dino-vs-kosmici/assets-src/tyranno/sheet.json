@@ -1,0 +1,38 @@
+{
+  "frameW": 233,
+  "frameH": 188,
+  "frames": 10,
+  "bands": {
+    "walk": {
+      "start": 0,
+      "count": 4
+    },
+    "attack": {
+      "start": 4,
+      "count": 3
+    },
+    "breath": {
+      "start": 7,
+      "count": 3
+    }
+  },
+  "source": [
+    "walk-1.png",
+    "walk-2.png",
+    "walk-3.png",
+    "walk-4.png",
+    "attack-1.png",
+    "attack-2.png",
+    "attack-3.png",
+    "breath-1.png",
+    "breath-2.png",
+    "breath-3.png"
+  ],
+  "srcDir": "../assets-src/tyranno",
+  "scale": 0.16131,
+  "medianHeight": 1041.5,
+  "margin": 8,
+  "footY": 180,
+  "anchor": "mass",
+  "js": "export const TYRANNO_ANIM = {\n  frameW: 233, frameH: 188,\n  walk:   { start:  0, count: 4 },\n  attack: { start:  4, count: 3 },\n  breath: { start:  7, count: 3 }\n};"
+}
