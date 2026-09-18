@@ -86,6 +86,38 @@ Cięcie `assets/char-tyranno.png` i złożenie z `--no-scale --frame-w 233 --fra
 (różnica 0 po wyrównaniu bbox), a przesunięcie w miejscu wynosi ≤2 px w poziomie
 i ≤5 px w pionie, bo oryginał nie miał wyrównanej linii stóp.
 
+## measure_frames.py — obiektywna kontrola klatek
+
+Nie oceniaj poz "na oko" — generator obrazów potrafi zwrócić dwie klatki, które
+wyglądają na różne, a mają tę samą pozę nóg.
+
+```bash
+.venv/bin/python measure_frames.py ../assets-src/tyranno/walk-1.png ../assets-src/tyranno/walk-3.png
+```
+
+Dla każdego pliku wypisuje:
+
+- **stopy (%)** — plamy nieprzezroczystości w dolnych 6 % wysokości bbox, jako zakresy
+  w procentach szerokości. Klatka kontaktu ma **dwie** plamy, klatka przejścia (nogi
+  złączone) **jedną**. Trzecia plama = artefakt trzeciej nogi.
+- **nogi@76 %** — to samo w pasie 72–80 % wysokości, do wyłapania dodatkowej nogi
+  tam, gdzie stopy się zlewają.
+- **diff** — średnia różnica pikselowa (0–255) każdej pary po wyrównaniu do wspólnego
+  kadru 320×320 i linii stóp. Poniżej ~20 klatki są praktycznie identyczne.
+
+## leg_tone.py — która noga jest bliżej widza
+
+```bash
+.venv/bin/python leg_tone.py ../assets-src/tyranno/walk-1.png ../assets-src/tyranno/walk-3.png
+```
+
+Liczy średnią jasność nieprzezroczystych pikseli poniżej 80 % wysokości, osobno dla
+lewej (tylnej) i prawej (przedniej) połowy obszaru nóg. W widoku z boku noga bliższa
+widza jest rysowana jaśniej i przed tułowiem, dalsza ciemniej i za nim — więc
+**znak różnicy** mówi, która noga jest wysunięta do przodu. Dwie klatki kontaktu
+tego samego cyklu muszą mieć różnicę o **przeciwnych znakach**; jeśli znak jest ten
+sam, generator nie zamienił nóg, choćby poza wyglądała inaczej.
+
 ## Ograniczenia
 
 - Flood-fill idzie tylko od krawędzi: zamknięta "dziura" w kolorze tła wewnątrz
