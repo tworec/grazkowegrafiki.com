@@ -1,5 +1,5 @@
 import { perf, W, H } from '../view.js';
-import { sfx } from '../audio.js';
+import { sfx, music } from '../audio.js';
 import { DIFFICULTY } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state, difficultyKey, notify, spawnCoinBurst, flashRing } from '../state.js';
@@ -53,6 +53,7 @@ export function damageBase(b, dmg) {
     const allDead = state.bases.every(bb => bb.dead);
     if (allDead) {
       sfx.win();
+      music.combat();
       state.wave = (state.wave || 1) + 1;
       state.nextWaveAt = state.t + 3.0;
       notify(`FALA ${state.wave} nadlatuje — większa baza!`, '#ffd166');
@@ -82,6 +83,7 @@ export function updateBase(b, dt) {
     });
   } else if (b.fireCd <= 0) {
     b.aiming = 0.35;
+    sfx.alarm();
   }
 }
 
@@ -112,6 +114,7 @@ export function spawnNextWaveBase() {
   flashRing(bx, by, 110, '#ffd166');
   notify(`FALA ${wave}! Nowa kwatera główna!`, '#ffd166');
   sfx.alienHit();
+  music.combat();
 }
 
 export function spawnBaseFromAlienCluster(tier, message) {

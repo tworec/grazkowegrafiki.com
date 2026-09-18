@@ -1,4 +1,5 @@
 import { perf, resize } from './view.js';
+import { ensureAudio, isMuted, toggleMuted } from './audio.js';
 import { DIFFICULTY, SPECIES_STATS } from './config.js';
 import { clamp } from './util.js';
 import { state, difficultyKey, notify, restart, setDifficulty } from './state.js';
@@ -22,6 +23,7 @@ export const el = {
   upgradeLine: document.getElementById('upgradeLine'),
   difficulty: document.getElementById('difficulty'),
   powerBtn: document.getElementById('powerBtn'),
+  muteBtn: document.getElementById('muteBtn'),
   banner: document.getElementById('banner'),
   btnCd: {
     Z: document.querySelector('.attackBtn[data-key="Z"] .cd'),
@@ -58,6 +60,20 @@ el.powerBtn.addEventListener('click', () => {
   perf.targetFps = perf.lowPower ? 30 : 60;
   el.powerBtn.textContent = perf.lowPower ? '30 FPS' : '60 FPS';
   resize();
+});
+
+// Wyciszenie: stan trzymany w localStorage (dino.muted), wycisza muzykę i SFX.
+function renderMuteBtn() {
+  const m = isMuted();
+  el.muteBtn.textContent = m ? '🔇' : '🔊';
+  el.muteBtn.title = m ? 'Włącz dźwięk' : 'Wycisz';
+  el.muteBtn.setAttribute('aria-pressed', m ? 'true' : 'false');
+}
+renderMuteBtn();
+el.muteBtn.addEventListener('click', () => {
+  ensureAudio();
+  toggleMuted();
+  renderMuteBtn();
 });
 
 export function updateHUD() {
