@@ -1,7 +1,7 @@
 import { WORLD } from '../config.js';
 import { sfx } from '../audio.js';
 import { rand, clamp, damp } from '../util.js';
-import { state, spawnCoinBurst, flashRing, damageNumber } from '../state.js';
+import { state, spawnCoinBurst, flashRing, damageNumber, notify } from '../state.js';
 import { addShake } from '../camera.js';
 import { pushOutOfRocks } from '../world.js';
 import { damagePlayer, addXP } from './player.js';
@@ -29,6 +29,22 @@ export function makeAlien(type, x, y) {
     return Object.assign({type:'big',    r: 26, hp: 60, maxHp: 60, speed: 60, dmg: 14}, common);
   } else if (type === 'walker') {
     return Object.assign({type:'walker', r: 18, hp: 40, maxHp: 40, speed: 80, dmg: 10}, common);
+  } else if (type === 'shooter') {
+    // Keeps its distance and lobs shots — you have to close in or dodge.
+    return Object.assign({type:'shooter', r: 17, hp: 34, maxHp: 34, speed: 70, dmg: 9,
+                          shootCd: rand(0.8, 2.2), keepAway: rand(170, 230)}, common);
+  } else if (type === 'charger') {
+    // Winds up, then bolts in a straight line. Telegraphed, so it is dodgeable.
+    return Object.assign({type:'charger', r: 19, hp: 46, maxHp: 46, speed: 70, dmg: 16,
+                          windup: 0, charge: 0, chargeCd: rand(1, 3), cx: 0, cy: 0}, common);
+  } else if (type === 'shield') {
+    // Armoured from the front: hit it in the back or shove it around first.
+    return Object.assign({type:'shield', r: 22, hp: 90, maxHp: 90, speed: 52, dmg: 12,
+                          armor: 0.25}, common);
+  } else if (type === 'boss') {
+    // End-of-wave brute: slow, heavy, slams the ground in a ring.
+    return Object.assign({type:'boss', r: 44, hp: 420, maxHp: 420, speed: 46, dmg: 22,
+                          slamCd: 3.5, slamWind: 0, personality: 'aggressive'}, common);
   } else { // small flyer
     return Object.assign({type:'small',  r: 16, hp: 30, maxHp: 30, speed: 95, dmg:  8}, common);
   }
@@ -38,8 +54,13 @@ export function spawnAlien(fromBase) {
   // Proportions tuned so count × HP ≈ equal across types:
   //   big=60HP @ 22%, walker=40HP @ 33%, flyer=30HP @ 45%
   // (cyclops/big is now rarer; flyers are most common)
-  const r = Math.random();
-  const kind = r < 0.22 ? 'big' : (r < 0.55 ? 'walker' : 'small');
+  // The roster widens as the waves go on, so the fight keeps changing.
+  const wave = state.wave || 1;
+  const pool = ['small', 'small', 'walker', 'walker', 'big'];
+  if (wave >= 2) pool.push('shooter', 'shooter');
+  if (wave >= 3) pool.push('charger', 'charger');
+  if (wave >= 4) pool.push('shield');
+  const kind = pool[Math.floor(Math.random() * pool.length)];
   const b = fromBase || state.bases.find(bb => !bb.dead) || state.bases[0];
   if (!b) return;
   const bx = b.x, by = b.y + (b.h ? b.h/2 + 10 : 60);
@@ -49,6 +70,15 @@ export function spawnAlien(fromBase) {
 
 // ---------- Damage ----------
 export function damageAlien(a, dmg) {
+  // Armoured types soak hits that land on the shielded (facing) side.
+  if (a.armor) {
+    const p = state.player;
+    const fromFront = Math.sign(p.x - a.x) === Math.sign(a.facing || 1);
+    if (fromFront) {
+      dmg = Math.max(1, Math.round(dmg * a.armor));
+      flashRing(a.x + (a.facing || 1) * a.r, a.y, 14, '#9fd0ff');
+    }
+  }
   a.hp -= dmg;
   sfx.alienHit();
   flashRing(a.x, a.y, 18, '#ff7a7a');
@@ -72,8 +102,14 @@ export function killAlien(a) {
   //   flyer 12 $ baseline
   //   walker ≈ 2× flyer
   //   big ≈ 7× flyer
-  const reward = a.type === 'big' ? 85 : (a.type === 'walker' ? 22 : 12);
-  const xp     = a.type === 'big' ? 70 : (a.type === 'walker' ? 22 : 10);
+  const REWARD = { small: 12, walker: 22, shooter: 26, charger: 34, shield: 55, big: 85, boss: 260 };
+  const XP     = { small: 10, walker: 22, shooter: 24, charger: 30, shield: 46, big: 70, boss: 220 };
+  const reward = REWARD[a.type] != null ? REWARD[a.type] : 12;
+  const xp     = XP[a.type]     != null ? XP[a.type]     : 10;
+  if (a.type === 'boss') {
+    notify('Boss pokonany!', '#ffd166');
+    addShake(16);
+  }
   spawnCoinBurst(a.x, a.y, reward);
   addXP(xp);
   // burst FX
@@ -97,6 +133,11 @@ export function updateAlien(a, dt) {
     if (d < bestD) { bestD = d; closest = al; }
   }
 
+  // Types with their own movement handle themselves and skip the generic AI.
+  if (a.type === 'charger' && updateCharger(a, dt, closest, bestD)) return;
+  if (a.type === 'boss') updateBoss(a, dt, closest, bestD);
+  if (a.type === 'shooter') updateShooter(a, dt, closest, bestD);
+
   // Decide what we're walking toward this frame:
   // - aggressives chase if anything is within 520 px (basically always)
   // - wanderers only chase when something is within 220 px; otherwise stroll to a point
@@ -104,7 +145,14 @@ export function updateAlien(a, dt) {
   const inAggro = bestD < aggroRange;
 
   let goalX, goalY;
-  if (inAggro) {
+  if (a.type === 'shooter' && bestD < 340) {
+    // Strafe to hold the preferred range: back off when close, close in when far.
+    const dx = a.x - closest.x, dy = a.y - closest.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const want = bestD < a.keepAway ? 1 : -1;      // 1 = away, -1 = closer
+    goalX = a.x + (dx / d) * want * 120 - (dy / d) * 60;   // sidestep as well
+    goalY = a.y + (dy / d) * want * 120 + (dx / d) * 60;
+  } else if (inAggro) {
     goalX = closest.x; goalY = closest.y;
   } else {
     // wandering: pick a new spot when we arrive or get bored
@@ -145,9 +193,102 @@ export function updateAlien(a, dt) {
 
   // attack only matters if our closest target is actually within striking range
   a.attackCd -= dt;
-  if (inAggro && bestD < closest.r + a.r + 4 && a.attackCd <= 0) {
+  const melee = a.type !== 'shooter';   // shooters fight at range only
+  if (melee && inAggro && bestD < closest.r + a.r + 4 && a.attackCd <= 0) {
     if (closest === p) damagePlayer(a.dmg);
     else damageAlly(closest, a.dmg);
     a.attackCd = 1.0;
+  }
+}
+
+// ---------- Per-type behaviour ----------
+
+// Shooter: stands off and lobs a shot on a timer.
+function updateShooter(a, dt, closest, bestD) {
+  a.shootCd -= dt;
+  if (bestD > 360 || a.shootCd > 0) return;
+  a.shootCd = rand(1.8, 2.8);
+  const dx = closest.x - a.x, dy = closest.y - a.y;
+  const d = Math.hypot(dx, dy) || 1;
+  state.projectiles.push({
+    kind: 'plasma', x: a.x, y: a.y, vx: dx/d * 210, vy: dy/d * 210,
+    life: 3, r: 7, dmg: a.dmg, t: 0, hostile: true
+  });
+  flashRing(a.x, a.y, 16, '#b98cff');
+  sfx.alarm && sfx.alarm();
+}
+
+// Charger: telegraphs with a wind-up, then bolts in a straight line.
+// Returns true when it is running its own movement this frame.
+function updateCharger(a, dt, closest, bestD) {
+  if (a.charge > 0) {
+    a.charge -= dt;
+    a.x += a.cx * dt; a.y += a.cy * dt;
+    a.vx = a.cx; a.vy = a.cy;
+    a.x = clamp(a.x, a.r, WORLD.w - a.r);
+    a.y = clamp(a.y, a.r, WORLD.h - a.r);
+    pushOutOfRocks(a);
+    // Hits whatever it runs into, once per charge.
+    if (!a.charged && Math.hypot(closest.x - a.x, closest.y - a.y) < closest.r + a.r + 4) {
+      a.charged = true;
+      if (closest === state.player) damagePlayer(a.dmg); else damageAlly(closest, a.dmg);
+    }
+    if (a.charge <= 0) { a.chargeCd = rand(2.2, 3.6); a.vx *= 0.2; a.vy *= 0.2; }
+    return true;
+  }
+  if (a.windup > 0) {
+    a.windup -= dt;
+    a.vx *= 0.7; a.vy *= 0.7;
+    if (a.windup <= 0) {
+      const dx = closest.x - a.x, dy = closest.y - a.y;
+      const d = Math.hypot(dx, dy) || 1;
+      a.cx = dx/d * 430; a.cy = dy/d * 430;
+      a.charge = 0.65; a.charged = false;
+      flashRing(a.x, a.y, 34, '#ff9a5a');
+    }
+    return true;
+  }
+  a.chargeCd -= dt;
+  if (a.chargeCd > 0 || bestD > 300) return false;
+  if (bestD < 110) {
+    // Too close to build up speed: back off like a bull taking a run-up.
+    const dx = a.x - closest.x, dy = a.y - closest.y;
+    const d = Math.hypot(dx, dy) || 1;
+    a.vx += (dx / d * 150 - a.vx) * Math.min(1, dt * 4);
+    a.vy += (dy / d * 150 - a.vy) * Math.min(1, dt * 4);
+    a.x += a.vx * dt; a.y += a.vy * dt;
+    a.x = clamp(a.x, a.r, WORLD.w - a.r);
+    a.y = clamp(a.y, a.r, WORLD.h - a.r);
+    pushOutOfRocks(a);
+    if (a.vx < -8) a.facing = -1; else if (a.vx > 8) a.facing = 1;
+    return true;
+  }
+  a.windup = 0.55;
+  flashRing(a.x, a.y, 24, '#ffd166');
+  return true;
+}
+
+// Boss: walks you down and periodically slams the ground in a ring.
+function updateBoss(a, dt, closest, bestD) {
+  if (a.slamWind > 0) {
+    a.slamWind -= dt;
+    a.vx *= 0.6; a.vy *= 0.6;
+    if (a.slamWind <= 0) {
+      a.slamCd = rand(4, 6);
+      flashRing(a.x, a.y, 150, '#ff7a7a');
+      state.hitStop = Math.max(state.hitStop, 0.06);
+      addShake(14);
+      const p = state.player;
+      if (Math.hypot(p.x - a.x, p.y - a.y) < 150) damagePlayer(Math.round(a.dmg * 1.3));
+      for (const al of state.allies) {
+        if (!al.dead && Math.hypot(al.x - a.x, al.y - a.y) < 150) damageAlly(al, a.dmg);
+      }
+    }
+    return;
+  }
+  a.slamCd -= dt;
+  if (a.slamCd <= 0 && bestD < 170) {
+    a.slamWind = 0.7;
+    flashRing(a.x, a.y, 60, '#ffd166');
   }
 }

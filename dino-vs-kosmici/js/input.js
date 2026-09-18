@@ -1,7 +1,7 @@
 import { ensureAudio } from './audio.js';
 import { clamp } from './util.js';
 import { state, restart } from './state.js';
-import { tryAttack, tryDash } from './entities/player.js';
+import { tryAttack, tryDash, startFire, stopFire } from './entities/player.js';
 
 
 // ---------- Input ----------
@@ -14,13 +14,16 @@ window.addEventListener('keydown', e => {
   if (k === ' ' || e.code === 'Space') tryDash();
   if (k === 'z') tryAttack('claw');
   if (k === 'x') tryAttack('tail');
-  if (k === 'c') tryAttack('fire');
+  if (k === 'c') startFire();
   if (k === 'r' && state.gameOver) restart();
 }, {passive:false});
 window.addEventListener('keyup', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   keys.delete(k);
+  if (k === 'c') stopFire();
 });
+// Losing focus mid-breath must not leave the fire on.
+window.addEventListener('blur', stopFire);
 
 // Joystick
 export const joyEl = document.getElementById('joy');
@@ -117,9 +120,16 @@ document.querySelectorAll('.attackBtn').forEach(btn => {
     const k = btn.dataset.key;
     if (k === 'Z') tryAttack('claw');
     else if (k === 'X') tryAttack('tail');
-    else if (k === 'C') tryAttack('fire');
+    else if (k === 'C') startFire();
     else if (k === 'J') tryDash();
   };
   btn.addEventListener('touchstart', handler, {passive:false});
   btn.addEventListener('mousedown', handler);
+  if (btn.dataset.key === 'C') {
+    // The fire button is held down, so every way of letting go must stop it.
+    const release = () => stopFire();
+    btn.addEventListener('touchend', release);
+    btn.addEventListener('touchcancel', release);
+    window.addEventListener('mouseup', release);
+  }
 });

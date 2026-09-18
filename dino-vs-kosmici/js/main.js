@@ -8,9 +8,9 @@ import { updateHUD } from './hud.js';
 import { DIFFICULTY } from './config.js';
 import { keys, joy } from './input.js';
 import { rand, clamp, damp } from './util.js';
-import { state, difficultyKey, currentSpecies, flashRing } from './state.js';
+import { state, difficultyKey, currentSpecies, flashRing, notify } from './state.js';
 import { buildLevel, pushOutOfRocks, projectileHitsRock } from './world.js';
-import { cd, damagePlayer, tryAutoUpgrade } from './entities/player.js';
+import { cd, damagePlayer, tryAutoUpgrade, updateFire } from './entities/player.js';
 import { spawnAlien, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
 import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
@@ -154,6 +154,7 @@ export function update(dt) {
     }
   }
 
+  updateFire(dt);
   if (p.jump > 0) p.jump -= dt;
   if (p.shield > 0) p.shield -= dt;
   if (p.flash > 0) p.flash -= dt;
@@ -264,9 +265,20 @@ export function update(dt) {
 
   // Next-wave HQ: after the player clears every base, a bigger one sprouts
   // somewhere else. Then secondary/tertiary backfill kicks back in.
-  if (state.nextWaveAt != null && state.t >= state.nextWaveAt) {
-    state.nextWaveAt = null;
-    spawnNextWaveBase();
+  if (state.nextWaveAt != null) {
+    const left = state.nextWaveAt - state.t;
+    if (left <= 0) {
+      state.nextWaveAt = null;
+      state.waveCountdown = null;
+      spawnNextWaveBase();
+    } else {
+      // Tick down out loud over the last few seconds.
+      const sec = Math.ceil(left);
+      if (sec <= 3 && state.waveCountdown !== sec) {
+        state.waveCountdown = sec;
+        notify(String(sec), '#ffd166');
+      }
+    }
   }
 
   // Reinforcement bases are built from a real group of at least 5 aliens,

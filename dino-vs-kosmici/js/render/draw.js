@@ -700,6 +700,26 @@ export function drawShield(p) {
   ctx.restore();
 }
 
+// New enemy types reuse the robot sprite until their own art exists; a hue
+// shift plus a size difference keeps them apart at a glance.
+const ALIEN_TINT = {
+  shooter: 'hue-rotate(255deg) saturate(1.5)',
+  charger: 'hue-rotate(320deg) saturate(1.7) brightness(1.1)',
+  shield:  'hue-rotate(170deg) saturate(1.3) brightness(0.9)',
+  boss:    'hue-rotate(330deg) saturate(1.6) brightness(0.85)'
+};
+
+function warnRing(a, k, maxR, color) {
+  const kk = clamp(k, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = 0.25 + kk * 0.45;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.arc(a.x, a.y, 10 + kk * maxR, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
 export function drawAlien(a) {
   ctx.save();
   ctx.translate(a.x, a.y);
@@ -717,6 +737,11 @@ export function drawAlien(a) {
   //   small  -> animated cute round-robot (FLYER_ANIM)
   //   walker -> static wide rocket (char-walker.png)
   //   big    -> animated green-warrior (BIGALIEN_ANIM) with static fallback
+  // Telegraphs: a charger winding up and a boss about to slam both get a
+  // growing warning ring, so the hit is always readable before it lands.
+  if (a.windup > 0) warnRing(a, 1 - a.windup / 0.55, 46, '#ffd166');
+  if (a.slamWind > 0) warnRing(a, 1 - a.slamWind / 0.7, 150, '#ff7a7a');
+
   const walkerReady   = a.type === 'walker' && charSprites.walker.complete   && charSprites.walker.naturalWidth;
   const bigalienReady = a.type === 'big'    && charSprites.bigalien.complete && charSprites.bigalien.naturalWidth;
   const alienImg = a.type === 'small' ? charSprites.flyer
@@ -725,7 +750,8 @@ export function drawAlien(a) {
                                       : charSprites.alien;
   if (alienImg && alienImg.complete && alienImg.naturalWidth) {
     ctx.restore();
-    const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 : 0.86);
+    const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 :
+                  a.type === 'boss' ? 1.35 : (a.type === 'shield' ? 1.1 : 0.86));
     // Walker is a wide rocket (~2:1), the others are tall.
     let w, h;
     if (a.type === 'small') {
@@ -741,7 +767,9 @@ export function drawAlien(a) {
     const fx = a.anim ? a.anim.facing : (a.vx < -5 ? -1 : 1);
     if (pose) { ctx.rotate(pose.rot * fx); ctx.scale(fx * pose.sx, pose.sy); }
     else ctx.scale(fx, 1);
-    if (a.flash > 0) ctx.filter = 'brightness(1.7) saturate(0.4)';
+    const tint = ALIEN_TINT[a.type];
+    const flashF = a.flash > 0 ? 'brightness(1.7) saturate(0.4) ' : '';
+    if (flashF || tint) ctx.filter = (flashF + (tint || '')).trim();
     if (a.type === 'small') {
       const frame = Math.floor(state.t * FLYER_ANIM.fps + (a.wob || 0)) % FLYER_ANIM.frames;
       ctx.drawImage(alienImg,
@@ -762,6 +790,18 @@ export function drawAlien(a) {
     }
     ctx.filter = 'none';
     ctx.restore();
+    if (a.armor) {
+      // A plate drawn on the facing side: the hint is "get behind it".
+      const f = a.anim ? (a.anim.facing < 0 ? -1 : 1) : 1;
+      ctx.save();
+      ctx.translate(a.x + f * a.r * 0.75, a.y);
+      ctx.fillStyle = 'rgba(160,205,255,0.85)';
+      ctx.strokeStyle = 'rgba(40,80,130,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(0, 0, a.r * 0.34, a.r * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);

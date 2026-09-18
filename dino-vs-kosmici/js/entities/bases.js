@@ -4,6 +4,7 @@ import { DIFFICULTY } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state, difficultyKey, notify, spawnCoinBurst, flashRing } from '../state.js';
 import { addXP } from './player.js';
+import { makeAlien } from './aliens.js';
 
 
 export function makeBase(x, y, tier) {
@@ -55,8 +56,8 @@ export function damageBase(b, dmg) {
       sfx.win();
       music.combat();
       state.wave = (state.wave || 1) + 1;
-      state.nextWaveAt = state.t + 3.0;
-      notify(`FALA ${state.wave} nadlatuje — większa baza!`, '#ffd166');
+      state.nextWaveAt = state.t + 9.0;   // breathing space: heal, buy a herd
+      notify(`Fala ${state.wave} za 9 s — lecz się i kup stado!`, '#ffd166');
     } else {
       sfx.coin();
       notify(isMain ? 'KWATERA GŁÓWNA padła!' : 'Baza kosmitów zniszczona!', '#9aff9a');
@@ -114,6 +115,15 @@ export function spawnNextWaveBase() {
   notify(`FALA ${wave}! Nowa kwatera główna!`, '#ffd166');
   sfx.alienHit();
   music.combat();
+
+  // From wave 2 on the new HQ arrives with a boss guarding it, tougher each wave.
+  if (wave >= 2) {
+    const boss = makeAlien('boss', bx + rand(-70, 70), by + (base.h / 2) + 60);
+    boss.hp = boss.maxHp = Math.round(boss.maxHp * (1 + (wave - 2) * 0.45));
+    boss.dmg = Math.round(boss.dmg * (1 + (wave - 2) * 0.2));
+    state.aliens.push(boss);
+    notify('Uwaga: BOSS!', '#ff7a7a');
+  }
 }
 
 export function spawnBaseFromAlienCluster(tier, message) {

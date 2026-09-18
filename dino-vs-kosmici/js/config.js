@@ -13,7 +13,8 @@ export const SPECIES_STATS = {
   tyranno: { name: 'Tyranozaur', hp: 220, claw: 26, tail: 22, fire: 6, color: '#a85a3a', dark: '#7a3a20', belly: '#d49a7a' },
   diplo:   { name: 'Diplodok',   hp: 320, claw: 14, tail: 38, fire: 5, color: '#3a8a8a', dark: '#1f5a5a', belly: '#7accbe' }
 };
-export const ENERGY_COST = { claw: 6, tail: 18, fire: 35 };
+// Fire has no per-use cost — it drains energy per second while held (FIRE.drain).
+export const ENERGY_COST = { claw: 5, tail: 16, fire: 0 };
 
 // World size in world units (1 unit == 1 CSS px at zoom 1). The camera shows
 // ~VIEW_H units vertically regardless of screen size, so the dino has the same

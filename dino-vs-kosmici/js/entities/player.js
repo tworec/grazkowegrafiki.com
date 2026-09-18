@@ -10,7 +10,12 @@ import { damageBase } from './bases.js';
 
 
 // ---------- Cooldowns & energy costs ----------
-export const cd = { claw:{ready:0,max:0.5}, tail:{ready:0,max:10}, fire:{ready:0,max:60} };
+export const cd = { claw:{ready:0,max:0.42}, tail:{ready:0,max:3}, fire:{ready:0,max:1.4} };
+
+// Claw combo: three swings inside the window, the third one hits hard.
+export const COMBO = { window: 0.85, hits: 3, finisherMul: 1.75, finisherCost: 4 };
+// Fire is no longer a once-a-minute nuke but a breath you hold.
+export const FIRE = { drain: 26, dps: 1, cone: 0.42, reach: 150 };
 export function cooldownMax(kind) {
   const up = state.player && state.player.upgrades ? state.player.upgrades.cooldown : 0;
   return cd[kind].max * Math.max(0.72, 1 - up * 0.07);
@@ -51,6 +56,7 @@ export function autoFaceTarget() {
 
 export function tryAttack(kind) {
   if (state.gameOver) return;
+  if (kind === 'fire') return startFire();   // fire is held, not tapped
   const p = state.player;
   if (cd[kind] && cd[kind].ready > 0) return;
   const cost = ENERGY_COST[kind] || 0;
@@ -70,53 +76,110 @@ export function tryAttack(kind) {
   if (kind === 'claw') {
     sfx.claw();
     cd.claw.ready = cooldownMax('claw');
-    // melee toward the nearest alien (not just the side we face)
+    // Combo: swings chained inside COMBO.window escalate; the third is a
+    // finisher with more damage, more reach and a shove.
+    p.combo = (p.comboT > 0 ? (p.combo || 0) : 0) + 1;
+    p.comboT = COMBO.window;
+    const finisher = p.combo >= COMBO.hits;
+    if (finisher) p.combo = 0;
     const biteBonus = p.species === 'tyranno' && tgt && tgt.dist < 72 ? 1.45 : 1;
-    meleeHit(40, 30, 0, Math.PI*2, Math.round(stats.claw * biteBonus), /*radius*/ 56, tgt);
+    const mul = finisher ? COMBO.finisherMul : 1;
+    const reach = finisher ? 72 : 56;
+    meleeHit(40, 30, 0, Math.PI*2, Math.round(stats.claw * biteBonus * mul), reach, tgt);
+    if (finisher) {
+      for (const a of state.aliens) {
+        const dx = a.x - p.x, dy = a.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (!a.dead && d < reach + a.r + 12) { a.vx += dx/d * 240; a.vy += dy/d * 240; }
+      }
+      state.hitStop = Math.max(state.hitStop, 0.08);
+      addShake(9);
+      notify('Seria!', '#9bd6ff');
+    }
     const fxx = tgt ? p.x + (tgt.dx/tgt.dist)*22 : p.x + p.facing*22;
     const fxy = tgt ? p.y + (tgt.dy/tgt.dist)*22 : p.y;
-    flashRing(fxx, fxy, 30, '#9bd6ff');
+    flashRing(fxx, fxy, finisher ? 48 : 30, finisher ? '#ffe066' : '#9bd6ff');
   } else if (kind === 'tail') {
     sfx.tail();
     cd.tail.ready = cooldownMax('tail');
     // tail swing — all-around thump (diplodoks have the longest reach)
     const reach = p.species === 'diplo' ? 80 : 70;
     meleeHit(60, 60, 0, Math.PI*2, stats.tail, reach, null);
-    if (p.species === 'diplo') {
-      for (const a of state.aliens) {
-        const dx = a.x - p.x, dy = a.y - p.y;
-        const d = Math.hypot(dx, dy) || 1;
-        if (!a.dead && d < reach + a.r + 10) {
-          a.vx += dx / d * 180;
-          a.vy += dy / d * 180;
-        }
+    // Every species shoves with the tail; the diplodocus shoves hardest.
+    const push = p.species === 'diplo' ? 300 : 190;
+    for (const a of state.aliens) {
+      const dx = a.x - p.x, dy = a.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (!a.dead && d < reach + a.r + 10) {
+        a.vx += dx / d * push;
+        a.vy += dy / d * push;
       }
     }
+    addShake(6);
     if (p.species === 'stego') {
       p.shield = Math.max(p.shield || 0, 2.5);
       notify('Tarcza stegozaura!', '#9bd6ff');
     }
     flashRing(p.x, p.y, reach - 10, '#fff2a8');
-  } else if (kind === 'fire') {
-    sfx.fire();
-    sfx.roar(p.species);
-    cd.fire.ready = cooldownMax('fire');
-    // fire breath toward nearest alien (or facing direction if none)
-    let dirx, diry;
-    if (tgt) { dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist; }
-    else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
-    const ang = Math.atan2(diry, dirx);
-    const shots = perf.lowPower ? 8 : 14;
-    for (let i=0;i<shots;i++) {
-      const a = ang + rand(-0.35, 0.35);
-      const sp = rand(220, 320);
-      state.projectiles.push({
-        kind:'fire', x: p.x + Math.cos(ang)*22, y: p.y + Math.sin(ang)*22,
-        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
-        life: 0.55, dmg: stats.fire, r: 10, t: 0
-      });
-    }
   }
+}
+
+// ---------- Fire breath (held) ----------
+// Holding the button breathes fire for as long as there is energy, instead of
+// one big blast on a one-minute timer. Releasing starts a short cooldown so
+// tapping the button does not machine-gun.
+export function startFire() {
+  if (state.gameOver) return;
+  const p = state.player;
+  if (cd.fire.ready > 0) return;
+  if (p.energy < 8) { sfx.fizzle(); flashRing(p.x, p.y, 22, '#ffd166'); return; }
+  p.firing = true;
+  p.fireSnd = 0;
+  sfx.roar(p.species);
+}
+
+export function stopFire() {
+  const p = state.player;
+  if (!p || !p.firing) return;
+  p.firing = false;
+  cd.fire.ready = cooldownMax('fire');
+}
+
+export function updateFire(dt) {
+  const p = state.player;
+  if (!p) return;
+  if (p.comboT > 0) p.comboT -= dt;
+  if (!p.firing) return;
+  if (state.gameOver || p.energy <= 0) { stopFire(); return; }
+
+  p.energy = Math.max(0, p.energy - FIRE.drain * dt);
+  p.attackAnim = 0.2;
+  p.attackKind = 'fire';
+  const tgt = autoFaceTarget();
+  const stats = SPECIES_STATS[p.species] || SPECIES_STATS.stego;
+
+  let dirx, diry;
+  if (tgt && tgt.dist < 320) { dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist; }
+  else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
+  const ang = Math.atan2(diry, dirx);
+
+  // Particles per second, halved on the low-power setting.
+  const rate = perf.lowPower ? 26 : 46;
+  p.fireAcc = (p.fireAcc || 0) + rate * dt;
+  while (p.fireAcc >= 1) {
+    p.fireAcc -= 1;
+    const a = ang + rand(-FIRE.cone, FIRE.cone);
+    const sp = rand(230, 340);
+    state.projectiles.push({
+      kind:'fire', x: p.x + Math.cos(ang)*22, y: p.y + Math.sin(ang)*22,
+      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+      life: FIRE.reach / sp, dmg: stats.fire, r: 10, t: 0
+    });
+  }
+  // Looping crackle, not one sound per particle.
+  p.fireSnd = (p.fireSnd || 0) - dt;
+  if (p.fireSnd <= 0) { sfx.fire(); p.fireSnd = 0.38; }
+  addShake(1.6);
 }
 
 export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {

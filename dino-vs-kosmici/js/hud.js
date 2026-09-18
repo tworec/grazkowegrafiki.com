@@ -82,7 +82,10 @@ export function updateHUD() {
   const aliveBases = state.bases.reduce((n, b) => n + (b.dead ? 0 : 1), 0);
   const up = p.upgrades || {hp:0, energy:0, cooldown:0, ally:0};
   const speciesName = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
-  el.speciesLine.textContent = (state.wave > 1 ? `Fala ${state.wave} · ` : '') + speciesName;
+  const waiting = state.nextWaveAt != null ? Math.ceil(state.nextWaveAt - state.t) : 0;
+  el.speciesLine.textContent = waiting > 0
+    ? `Fala ${state.wave} za ${waiting} s · ${speciesName}`
+    : (state.wave > 1 ? `Fala ${state.wave} · ` : '') + speciesName;
   setDigits(el.lvl, p.level, 'lvl');
   setDigits(el.money, p.money, 'num');
   setDigits(el.bazyCnt, aliveBases, 'num');
@@ -134,6 +137,13 @@ export function setBtnCd(key, c) {
   const btn = el.btnCd[key];
   if (!btn) return;
   const kind = key === 'Z' ? 'claw' : key === 'X' ? 'tail' : 'fire';
+  if (kind === 'fire' && c.ready <= 0) {
+    // Fire is gated by energy, not by a timer: show how much is left to burn.
+    const p = state.player;
+    const left = p ? 1 - clamp(p.energy / p.maxEnergy, 0, 1) : 0;
+    btn.style.height = (left * 100) + '%';
+    return;
+  }
   btn.style.height = clamp(100 * c.ready / cooldownMax(kind), 0, 100) + '%';
 }
 

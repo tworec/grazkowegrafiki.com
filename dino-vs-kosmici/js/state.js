@@ -53,6 +53,7 @@ export function makePlayer() {
     attackAnim: 0,
     shield: 0,
     upgrades: {hp:0, energy:0, cooldown:0, ally:0},
+    combo: 0, comboT: 0, firing: false, fireAcc: 0,
     lastDir: {x:1,y:0},
     walkPhase: 0
   };
