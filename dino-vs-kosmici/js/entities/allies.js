@@ -67,7 +67,7 @@ export function updateAlly(al, dt) {
       if (al.attackCd <= 0) {
         al.attackCd = 0.9;
         if (attackingBase) damageBase(target, al.dmg);
-        else damageAlien(target, al.dmg);
+        else damageAlien(target, al.dmg, al);
         // little snap visual
         flashRing(al.x + (dx/d)*8, al.y + (dy/d)*8, 14, '#bff5bf');
       }

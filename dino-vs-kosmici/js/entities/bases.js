@@ -148,11 +148,13 @@ export function spawnBaseFromAlienCluster(tier, message) {
 export function findAlienCluster(minCount, radius) {
   let best = null;
   for (const a of state.aliens) {
-    if (a.dead) continue;
+    if (a.dead || a.type === 'boss') continue;
     const members = [];
     let sx = 0, sy = 0;
     for (const b of state.aliens) {
-      if (b.dead) continue;
+      // A boss is an event, not building material: it must be fought, not
+      // silently converted into a base.
+      if (b.dead || b.type === 'boss') continue;
       if (Math.hypot(a.x - b.x, a.y - b.y) <= radius) {
         members.push(b);
         sx += b.x; sy += b.y;

@@ -131,6 +131,7 @@ export function tryAttack(kind) {
 export function startFire() {
   if (state.gameOver) return;
   const p = state.player;
+  if (p.firing) return;          // key repeat must not restart the roar
   if (cd.fire.ready > 0) return;
   if (p.energy < 8) { sfx.fizzle(); flashRing(p.x, p.y, 22, '#ffd166'); return; }
   p.firing = true;
@@ -155,12 +156,16 @@ export function updateFire(dt) {
   p.energy = Math.max(0, p.energy - FIRE.drain * dt);
   p.attackAnim = 0.2;
   p.attackKind = 'fire';
-  const tgt = autoFaceTarget();
+  // Aim at the nearest enemy but leave p.lastDir alone: that is the movement
+  // direction the dash uses, and breathing fire must not steer the dash.
+  const tgt = findNearestTarget();
   const stats = SPECIES_STATS[p.species] || SPECIES_STATS.stego;
 
   let dirx, diry;
-  if (tgt && tgt.dist < 320) { dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist; }
-  else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
+  if (tgt && tgt.dist < 320) {
+    dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist;
+    if (tgt.dx > 1) p.facing = 1; else if (tgt.dx < -1) p.facing = -1;
+  } else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
   const ang = Math.atan2(diry, dirx);
 
   // Particles per second, halved on the low-power setting.

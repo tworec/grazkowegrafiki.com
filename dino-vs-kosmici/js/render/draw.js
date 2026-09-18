@@ -709,14 +709,16 @@ const ALIEN_TINT = {
   boss:    'hue-rotate(330deg) saturate(1.6) brightness(0.85)'
 };
 
-function warnRing(a, k, maxR, color) {
+// Called while the canvas is already translated to the alien, so the ring is
+// drawn around the local origin — using a.x/a.y here would double the offset.
+function warnRing(k, maxR, color) {
   const kk = clamp(k, 0, 1);
   ctx.save();
   ctx.globalAlpha = 0.25 + kk * 0.45;
   ctx.strokeStyle = color;
   ctx.lineWidth = 3;
   ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.arc(a.x, a.y, 10 + kk * maxR, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 10 + kk * maxR, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 }
 
@@ -739,8 +741,8 @@ export function drawAlien(a) {
   //   big    -> animated green-warrior (BIGALIEN_ANIM) with static fallback
   // Telegraphs: a charger winding up and a boss about to slam both get a
   // growing warning ring, so the hit is always readable before it lands.
-  if (a.windup > 0) warnRing(a, 1 - a.windup / 0.55, 46, '#ffd166');
-  if (a.slamWind > 0) warnRing(a, 1 - a.slamWind / 0.7, 150, '#ff7a7a');
+  if (a.windup > 0) warnRing(1 - a.windup / 0.55, 46, '#ffd166');
+  if (a.slamWind > 0) warnRing(1 - a.slamWind / 0.7, 150, '#ff7a7a');
 
   const walkerReady   = a.type === 'walker' && charSprites.walker.complete   && charSprites.walker.naturalWidth;
   const bigalienReady = a.type === 'big'    && charSprites.bigalien.complete && charSprites.bigalien.naturalWidth;

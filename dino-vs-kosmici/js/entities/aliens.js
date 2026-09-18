@@ -69,11 +69,13 @@ export function spawnAlien(fromBase) {
 }
 
 // ---------- Damage ----------
-export function damageAlien(a, dmg) {
+// `src` is whoever landed the hit (player by default, but allies hit too);
+// the armour check has to use the real attacker or the front/back rule lies.
+export function damageAlien(a, dmg, src) {
+  const attacker = src || state.player;
   // Armoured types soak hits that land on the shielded (facing) side.
   if (a.armor) {
-    const p = state.player;
-    const fromFront = Math.sign(p.x - a.x) === Math.sign(a.facing || 1);
+    const fromFront = Math.sign(attacker.x - a.x) === Math.sign(a.facing || 1);
     if (fromFront) {
       dmg = Math.max(1, Math.round(dmg * a.armor));
       flashRing(a.x + (a.facing || 1) * a.r, a.y, 14, '#9fd0ff');
@@ -87,9 +89,8 @@ export function damageAlien(a, dmg) {
   // A couple of frames of near-freeze: the hit reads as an impact, not a nudge.
   state.hitStop = Math.max(state.hitStop, 0.04);
   addShake(3.5);
-  // knockback
-  const p = state.player;
-  const dx = a.x - p.x, dy = a.y - p.y;
+  // knockback away from whoever hit it
+  const dx = a.x - attacker.x, dy = a.y - attacker.y;
   const d = Math.hypot(dx,dy)||1;
   a.vx += dx/d * 80; a.vy += dy/d * 80;
   if (a.hp <= 0) killAlien(a);
