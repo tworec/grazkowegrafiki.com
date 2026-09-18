@@ -1,5 +1,6 @@
 import { perf, W, H, DPR } from './view.js';
 import { sfx } from './audio.js';
+import { updateAudio } from './audio.js';
 import { updateHUD } from './hud.js';
 import { DIFFICULTY } from './config.js';
 import { keys, joy } from './input.js';
@@ -39,6 +40,7 @@ export function frame(now) {
   last = now;
   lastDraw = now;
   debugTick(dt);
+  updateAudio(dt, state);
   // Bases live on the static layer; while one plays its destruction
   // animation we must keep refreshing it (this also runs after win/lose,
   // when update() is skipped, so the final base finishes exploding).
@@ -145,7 +147,7 @@ export function update(dt) {
           const dist = rand(20, 45);
           state.allies.push(makeAlly(p.x + Math.cos(ang)*dist, p.y + Math.sin(ang)*dist, p.species));
         }
-        sfx.coin();
+        sfx.herd();
         flashRing(p.x, p.y, 70, '#9aff9a');
       }
     }
@@ -237,7 +239,7 @@ export function update(dt) {
       const sp = state.player ? state.player.species : currentSpecies();
       state.allies.push(makeAlly(ax, ay, sp));
       flashRing(ax, ay, 22, '#9aff9a');
-      sfx.coin();
+      sfx.hatch();
     }
   }
   state.fx = state.fx.filter(f => f.life > 0);

@@ -98,6 +98,7 @@ export function tryAttack(kind) {
     flashRing(p.x, p.y, reach - 10, '#fff2a8');
   } else if (kind === 'fire') {
     sfx.fire();
+    sfx.roar(p.species);
     cd.fire.ready = cooldownMax('fire');
     // fire breath toward nearest alien (or facing direction if none)
     let dirx, diry;
