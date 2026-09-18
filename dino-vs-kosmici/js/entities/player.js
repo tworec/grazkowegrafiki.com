@@ -3,7 +3,8 @@ import { sfx } from '../audio.js';
 import { showBanner } from '../hud.js';
 import { SPECIES_STATS, ENERGY_COST } from '../config.js';
 import { rand } from '../util.js';
-import { state, notify, flashRing } from '../state.js';
+import { state, notify, flashRing, damageNumber } from '../state.js';
+import { addShake } from '../camera.js';
 import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
 
@@ -145,20 +146,35 @@ export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
   return any;
 }
 
-export function tryJump() {
+// Dash: a short burst in the direction of travel with a few frames of
+// invulnerability. Replaces the old jump, which looked nice but did nothing.
+export const DASH = { speed: 640, time: 0.18, iframes: 0.22, cooldown: 1.2 };
+export function tryDash() {
   if (state.gameOver) return;
   const p = state.player;
-  if (p.jump <= 0) {
-    p.jump = 0.5;
-    sfx.jump();
-  }
+  if ((p.dashCd || 0) > 0 || (p.dashT || 0) > 0) return;
+  let dx = p.lastDir.x, dy = p.lastDir.y;
+  if (Math.hypot(dx, dy) < 0.05) { dx = p.facing; dy = 0; }
+  const d = Math.hypot(dx, dy) || 1;
+  p.vx = dx / d * DASH.speed;
+  p.vy = dy / d * DASH.speed;
+  p.dashT = DASH.time;
+  p.dashCd = DASH.cooldown;
+  p.iframes = DASH.iframes;
+  sfx.jump();
+  addShake(3);
 }
 
 export function damagePlayer(dmg) {
   const p = state.player;
+  if ((p.iframes || 0) > 0) return;   // dash makes you briefly untouchable
   if (p.shield > 0) dmg = Math.ceil(dmg * 0.45);
   p.hp -= dmg; p.flash = 0.18;
   sfx.hit();
+  damageNumber(p.x, p.y - p.r, dmg, '#ff9a9a');
+  state.hitStop = Math.max(state.hitStop, 0.05);
+  addShake(7);
+  if (navigator.vibrate) { try { navigator.vibrate(35); } catch (e) { /* not supported */ } }
   if (p.hp <= 0 && !state.gameOver) {
     p.hp = 0;
     state.gameOver = true;

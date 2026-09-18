@@ -1,7 +1,8 @@
 import { WORLD } from '../config.js';
 import { sfx } from '../audio.js';
 import { rand, clamp, damp } from '../util.js';
-import { state, spawnCoinBurst, flashRing } from '../state.js';
+import { state, spawnCoinBurst, flashRing, damageNumber } from '../state.js';
+import { addShake } from '../camera.js';
 import { pushOutOfRocks } from '../world.js';
 import { damagePlayer, addXP } from './player.js';
 import { damageAlly } from './allies.js';
@@ -51,6 +52,11 @@ export function damageAlien(a, dmg) {
   a.hp -= dmg;
   sfx.alienHit();
   flashRing(a.x, a.y, 18, '#ff7a7a');
+  damageNumber(a.x, a.y - a.r, dmg, '#ffe066');
+  a.flash = 0.14;
+  // A couple of frames of near-freeze: the hit reads as an impact, not a nudge.
+  state.hitStop = Math.max(state.hitStop, 0.04);
+  addShake(3.5);
   // knockback
   const p = state.player;
   const dx = a.x - p.x, dy = a.y - p.y;
@@ -104,7 +110,7 @@ export function updateAlien(a, dt) {
     // wandering: pick a new spot when we arrive or get bored
     const wt = a.wanderTarget;
     if (!wt || a.wanderTimer <= 0 || Math.hypot(wt.x - a.x, wt.y - a.y) < 35) {
-      a.wanderTarget = pickWanderTarget();
+      a.wanderTarget = pickWanderTarget(a);
       a.wanderTimer = rand(2.5, 6);
     }
     goalX = a.wanderTarget.x; goalY = a.wanderTarget.y;

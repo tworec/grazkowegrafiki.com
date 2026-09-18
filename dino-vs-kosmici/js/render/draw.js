@@ -5,6 +5,7 @@ import { atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, 
 import { SPECIES_STATS, WORLD } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state } from '../state.js';
+import { animPose, attackLunge } from '../anim.js';
 
 const ctx = mainCtx;
 
@@ -35,9 +36,9 @@ export function drawDinoSprite(p, scaleOpt) {
               (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
   if (!img) return false;
   const jumpY = p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0;
-  const wp = p.walkPhase || 0;
   const moving = Math.hypot(p.vx, p.vy) > 30;
-  const bob = Math.sin(wp * 2) * (moving ? 1.8 : 0.4);
+  const pose = animPose(p, moving);
+  const bob = pose.bob;
   let w, h;
   if (stegoReady) {
     h = 90;
@@ -54,9 +55,14 @@ export function drawDinoSprite(p, scaleOpt) {
   }
   const s = scaleOpt || 1;
   w *= s; h *= s;
+  // Lunge along the facing direction while attacking.
+  const lunge = attackLunge(p.attackAnim > 0 ? p.attackAnim / 0.25 : 0) * (p.facing === -1 ? -1 : 1) * s;
   ctx.save();
-  ctx.translate(p.x, p.y - 34 * s - jumpY + bob);
-  if (p.facing === -1) ctx.scale(-1, 1);
+  ctx.translate(p.x + lunge, p.y - 34 * s - jumpY + bob * s);
+  // Facing is tweened, so the sprite squeezes through zero instead of popping.
+  const fx = p.anim ? p.anim.facing : (p.facing === -1 ? -1 : 1);
+  ctx.rotate(pose.rot * fx);
+  ctx.scale(fx * pose.sx, pose.sy);
   if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
   if (stegoReady || diploReady) {
     // Shared band-picker: fire breath > walk (moving) > idle.
@@ -68,7 +74,7 @@ export function drawDinoSprite(p, scaleOpt) {
       frame = Math.min(band.count - 1, Math.floor(progress * band.count));
     } else if (moving) {
       band = ANIM.walk;
-      const cycle = (wp / (Math.PI * 2)) * band.count;
+      const cycle = (p.anim ? p.anim.step + p.anim.phase : 0) * (band.count / 2);
       frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
     } else {
       band = ANIM.idle;
@@ -90,7 +96,7 @@ export function drawDinoSprite(p, scaleOpt) {
       frame = Math.min(band.count - 1, Math.floor(progress * band.count));
     } else {
       band = TYRANNO_ANIM.walk;
-      const cycle = moving ? (wp / (Math.PI * 2)) * band.count : state.t * 1.5;
+      const cycle = moving ? (p.anim ? p.anim.step + p.anim.phase : 0) * (band.count / 2) : state.t * 1.5;
       frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
     }
     const sx = (band.start + frame) * TYRANNO_ANIM.frameW;
@@ -991,6 +997,20 @@ export function drawFx(f) {
     ctx.globalAlpha = clamp(f.life, 0, 1);
     ctx.fillStyle = f.color || '#9b7';
     ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, Math.PI*2); ctx.fill();
+  } else if (f.kind === 'dmg') {
+    const k = clamp(f.life / 0.75, 0, 1);
+    ctx.globalAlpha = k;
+    ctx.font = 'bold 15px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color || '#fff';
+    ctx.fillText(f.text, f.x, f.y);
+  } else if (f.kind === 'dust') {
+    const k = clamp(f.life / 0.35, 0, 1);
+    ctx.globalAlpha = k * 0.45;
+    ctx.fillStyle = '#cbb98a';
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.6 - k * 0.6), 0, Math.PI*2); ctx.fill();
   } else if (f.kind === 'egg') {
     ctx.fillStyle = '#fff5cc';
     ctx.strokeStyle = '#a07';

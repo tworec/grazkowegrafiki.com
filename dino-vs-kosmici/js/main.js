@@ -1,6 +1,7 @@
 import { perf, W, H, DPR } from './view.js';
 import { WORLD } from './config.js';
 import { cam, updateCamera } from './camera.js';
+import { updateAnim } from './anim.js';
 import { sfx } from './audio.js';
 import { updateAudio } from './audio.js';
 import { updateHUD } from './hud.js';
@@ -42,6 +43,11 @@ export function frame(now) {
 }
 
 export function update(dt) {
+  // Hit-stop: a few frames of near-freeze on impact make hits feel solid.
+  if (state.hitStop > 0) {
+    state.hitStop = Math.max(0, state.hitStop - dt);
+    dt *= 0.18;
+  }
   state.t += dt;
   const p = state.player;
   const diff = DIFFICULTY[difficultyKey] || DIFFICULTY.normal;
@@ -61,10 +67,18 @@ export function update(dt) {
     if (ix > 0.1) p.facing = 1;
     else if (ix < -0.1) p.facing = -1;
   }
+  // While dashing we keep the burst velocity instead of steering normally.
+  p.dashT   = Math.max(0, (p.dashT   || 0) - dt);
+  p.dashCd  = Math.max(0, (p.dashCd  || 0) - dt);
+  p.iframes = Math.max(0, (p.iframes || 0) - dt);
   const speed = 220;
-  p.vx += (ix * speed - p.vx) * Math.min(1, dt*8);
-  p.vy += (iy * speed - p.vy) * Math.min(1, dt*8);
-  { const d = damp(0.85, dt); p.vx *= d; p.vy *= d; }
+  if (p.dashT > 0) {
+    const d = damp(0.90, dt); p.vx *= d; p.vy *= d;
+  } else {
+    p.vx += (ix * speed - p.vx) * Math.min(1, dt*8);
+    p.vy += (iy * speed - p.vy) * Math.min(1, dt*8);
+    const d = damp(0.85, dt); p.vx *= d; p.vy *= d;
+  }
   p.x += p.vx * dt;
   p.y += p.vy * dt;
 
@@ -75,9 +89,8 @@ export function update(dt) {
   p.y = clamp(p.y, p.r + 4, WORLD.h - p.r - 4);
   updateCamera(p, dt);
 
-  // Walk-cycle phase advances only while we're moving — feet plant believably
-  const pSpeed = Math.hypot(p.vx, p.vy);
-  if (pSpeed > 20) p.walkPhase = (p.walkPhase || 0) + dt * Math.min(1.5 + pSpeed/120, 7);
+  // Walk cycle, squash/stretch, lean, dust — driven by distance travelled.
+  updateAnim(p, dt);
 
   // Slow passive energy regen — but most of your energy comes from the heal pad
   p.energy = clamp(p.energy + 2*dt, 0, p.maxEnergy);
@@ -149,12 +162,12 @@ export function update(dt) {
   // Cooldowns
   for (const k of Object.keys(cd)) cd[k].ready = Math.max(0, cd[k].ready - dt);
 
-  // Aliens
-  for (const a of state.aliens) updateAlien(a, dt);
+  // Aliens (flyers leave no dust — they hover)
+  for (const a of state.aliens) { updateAlien(a, dt); updateAnim(a, dt, {dust: a.type === 'walker' || a.type === 'big'}); }
   state.aliens = state.aliens.filter(a => !a.dead);
 
   // Allies
-  for (const al of state.allies) if (!al.dead) updateAlly(al, dt);
+  for (const al of state.allies) if (!al.dead) { updateAlly(al, dt); updateAnim(al, dt, {scale: 0.6}); }
   state.allies = state.allies.filter(al => !al.dead);
 
   // Bases
@@ -210,6 +223,8 @@ export function update(dt) {
     if (f.kind === 'puff' || f.kind === 'egg') {
       f.x += f.vx * dt; f.y += f.vy * dt;
       f.vy += 240 * dt; f.vx *= damp(0.98, dt);
+      if (f.kind === 'dust') { f.vy += 26 * dt; f.vx *= 0.94; }
+      if (f.kind === 'dmg') { f.y += f.vy * dt; f.x += (f.drift || 0) * dt; f.vy += 110 * dt; }
       if (f.kind === 'egg') {
         // settle on the ground just below where the egg was launched
         const groundY = f.groundY != null ? f.groundY : f.y;

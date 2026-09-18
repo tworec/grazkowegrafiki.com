@@ -1,6 +1,7 @@
 import { ensureAudio } from './audio.js';
+import { clamp } from './util.js';
 import { state, restart } from './state.js';
-import { tryAttack, tryJump } from './entities/player.js';
+import { tryAttack, tryDash } from './entities/player.js';
 
 
 // ---------- Input ----------
@@ -10,7 +11,7 @@ window.addEventListener('keydown', e => {
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space'].includes(e.key)) e.preventDefault();
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   keys.add(k);
-  if (k === ' ' || e.code === 'Space') tryJump();
+  if (k === ' ' || e.code === 'Space') tryDash();
   if (k === 'z') tryAttack('claw');
   if (k === 'x') tryAttack('tail');
   if (k === 'c') tryAttack('fire');
@@ -58,11 +59,47 @@ export function joyEnd(e) {
   }
   joy.active = false; joy.dx = 0; joy.dy = 0; setStick(0,0);
 }
+// Floating joystick: touching anywhere in the left half puts the stick under
+// the thumb instead of making the player reach for a fixed circle. The resting
+// spot is remembered so the pad does not jump around between touches.
+const JOY_HOME = { left: 16, bottom: 16 };
+function placeJoy(clientX, clientY) {
+  const size = joyEl.offsetWidth || 140;
+  const x = clamp(clientX - size / 2, 4, window.innerWidth - size - 4);
+  const y = clamp(clientY - size / 2, 4, window.innerHeight - size - 4);
+  joyEl.style.left = x + 'px';
+  joyEl.style.top = y + 'px';
+  joyEl.style.bottom = 'auto';
+}
+function resetJoyHome() {
+  joyEl.style.left = JOY_HOME.left + 'px';
+  joyEl.style.top = 'auto';
+  joyEl.style.bottom = JOY_HOME.bottom + 'px';
+}
+
+// A touch that starts on the HUD or on an attack button is not a move command.
+function onControls(target) {
+  return !!(target && target.closest && target.closest('#hud, #attacks, #banner'));
+}
+
+function areaTouchStart(e) {
+  if (joy.active) return;
+  const t = e.changedTouches ? e.changedTouches[0] : e;
+  if (onControls(e.target)) return;
+  if (t.clientX > window.innerWidth * 0.55) return;  // right side is for attacks
+  e.preventDefault();
+  placeJoy(t.clientX, t.clientY);
+  joyStart(e);
+}
+
 joyEl.addEventListener('touchstart', joyStart, {passive:false});
 joyEl.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e); }, {passive:false});
-joyEl.addEventListener('touchend', joyEnd);
-joyEl.addEventListener('touchcancel', joyEnd);
+joyEl.addEventListener('touchend', e => { joyEnd(e); if (!joy.active) resetJoyHome(); });
+joyEl.addEventListener('touchcancel', e => { joyEnd(e); resetJoyHome(); });
 joyEl.addEventListener('mousedown', joyStart);
+document.addEventListener('touchstart', areaTouchStart, {passive:false});
+document.addEventListener('touchmove', e => { if (joy.active) { e.preventDefault(); joyMove(e); } }, {passive:false});
+document.addEventListener('touchend', e => { joyEnd(e); if (!joy.active) resetJoyHome(); });
 window.addEventListener('mousemove', e => joy.active && joy.id==='mouse' && joyMove(e));
 window.addEventListener('mouseup', e => joy.active && joy.id==='mouse' && joyEnd());
 
@@ -74,7 +111,7 @@ document.querySelectorAll('.attackBtn').forEach(btn => {
     if (k === 'Z') tryAttack('claw');
     else if (k === 'X') tryAttack('tail');
     else if (k === 'C') tryAttack('fire');
-    else if (k === 'J') tryJump();
+    else if (k === 'J') tryDash();
   };
   btn.addEventListener('touchstart', handler, {passive:false});
   btn.addEventListener('mousedown', handler);

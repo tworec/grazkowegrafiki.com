@@ -3,7 +3,13 @@ import { WORLD, VIEW_H, ZOOM_MIN, ZOOM_MAX } from './config.js';
 import { clamp } from './util.js';
 
 // Camera: top-left corner of the view in world units + zoom (screen px per unit).
-export const cam = { x: 0, y: 0, zoom: 1, cx: 0, cy: 0 };
+export const cam = { x: 0, y: 0, zoom: 1, cx: 0, cy: 0, shake: 0, sx: 0, sy: 0 };
+
+// Screen shake: `amount` is in world units; the strongest request wins so a
+// big hit is not swallowed by a small one that arrived first.
+export function addShake(amount) {
+  cam.shake = Math.max(cam.shake, amount);
+}
 
 export function computeZoom() {
   // Fit VIEW_H world units vertically, but never zoom so far in that the view
@@ -26,6 +32,14 @@ export function snapCamera(x, y) {
 
 export function updateCamera(target, dt) {
   cam.zoom = computeZoom();
+  // Decay the shake and pick a fresh offset each frame.
+  cam.shake = Math.max(0, cam.shake - dt * 42);
+  if (cam.shake > 0.05) {
+    cam.sx = (Math.random() * 2 - 1) * cam.shake;
+    cam.sy = (Math.random() * 2 - 1) * cam.shake;
+  } else {
+    cam.sx = cam.sy = 0;
+  }
   // Critically-damped-ish follow: fast enough to feel attached, soft enough to hide jitter.
   const k = 1 - Math.exp(-dt * 6);
   cam.cx += (target.x - cam.cx) * k;
@@ -36,8 +50,8 @@ export function updateCamera(target, dt) {
 function applyCenter() {
   const vw = viewW(), vh = viewH();
   // Clamp to the world; centre if the world is smaller than the view.
-  cam.x = vw >= WORLD.w ? (WORLD.w - vw) / 2 : clamp(cam.cx - vw / 2, 0, WORLD.w - vw);
-  cam.y = vh >= WORLD.h ? (WORLD.h - vh) / 2 : clamp(cam.cy - vh / 2, 0, WORLD.h - vh);
+  cam.x = (vw >= WORLD.w ? (WORLD.w - vw) / 2 : clamp(cam.cx - vw / 2, 0, WORLD.w - vw)) + cam.sx;
+  cam.y = (vh >= WORLD.h ? (WORLD.h - vh) / 2 : clamp(cam.cy - vh / 2, 0, WORLD.h - vh)) + cam.sy;
 }
 
 export function worldToScreen(x, y) {

@@ -8,6 +8,7 @@ import { buildLevel } from './world.js';
 // ---------- Game state ----------
 export const state = {
   t: 0,
+  hitStop: 0,
   wave: 1,
   nextWaveAt: null,
   gameOver: false,
@@ -71,6 +72,13 @@ export function spawnCoinBurst(x, y, total) {
     // come back and pick them up after a fight.
     state.coins.push({x, y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:25, t:0, value:each});
   }
+}
+
+// Floating damage number above whatever just got hit.
+export function damageNumber(x, y, amount, color) {
+  if (state.fx.length > 240) return;
+  state.fx.push({kind:'dmg', x, y, vy: -46, text: String(Math.round(amount)),
+                 color: color || '#fff', life: 0.75, t: 0, drift: rand(-14, 14)});
 }
 
 export function flashRing(x, y, r, color) {
