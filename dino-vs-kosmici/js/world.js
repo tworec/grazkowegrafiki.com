@@ -1,4 +1,5 @@
-import { perf, W, H } from './view.js';
+import { WORLD } from './config.js';
+import { snapCamera } from './camera.js';
 import { el, updateHUD } from './hud.js';
 import { rand, clamp } from './util.js';
 import { state, makePlayer } from './state.js';
@@ -19,39 +20,40 @@ export function buildLevel() {
 
   // ----- Randomized layout — picked fresh every game -----
   // Alien HQ: anywhere on the map (with margin from edges)
-  const baseX = rand(W*0.15, W*0.85);
-  const baseY = rand(90, H - 110);
+  const M = 160; // margin from the world edge
+  const baseX = rand(M, WORLD.w - M);
+  const baseY = rand(M, WORLD.h - M);
 
   // Player spawn: anywhere far from the HQ
   let pX, pY, tries = 0;
   do {
-    pX = rand(W*0.10, W*0.90);
-    pY = rand(120, H - 80);
+    pX = rand(M, WORLD.w - M);
+    pY = rand(M, WORLD.h - M);
     tries++;
-  } while (tries < 60 && Math.hypot(pX - baseX, pY - baseY) < Math.min(W*0.45, H*0.55));
+  } while (tries < 60 && Math.hypot(pX - baseX, pY - baseY) < WORLD.w * 0.45);
   state.player.x = pX; state.player.y = pY;
 
   // Heal pad — middle band, away from HQ and player
   let hpX, hpY; tries = 0;
   do {
-    hpX = rand(70, W - 70);
-    hpY = rand(H*0.34, H*0.66);
+    hpX = clamp(pX + rand(-520, 520), M, WORLD.w - M);
+    hpY = clamp(pY + rand(-360, 360), M, WORLD.h - M);
     tries++;
   } while (tries < 60 && (
-    Math.hypot(hpX - baseX, hpY - baseY) < 140 ||
-    Math.hypot(hpX - pX,    hpY - pY)    < 100
+    Math.hypot(hpX - baseX, hpY - baseY) < 400 ||
+    Math.hypot(hpX - pX,    hpY - pY)    < 160
   ));
 
   // Ally pad — also middle band, but kept away from heal pad
   let apX, apY; tries = 0;
   do {
-    apX = rand(70, W - 70);
-    apY = rand(H*0.34, H*0.66);
+    apX = clamp(pX + rand(-520, 520), M, WORLD.w - M);
+    apY = clamp(pY + rand(-360, 360), M, WORLD.h - M);
     tries++;
   } while (tries < 80 && (
-    Math.hypot(apX - baseX, apY - baseY) < 140 ||
-    Math.hypot(apX - pX,    apY - pY)    < 100 ||
-    Math.hypot(apX - hpX,   apY - hpY)   < 140
+    Math.hypot(apX - baseX, apY - baseY) < 400 ||
+    Math.hypot(apX - pX,    apY - pY)    < 160 ||
+    Math.hypot(apX - hpX,   apY - hpY)   < 200
   ));
 
   // Now create the entities at the picked spots
@@ -62,29 +64,31 @@ export function buildLevel() {
   // Helipad — sits to one side of the HQ (decorative, gives the alien camp character)
   const hpdSide = Math.random() < 0.5 ? -1 : 1;
   state.helipad = {
-    x: clamp(baseX + hpdSide * rand(95, 135), 60, W - 50),
-    y: clamp(baseY + rand(-20, 25), 60, H - 80),
+    x: clamp(baseX + hpdSide * rand(95, 135), 60, WORLD.w - 50),
+    y: clamp(baseY + rand(-20, 25), 60, WORLD.h - 80),
     r: 38
   };
   // If helipad ends up overlapping the HQ horizontally, push it further out
   if (Math.abs(state.helipad.x - baseX) < 90) {
-    state.helipad.x = clamp(baseX + hpdSide * 110, 60, W - 50);
+    state.helipad.x = clamp(baseX + hpdSide * 110, 60, WORLD.w - 50);
   }
 
   // Flag (territory) — somewhere near the player's home turf
   state.flag = {
-    x: clamp(pX + rand(-100, 100), 50, W - 30),
-    y: clamp(pY + rand(-50, 70),   140, H - 60)
+    x: clamp(pX + rand(-100, 100), 50, WORLD.w - 30),
+    y: clamp(pY + rand(-50, 70),   60, WORLD.h - 60)
   };
 
   // Rocks — random positions, avoiding all the above
-  const targetRocks = 6 + Math.floor(Math.random()*3); // 6–8 rocks
+  // Counts scale with the map area (the old 1280x1272 screen had 6-8 rocks, 10 trees).
+  const area = WORLD.w * WORLD.h;
+  const targetRocks = Math.round(area / 220000) + Math.floor(Math.random()*3);
   let rockTries = 0;
-  while (state.rocks.length < targetRocks && rockTries < 200) {
+  while (state.rocks.length < targetRocks && rockTries < 600) {
     rockTries++;
     const r = rand(22, 36);
-    const x = rand(70, W - 70);
-    const y = rand(140, H - 90);
+    const x = rand(70, WORLD.w - 70);
+    const y = rand(70, WORLD.h - 70);
     if (Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < r + state.upgradePad.r + 28) continue;
     if (Math.hypot(x - state.allyPad.x,    y - state.allyPad.y)    < r + state.allyPad.r + 28) continue;
     if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
@@ -100,12 +104,12 @@ export function buildLevel() {
   }
 
   // Trees — random decoration, also avoiding the placed elements
-  const treeTarget = 10;
+  const treeTarget = Math.round(area / 170000);
   let treeTries = 0;
-  while (state.trees.length < treeTarget && treeTries < 200) {
+  while (state.trees.length < treeTarget && treeTries < 800) {
     treeTries++;
-    const tx = rand(40, W-40);
-    const ty = rand(140, H-90);
+    const tx = rand(40, WORLD.w - 40);
+    const ty = rand(60, WORLD.h - 60);
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
     if (Math.hypot(tx - state.upgradePad.x, ty - state.upgradePad.y) < 60) continue;
     if (Math.hypot(tx - state.allyPad.x,    ty - state.allyPad.y)    < 60) continue;
@@ -121,21 +125,36 @@ export function buildLevel() {
     const variants = ['treeA', 'pine', 'bush', 'treeB'];
     state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v: variants[Math.floor(Math.random()*variants.length)]});
   }
+  // Solid obstacles for movement: rocks + tree trunks (small circle at the foot of the tree).
+  state.obstacles = state.rocks.slice();
+  for (const t of state.trees) {
+    if (t.v === 'bush') continue;
+    const foot = treeFootY(t);
+    state.obstacles.push({x: t.x, y: foot - 6, r: 9 * t.s});
+  }
 
   // Start with one alien (per agreement: zaczynamy od jednego)
   spawnAlien();
 
   state.t = 0; state.hudAcc = 1; state.gameOver = false; state.won = false;
   state.wave = 1; state.nextWaveAt = null;
-  perf.staticDirty = true;
   el.banner.style.display = 'none';
+  snapCamera(state.player.x, state.player.y);
   updateHUD();
+}
+
+// Tree sprite sizes (w, h) at scale 1 — shared by the renderer and the collision code.
+export const TREE_SIZE = { pine: [52, 78], bush: [72, 50], treeB: [78, 96], treeA: [66, 78] };
+export function treeFootY(t) {
+  const sz = TREE_SIZE[t.v] || TREE_SIZE.treeA;
+  return t.y + sz[1] * t.s / 2;
 }
 
 // ---------- Rock collision ----------
 export function pushOutOfRocks(e) {
-  if (!state.rocks) return;
-  for (const r of state.rocks) {
+  const obs = state.obstacles || state.rocks;
+  if (!obs) return;
+  for (const r of obs) {
     const dx = e.x - r.x, dy = e.y - r.y;
     const d = Math.hypot(dx, dy);
     const minD = e.r + r.r;

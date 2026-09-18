@@ -175,4 +175,6 @@ Etapy 3 i 6 nie zależą od 1 i 2, więc można je przeplatać, gdy czekamy na g
 - 2026-09-18: **Etap 0 zrobiony**, commit `a3b2cfc` (moduły ES w `dino-vs-kosmici/js/`, naprawy, `?debug=1`). Lokalny test wymaga serwera HTTP: `python3 -m http.server 8765` w katalogu repo.
 - 2026-09-18: **Etap 6 (dźwięk)** i **narzędzie `tools/build_sheet.py`** zlecone sub-agentom w osobnych worktree; do scalenia po ich zakończeniu (sprawdzić konflikty w `main.js`, `hud.js`).
 - 2026-09-18: Próbny kafelek z ChatGPT w `assets-src/tiles/grass-iso-test.png` (wątek "Wygeneruj kafelek trawy"); wniosek w sekcji "Pipeline grafiki".
-- Następne: etap 1 (kamera) albo etap 3 (feel i animacja) — kolejność do decyzji użytkownika; animacja ruchu i akcji postaci to część etapu 3 (obie warstwy: kod i grafika).
+- 2026-09-18: **Etap 1 zrobiony** (kamera, mapa 3600×1440, y-sort, cienie, minimapa, strzałka do bazy, kolizje z pniami). Warstwa statyczna usunięta: ziemia to wzorzec, propsy rysowane co klatkę z cullingiem.
+- 2026-09-18: **Etap 3, grafika**: pozy tyranno generowane w ChatGPT (wątek "Ilustracja pozy bazowej"), zapis w `assets-src/tyranno/` (idle-1, walk-1 kontakt, walk-2 przejście, …). Do złożenia przez `tools/build_sheet.py`.
+- Następne: etap 3 (feel + maszyna animacji), potem etap 2 (teren).

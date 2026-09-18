@@ -1,4 +1,5 @@
-import { perf, W, H } from './view.js';
+import { perf } from './view.js';
+import { WORLD } from './config.js';
 import { SPECIES, SPECIES_STATS } from './config.js';
 import { rand } from './util.js';
 import { buildLevel } from './world.js';
@@ -37,7 +38,7 @@ export function makePlayer() {
   const sp = currentSpecies();
   const st = SPECIES_STATS[sp];
   return {
-    x: W/2, y: H - 100,
+    x: WORLD.w/2, y: WORLD.h/2,
     vx: 0, vy: 0,
     r: 26,
     species: sp,
@@ -57,7 +58,8 @@ export function makePlayer() {
 }
 
 export function notify(text, color) {
-  state.fx.push({kind:'notify', x: W/2, y: H*0.28, text, color: color || '#fff', life: 2.5, t: 0, vy: -10});
+  // Screen-space (drawn after the camera transform is reset); y is a drift offset.
+  state.fx.push({kind:'notify', screen: true, x: 0, y: 0, text, color: color || '#fff', life: 2.5, t: 0, vy: -10});
 }
 
 export function spawnCoinBurst(x, y, total) {

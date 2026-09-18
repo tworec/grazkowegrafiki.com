@@ -1,4 +1,4 @@
-import { W, H } from '../view.js';
+import { WORLD } from '../config.js';
 import { sfx } from '../audio.js';
 import { rand, clamp, damp } from '../util.js';
 import { state, spawnCoinBurst, flashRing } from '../state.js';
@@ -7,8 +7,10 @@ import { damagePlayer, addXP } from './player.js';
 import { damageAlly } from './allies.js';
 
 
-export function pickWanderTarget() {
-  return { x: rand(W*0.10, W*0.90), y: rand(H*0.18, H*0.85) };
+export function pickWanderTarget(a) {
+  // Wander within ~500 units of where the alien is (or anywhere on a fresh spawn).
+  if (a) return { x: clamp(a.x + rand(-500, 500), 60, WORLD.w - 60), y: clamp(a.y + rand(-350, 350), 60, WORLD.h - 60) };
+  return { x: rand(WORLD.w*0.10, WORLD.w*0.90), y: rand(WORLD.h*0.18, WORLD.h*0.85) };
 }
 
 export function makeAlien(type, x, y) {
@@ -129,8 +131,8 @@ export function updateAlien(a, dt) {
   // flyers fly over rocks; walkers and big are blocked
   if (a.type !== 'small') pushOutOfRocks(a);
   // keep aliens on screen too
-  a.x = clamp(a.x, a.r, W - a.r);
-  a.y = clamp(a.y, a.r + 20, H - a.r);
+  a.x = clamp(a.x, a.r, WORLD.w - a.r);
+  a.y = clamp(a.y, a.r, WORLD.h - a.r);
 
   // attack only matters if our closest target is actually within striking range
   a.attackCd -= dt;

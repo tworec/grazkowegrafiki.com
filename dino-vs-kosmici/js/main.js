@@ -1,4 +1,6 @@
 import { perf, W, H, DPR } from './view.js';
+import { WORLD } from './config.js';
+import { cam, updateCamera } from './camera.js';
 import { sfx } from './audio.js';
 import { updateAudio } from './audio.js';
 import { updateHUD } from './hud.js';
@@ -17,15 +19,6 @@ import { draw } from './render/draw.js';
 // ---------- Frame ----------
 export let last = performance.now();
 export let lastDraw = performance.now();
-// True while any base is still within its ~1s destruction animation window.
-export function baseAnimating() {
-  const now = performance.now();
-  for (const b of state.bases) {
-    if (b.dead && b.deadAt != null && (now - b.deadAt) < 1000) return true;
-  }
-  return false;
-}
-
 export function frame(now) {
   if (perf.hidden) {
     requestAnimationFrame(frame);
@@ -41,16 +34,10 @@ export function frame(now) {
   lastDraw = now;
   debugTick(dt);
   updateAudio(dt, state);
-  // Bases live on the static layer; while one plays its destruction
-  // animation we must keep refreshing it (this also runs after win/lose,
-  // when update() is skipped, so the final base finishes exploding).
-  if (baseAnimating()) perf.staticDirty = true;
-  if (!state.gameOver && !state.won) {
-    update(dt);
-    draw();
-  } else if (perf.staticDirty) {
-    draw();
-  }
+  // After win/lose we keep drawing (the last base still plays its
+  // destruction animation, notifications fade) but stop simulating.
+  if (!state.gameOver && !state.won) update(dt);
+  draw();
   requestAnimationFrame(frame);
 }
 
@@ -83,9 +70,10 @@ export function update(dt) {
 
   // Rocks block movement (you can hide behind them)
   pushOutOfRocks(p);
-  // Clamp to screen (no leaving the screen — per request)
-  p.x = clamp(p.x, p.r + 4, W - p.r - 4);
-  p.y = clamp(p.y, p.r + 60, H - p.r - 4); // keep below HUD a bit
+  // Clamp to the world
+  p.x = clamp(p.x, p.r + 4, WORLD.w - p.r - 4);
+  p.y = clamp(p.y, p.r + 4, WORLD.h - p.r - 4);
+  updateCamera(p, dt);
 
   // Walk-cycle phase advances only while we're moving — feet plant believably
   const pSpeed = Math.hypot(p.vx, p.vy);
@@ -195,7 +183,7 @@ export function update(dt) {
       }
     }
   }
-  state.projectiles = state.projectiles.filter(pr => pr.life > 0 && pr.x > -40 && pr.x < W+40 && pr.y > -40 && pr.y < H+40);
+  state.projectiles = state.projectiles.filter(pr => pr.life > 0 && pr.x > -40 && pr.x < WORLD.w+40 && pr.y > -40 && pr.y < WORLD.h+40);
 
   // Coins
   for (const c of state.coins) {
@@ -223,8 +211,8 @@ export function update(dt) {
       f.x += f.vx * dt; f.y += f.vy * dt;
       f.vy += 240 * dt; f.vx *= damp(0.98, dt);
       if (f.kind === 'egg') {
-        // settle on the ground band so eggs don't fall off-screen before hatching
-        const groundY = H - 70;
+        // settle on the ground just below where the egg was launched
+        const groundY = f.groundY != null ? f.groundY : f.y;
         if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= 0.6; }
       }
     } else if (f.kind === 'notify') {
@@ -234,8 +222,8 @@ export function update(dt) {
     // Eggs hatch into baby allied dinosaurs (same species as the player)
     if (f.kind === 'egg' && f.life <= 0 && !f.hatched) {
       f.hatched = true;
-      const ax = clamp(f.x, 30, W - 30);
-      const ay = clamp(f.y, 100, H - 60);
+      const ax = clamp(f.x, 30, WORLD.w - 30);
+      const ay = clamp(f.y, 30, WORLD.h - 30);
       const sp = state.player ? state.player.species : currentSpecies();
       state.allies.push(makeAlly(ax, ay, sp));
       flashRing(ax, ay, 22, '#9aff9a');
@@ -297,7 +285,7 @@ function debugTick(dt) {
   if (dbgAcc < 0.5) return;
   const fps = Math.round(dbgFrames / dbgAcc);
   dbgFrames = 0; dbgAcc = 0;
-  dbgEl.textContent = `fps ${fps}  dpr ${DPR}  ${W}x${H}\naliens ${state.aliens.length}  allies ${state.allies.length}  proj ${state.projectiles.length}  fx ${state.fx.length}  coins ${state.coins.length}`;
+  dbgEl.textContent = `fps ${fps}  dpr ${DPR}  ${W}x${H}  zoom ${cam.zoom.toFixed(2)}  cam ${Math.round(cam.x)},${Math.round(cam.y)}\naliens ${state.aliens.length}  allies ${state.allies.length}  proj ${state.projectiles.length}  fx ${state.fx.length}  coins ${state.coins.length}`;
 }
 
 // ---------- Boot ----------

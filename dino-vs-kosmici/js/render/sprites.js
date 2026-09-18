@@ -1,7 +1,5 @@
-import { perf } from '../view.js';
 
 export const atlas = new Image();
-atlas.onload = () => { perf.staticDirty = true; };
 atlas.src = 'assets/antos-atlas.png';
 export const dinoSprite = new Image();
 dinoSprite.src = 'assets/antos-dino.png';

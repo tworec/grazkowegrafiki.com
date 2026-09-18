@@ -1,6 +1,7 @@
 import { perf, resize } from './view.js';
 import { ensureAudio, isMuted, toggleMuted } from './audio.js';
-import { DIFFICULTY, SPECIES_STATS } from './config.js';
+import { DIFFICULTY, SPECIES_STATS, WORLD } from './config.js';
+import { cam, viewW, viewH } from './camera.js';
 import { clamp } from './util.js';
 import { state, difficultyKey, notify, restart, setDifficulty } from './state.js';
 import { buildLevel } from './world.js';
@@ -93,9 +94,41 @@ export function updateHUD() {
   el.enBar.style.width = (100 * p.energy / p.maxEnergy) + '%';
   el.xpBar.style.width = (100 * p.xp / p.xpNeed) + '%';
   el.upgradeLine.textContent = `Ulepszenia: HP ${up.hp} EN ${up.energy} CD ${up.cooldown} ST ${up.ally}`;
+  drawMinimap();
   setBtnCd('Z', cd.claw);
   setBtnCd('X', cd.tail);
   setBtnCd('C', cd.fire);
+}
+// Minimap: whole world scaled into the little HUD canvas.
+const mm = document.getElementById('minimap');
+const mmCtx = mm ? mm.getContext('2d') : null;
+export function drawMinimap() {
+  if (!mmCtx) return;
+  const sx = mm.width / WORLD.w, sy = mm.height / WORLD.h;
+  mmCtx.clearRect(0, 0, mm.width, mm.height);
+  mmCtx.fillStyle = '#2f7a3a';
+  mmCtx.fillRect(0, 0, mm.width, mm.height);
+  mmCtx.fillStyle = 'rgba(0,0,0,0.18)';
+  for (const t of state.trees) mmCtx.fillRect(t.x * sx - 1, t.y * sy - 1, 2, 2);
+  for (const r of state.rocks) mmCtx.fillRect(r.x * sx - 1, r.y * sy - 1, 2, 2);
+  if (state.upgradePad) dot(state.upgradePad.x, state.upgradePad.y, '#ff6b6b', 2.5);
+  if (state.allyPad)    dot(state.allyPad.x,    state.allyPad.y,    '#5ad8ff', 2.5);
+  for (const b of state.bases) {
+    mmCtx.fillStyle = b.dead ? 'rgba(60,40,40,0.8)' : '#e63946';
+    const w = Math.max(4, b.w * sx), h = Math.max(3, b.h * sy);
+    mmCtx.fillRect(b.x * sx - w / 2, b.y * sy - h / 2, w, h);
+  }
+  for (const al of state.allies) if (!al.dead) dot(al.x, al.y, '#bfffbf', 1.5);
+  for (const a of state.aliens) dot(a.x, a.y, '#ffd166', 1.5);
+  const p = state.player;
+  if (p) dot(p.x, p.y, '#ffffff', 3);
+  mmCtx.strokeStyle = 'rgba(255,255,255,0.55)';
+  mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(cam.x * sx + 0.5, cam.y * sy + 0.5, viewW() * sx, viewH() * sy);
+  function dot(x, y, color, r) {
+    mmCtx.fillStyle = color;
+    mmCtx.beginPath(); mmCtx.arc(x * sx, y * sy, r, 0, Math.PI * 2); mmCtx.fill();
+  }
 }
 export function setBtnCd(key, c) {
   const btn = el.btnCd[key];

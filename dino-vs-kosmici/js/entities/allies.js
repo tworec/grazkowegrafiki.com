@@ -1,4 +1,4 @@
-import { W, H } from '../view.js';
+import { WORLD } from '../config.js';
 import { sfx } from '../audio.js';
 import { rand, clamp, damp } from '../util.js';
 import { state, flashRing } from '../state.js';
@@ -87,8 +87,8 @@ export function updateAlly(al, dt) {
   al.x += al.vx * dt;
   al.y += al.vy * dt;
   pushOutOfRocks(al);
-  al.x = clamp(al.x, al.r, W - al.r);
-  al.y = clamp(al.y, al.r + 60, H - al.r);
+  al.x = clamp(al.x, al.r, WORLD.w - al.r);
+  al.y = clamp(al.y, al.r, WORLD.h - al.r);
   // walk cycle for limb animation
   const sp = Math.hypot(al.vx, al.vy);
   if (sp > 20) al.walkPhase = (al.walkPhase || 0) + dt * Math.min(2 + sp/100, 8);

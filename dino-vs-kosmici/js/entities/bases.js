@@ -1,4 +1,4 @@
-import { perf, W, H } from '../view.js';
+import { WORLD } from '../config.js';
 import { sfx, music } from '../audio.js';
 import { DIFFICULTY } from '../config.js';
 import { rand, clamp } from '../util.js';
@@ -31,7 +31,6 @@ export function makeBase(x, y, tier) {
 
 export function damageBase(b, dmg) {
   b.hp -= dmg;
-  perf.staticDirty = true;
   sfx.alienHit();
   flashRing(b.x, b.y, 30, '#ff7a7a');
   if (b.hp <= 0 && !b.dead) {
@@ -46,7 +45,8 @@ export function damageBase(b, dmg) {
     addXP(xp);
     // free the eggs!
     for (let i=0;i<b.eggs;i++) {
-      state.fx.push({kind:'egg', x:b.x+rand(-30,30), y:b.y+rand(-15,15),
+      const ex = b.x+rand(-30,30), ey = b.y+rand(-15,15);
+      state.fx.push({kind:'egg', x:ex, y:ey, groundY: ey + rand(30, 70),
                      vx:rand(-30,30), vy:rand(-100,-40), life:2.5, t:0});
     }
     // Check if ALL bases (main + secondaries) are gone — start the next wave
@@ -95,11 +95,11 @@ export function spawnNextWaveBase() {
   const p = state.player;
   let bx, by, tries = 0;
   do {
-    bx = rand(W*0.10, W*0.90);
-    by = rand(90, H - 110);
+    bx = rand(160, WORLD.w - 160);
+    by = rand(160, WORLD.h - 160);
     tries++;
   } while (tries < 80 && (
-    Math.hypot(bx - p.x, by - p.y) < Math.min(W*0.45, H*0.55) ||
+    Math.hypot(bx - p.x, by - p.y) < WORLD.w * 0.35 ||
     !canPlaceReinforcementBase(bx, by)
   ));
   const base = makeBase(bx, by, 'main');
@@ -110,7 +110,6 @@ export function spawnNextWaveBase() {
   base.dmg = Math.round(base.dmg * dmgMul);
   base.eggs = 3 + wave;
   state.bases.push(base);
-  perf.staticDirty = true;
   flashRing(bx, by, 110, '#ffd166');
   notify(`FALA ${wave}! Nowa kwatera główna!`, '#ffd166');
   sfx.alienHit();
@@ -120,8 +119,8 @@ export function spawnNextWaveBase() {
 export function spawnBaseFromAlienCluster(tier, message) {
   const cluster = findAlienCluster(5, 130);
   if (!cluster) return false;
-  const x = clamp(cluster.x, 70, W - 70);
-  const y = clamp(cluster.y, 80, H - 90);
+  const x = clamp(cluster.x, 120, WORLD.w - 120);
+  const y = clamp(cluster.y, 120, WORLD.h - 120);
   if (!canPlaceReinforcementBase(x, y)) return false;
   const nb = makeBase(x, y, tier);
   state.bases.push(nb);
@@ -130,7 +129,6 @@ export function spawnBaseFromAlienCluster(tier, message) {
     state.fx.push({kind:'puff', x:a.x, y:a.y, vx:rand(-45,45), vy:rand(-90,-35), life:0.5, t:0, color:'#9b7'});
   }
   state.aliens = state.aliens.filter(a => !a.dead);
-  perf.staticDirty = true;
   flashRing(nb.x, nb.y, 85, '#ffd166');
   notify(message, '#ffd166');
   sfx.alienHit();

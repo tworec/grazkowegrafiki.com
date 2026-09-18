@@ -1,10 +1,12 @@
-import { perf, W, H, DPR, staticCv, staticCtx, mainCtx } from '../view.js';
+import { W, H, DPR, mainCtx } from '../view.js';
+import { cam, viewW, viewH, inView } from '../camera.js';
+import { TREE_SIZE, treeFootY } from '../world.js';
 import { atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
-import { SPECIES_STATS } from '../config.js';
+import { SPECIES_STATS, WORLD } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state } from '../state.js';
 
-let ctx = mainCtx;
+const ctx = mainCtx;
 
 export function drawSprite(name, x, y, w, h, opts) {
   if (!atlas.complete || !atlas.naturalWidth || !SPR[name]) return false;
@@ -107,51 +109,125 @@ export function drawDinoSprite(p, scaleOpt) {
 }
 
 // ---------- Drawing ----------
-export function renderStaticLayer() {
-  const liveCtx = ctx;
-  ctx = staticCtx;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#3aa14a';
-  ctx.fillRect(0, 0, W, H);
-  drawGrassNoise();
-  for (const t of state.trees) drawTree(t);
-  drawHelipad(state.helipad);
-  drawFlag(state.flag);
-  drawSprite('sign', W*0.78, H*0.42, 66, 42);
-  drawSprite('totem', W*0.90, H*0.36, 48, 96);
-  for (const b of state.bases) drawBase(b);
-  for (const r of state.rocks) drawRock(r);
-  ctx = liveCtx;
-  perf.staticDirty = false;
-}
+// Everything is drawn in world space under the camera transform; props and
+// entities are sorted by their "feet" y so things further down the screen
+// cover what is behind them (2.5D). Ground decals (pads, coins, shadows)
+// go first, projectiles and FX last, HUD-like overlays in screen space.
+function feetY(e) { return e.y + (e.r || 0); }
+
+const drawList = [];
+function push(y, fn, arg) { drawList.push({ y, fn, arg }); }
 
 export function draw() {
-  if (perf.staticDirty) renderStaticLayer();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.drawImage(staticCv, 0, 0);
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const z = cam.zoom;
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, -cam.x * DPR * z, -cam.y * DPR * z);
+  const vx = cam.x, vy = cam.y, vw = viewW(), vh = viewH();
 
+  // Ground
+  ctx.fillStyle = '#3aa14a';
+  ctx.fillRect(vx, vy, vw, vh);
+  drawGrassNoise(vx, vy, vw, vh);
+
+  // World edge (dark band so the player sees the map boundary)
+  drawWorldEdge(vx, vy, vw, vh);
+
+  // Flat decals — never occlude anything
+  drawHelipad(state.helipad);
   drawUpgradePad(state.upgradePad);
   drawAllyPad(state.allyPad);
+  for (const c of state.coins) if (inView(c.x, c.y, 20)) drawCoin(c);
 
-  // Coins
-  for (const c of state.coins) drawCoin(c);
+  // Blob shadows under characters
+  drawShadow(state.player, 0.85);
+  for (const al of state.allies) if (!al.dead) drawShadow(al, 0.8);
 
-  // Allies
-  for (const al of state.allies) if (!al.dead) drawAlly(al);
+  // Depth-sorted layer
+  drawList.length = 0;
+  for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
+  for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
+  for (const b of state.bases) if (inView(b.x, b.y, 200)) push(b.y + b.h / 2, drawBase, b);
+  if (state.flag) push(state.flag.y + 40, drawFlag, state.flag);
+  for (const al of state.allies) if (!al.dead && inView(al.x, al.y, 60)) push(feetY(al), drawAlly, al);
+  push(feetY(state.player), drawPlayerAndShield, state.player);
+  for (const a of state.aliens) if (inView(a.x, a.y, 80)) push(feetY(a), drawAlien, a);
+  drawList.sort((p, q) => p.y - q.y);
+  for (const d of drawList) d.fn(d.arg);
 
-  // Player
-  drawPlayer(state.player);
-  drawShield(state.player);
-
-  // Aliens
-  for (const a of state.aliens) drawAlien(a);
-
-  // Projectiles
+  // Projectiles and world-space FX on top
   for (const pr of state.projectiles) drawProjectile(pr);
+  for (const f of state.fx) if (!f.screen) drawFx(f);
 
-  // FX on top
-  for (const f of state.fx) drawFx(f);
+  // Screen-space overlays
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawOffscreenBaseArrow();
+  for (const f of state.fx) if (f.screen) drawFx(f);
+}
+
+function drawPlayerAndShield(p) { drawPlayer(p); drawShield(p); }
+
+export function drawShadow(e, k) {
+  if (!e || !inView(e.x, e.y, 60)) return;
+  const jump = e.jump > 0 ? Math.sin((0.5 - e.jump) * Math.PI) : 0;
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${0.22 - jump * 0.1})`;
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + e.r * 0.75, e.r * k * (1 - jump * 0.3), e.r * 0.32 * k * (1 - jump * 0.3), 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWorldEdge(vx, vy, vw, vh) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(20,50,20,0.55)';
+  const t = 18;
+  if (vx < 0)            ctx.fillRect(vx, vy, -vx, vh);
+  if (vy < 0)            ctx.fillRect(vx, vy, vw, -vy);
+  if (vx + vw > WORLD.w) ctx.fillRect(WORLD.w, vy, vx + vw - WORLD.w, vh);
+  if (vy + vh > WORLD.h) ctx.fillRect(vx, WORLD.h, vw, vy + vh - WORLD.h);
+  ctx.strokeStyle = 'rgba(30,70,30,0.7)';
+  ctx.lineWidth = t;
+  ctx.strokeRect(-t / 2, -t / 2, WORLD.w + t, WORLD.h + t);
+  ctx.restore();
+}
+
+// Arrow at the screen edge pointing to the nearest living base when it is
+// out of view, so the player always knows where to go.
+function drawOffscreenBaseArrow() {
+  const p = state.player;
+  let best = null, bestD = Infinity;
+  for (const b of state.bases) {
+    if (b.dead) continue;
+    const d = Math.hypot(b.x - p.x, b.y - p.y);
+    if (d < bestD) { bestD = d; best = b; }
+  }
+  if (!best || inView(best.x, best.y, -40)) return;
+  const z = cam.zoom;
+  const sx = (best.x - cam.x) * z, sy = (best.y - cam.y) * z;
+  const cx = W / 2, cy = H / 2;
+  const ang = Math.atan2(sy - cy, sx - cx);
+  // Intersect the ray from the screen centre with an inset screen rectangle.
+  const m = 56;
+  const hw = W / 2 - m, hh = H / 2 - m;
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const tx = c !== 0 ? hw / Math.abs(c) : Infinity, ty = s !== 0 ? hh / Math.abs(s) : Infinity;
+  const t = Math.min(tx, ty);
+  const ax = cx + c * t, ay = cy + s * t;
+  const pulse = 1 + Math.sin(state.t * 5) * 0.08;
+  ctx.save();
+  ctx.translate(ax, ay);
+  ctx.rotate(ang);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff7a7a';
+  ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -11); ctx.lineTo(-3, 0); ctx.lineTo(-8, 11); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.font = 'bold 11px system-ui';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`${Math.round(bestD / 10) * 10} m`, ax, ay + 32);
+  ctx.restore();
 }
 
 export function drawRock(r) {
@@ -332,9 +408,7 @@ export function drawAlly(al) {
   ctx.restore();
 }
 
-export function drawGrassNoise() {
-  if (drawGrassNoise.pat && drawGrassNoise.patDpr !== DPR) drawGrassNoise.pat = null;
-  drawGrassNoise.patDpr = DPR;
+export function drawGrassNoise(vx, vy, vw, vh) {
   // Dense pencil-like grass texture, cached as a repeating pattern.
   if (!drawGrassNoise.pat) {
     const pc = document.createElement('canvas');
@@ -351,12 +425,12 @@ export function drawGrassNoise() {
     drawGrassNoise.pat = ctx.createPattern(pc, 'repeat');
   }
   ctx.fillStyle = drawGrassNoise.pat;
-  ctx.fillRect(0,0,W,H);
+  ctx.fillRect(vx, vy, vw, vh);
 }
 
 export function drawTree(t) {
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
-  const size = sprite === 'pine' ? [52, 78] : sprite === 'bush' ? [72, 50] : sprite === 'treeB' ? [78, 96] : [66, 78];
+  const size = TREE_SIZE[sprite];
   if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) return;
   ctx.save();
   ctx.translate(t.x, t.y);
@@ -923,14 +997,15 @@ export function drawFx(f) {
     ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.ellipse(f.x, f.y, 6, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
   } else if (f.kind === 'notify') {
+    const nx = W / 2, ny = H * 0.28 + f.y;
     ctx.globalAlpha = clamp(f.life / 1.2, 0, 1);
     ctx.font = 'bold 18px system-ui';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const w = ctx.measureText(f.text).width + 28;
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    roundRect(f.x - w/2, f.y - 16, w, 32, 8); ctx.fill();
+    roundRect(nx - w/2, ny - 16, w, 32, 8); ctx.fill();
     ctx.fillStyle = f.color || '#fff';
-    ctx.fillText(f.text, f.x, f.y);
+    ctx.fillText(f.text, nx, ny);
   }
   ctx.restore();
 }

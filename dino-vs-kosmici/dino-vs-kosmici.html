@@ -76,6 +76,11 @@
   .bar.en > div { background-image: url('assets/bar-en-fill.png'); }
   .bar.xp > div { background-image: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
+  #minimap {
+    display: block; width: 200px; height: 80px; margin: 6px 0 2px;
+    border-radius: 6px; border: 2px solid rgba(255,235,200,0.25);
+    background: #2f7a3a; image-rendering: auto;
+  }
   #stats span small { font-weight: 400; opacity: .8; }
   #goalLine, #upgradeLine { font-size: 11px; opacity: .95; margin-top: 3px; }
   #settings {
@@ -195,6 +200,7 @@
   <div>XP</div>
   <div class="bar xp"><div id="xpBar" style="width:0%"></div></div>
   <div id="upgradeLine">Ulepszenia: 0</div>
+  <canvas id="minimap" width="200" height="80"></canvas>
   <div id="settings">
     <select id="difficulty" title="Poziom trudnosci">
       <option value="easy">Easy</option>
