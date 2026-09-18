@@ -177,4 +177,7 @@ Etapy 3 i 6 nie zależą od 1 i 2, więc można je przeplatać, gdy czekamy na g
 - 2026-09-18: Próbny kafelek z ChatGPT w `assets-src/tiles/grass-iso-test.png` (wątek "Wygeneruj kafelek trawy"); wniosek w sekcji "Pipeline grafiki".
 - 2026-09-18: **Etap 1 zrobiony** (kamera, mapa 3600×1440, y-sort, cienie, minimapa, strzałka do bazy, kolizje z pniami). Warstwa statyczna usunięta: ziemia to wzorzec, propsy rysowane co klatkę z cullingiem.
 - 2026-09-18: **Etap 3, grafika**: pozy tyranno generowane w ChatGPT (wątek "Ilustracja pozy bazowej"), zapis w `assets-src/tyranno/` (idle-1, walk-1 kontakt, walk-2 przejście, …). Do złożenia przez `tools/build_sheet.py`.
-- Następne: etap 3 (feel + maszyna animacji), potem etap 2 (teren).
+- 2026-09-18: **Etap 3, kod zrobiony** (maszyna animacji z kroku po drodze, squash & stretch, tween obrotu, oddychanie, kurz; zryw zamiast skoku; hit-stop, trzęsienie ekranu, wibracje, liczby obrażeń; pływający joystick).
+- 2026-09-18: **Etap 3, grafika — ChatGPT zawiódł przy cyklu chodu.** Zmierzone: pozy "kontakt lewą" i "kontakt prawą" wychodzą identyczne (pozycje stóp 26–40/77–92 vs 25–40/77–96), bo generator nie odróżnia nogi bliższej od dalszej w widoku z boku; pasek 4 klatek w jednym obrazie dał to samo plus artefakt trzeciej nogi. Temat przejął osobny sub-agent, pracuje klatka po klatce z jawną okluzją i przyciemnieniem nogi dalszej, z pomiarem pozycji stóp jako kryterium akceptacji; fallback to cykl 2-klatkowy.
+- **Review:** po każdym etapie `codex exec review --base <gałąź-przed-etapem>` (model gpt-5.6-sol). Etap 0: bez uwag. Etap 1: jedno trafne znalezisko (pickWanderTarget bez argumentu), naprawione.
+- Następne: etap 4 (walka: combo pazura, ogon co 3 s, ogień trzymany, nowi wrogowie), potem etap 2 (teren).
