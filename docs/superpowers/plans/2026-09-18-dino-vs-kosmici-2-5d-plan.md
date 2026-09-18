@@ -148,6 +148,8 @@ Kolejność generowania:
 
 Ryzyko: spójność klatek z generatora. Plan B, jeśli edycje pozy bazowej dryfują: tylko poza bazowa i osobno wygenerowane nogi jako warstwa, animowane proceduralnie (jak dziś stado rysowane kodem).
 
+Wniosek z próby 2026-09-18 (`assets-src/tiles/grass-iso-test.png`): pojedyncze kafelki-romby z ChatGPT mają kontur i ziemny bok, przez co w siatce widać szczeliny, a proporcje nie trzymają 2:1. Do wnętrza mapy zamawiać **bezszwowe kwadratowe tekstury** (trawa, ziemia, ścieżka) w stylu Antosia, a romby, krawędzie i cienie rysować kodem. Kafelek z bokiem zostaje jako wzór krawędzi mapy.
+
 ## Poza zakresem tej przebudowy
 
 - Pełna izometria z postaciami w 4 kierunkach.
@@ -167,3 +169,10 @@ Ryzyko: spójność klatek z generatora. Plan B, jeśli edycje pozy bazowej dryf
 | 6 dźwięk | 0 | 1 sesja |
 
 Etapy 3 i 6 nie zależą od 1 i 2, więc można je przeplatać, gdy czekamy na grafikę.
+
+## Status (aktualizowany po każdym etapie)
+
+- 2026-09-18: **Etap 0 zrobiony**, commit `a3b2cfc` (moduły ES w `dino-vs-kosmici/js/`, naprawy, `?debug=1`). Lokalny test wymaga serwera HTTP: `python3 -m http.server 8765` w katalogu repo.
+- 2026-09-18: **Etap 6 (dźwięk)** i **narzędzie `tools/build_sheet.py`** zlecone sub-agentom w osobnych worktree; do scalenia po ich zakończeniu (sprawdzić konflikty w `main.js`, `hud.js`).
+- 2026-09-18: Próbny kafelek z ChatGPT w `assets-src/tiles/grass-iso-test.png` (wątek "Wygeneruj kafelek trawy"); wniosek w sekcji "Pipeline grafiki".
+- Następne: etap 1 (kamera) albo etap 3 (feel i animacja) — kolejność do decyzji użytkownika; animacja ruchu i akcji postaci to część etapu 3 (obie warstwy: kod i grafika).
