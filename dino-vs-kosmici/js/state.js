@@ -77,7 +77,7 @@ export function spawnCoinBurst(x, y, total) {
 // Floating damage number above whatever just got hit.
 export function damageNumber(x, y, amount, color) {
   if (state.fx.length > 240) return;
-  state.fx.push({kind:'dmg', x, y, vy: -46, text: String(Math.round(amount)),
+  state.fx.push({kind:'dmg', x, y, vy: -72, text: String(Math.round(amount)),
                  color: color || '#fff', life: 0.75, t: 0, drift: rand(-14, 14)});
 }
 

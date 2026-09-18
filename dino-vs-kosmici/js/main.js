@@ -220,16 +220,21 @@ export function update(dt) {
   // FX
   for (const f of state.fx) {
     f.t += dt; f.life -= dt;
-    if (f.kind === 'puff' || f.kind === 'egg') {
+    if (f.kind === 'puff') {
       f.x += f.vx * dt; f.y += f.vy * dt;
       f.vy += 240 * dt; f.vx *= damp(0.98, dt);
-      if (f.kind === 'dust') { f.vy += 26 * dt; f.vx *= 0.94; }
-      if (f.kind === 'dmg') { f.y += f.vy * dt; f.x += (f.drift || 0) * dt; f.vy += 110 * dt; }
-      if (f.kind === 'egg') {
-        // settle on the ground just below where the egg was launched
-        const groundY = f.groundY != null ? f.groundY : f.y;
-        if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= 0.6; }
-      }
+    } else if (f.kind === 'egg') {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      f.vy += 240 * dt; f.vx *= damp(0.98, dt);
+      // settle on the ground just below where the egg was launched
+      const groundY = f.groundY != null ? f.groundY : f.y;
+      if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= 0.6; }
+    } else if (f.kind === 'dust') {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      f.vy += 26 * dt; f.vx *= damp(0.94, dt);
+    } else if (f.kind === 'dmg') {
+      f.y += f.vy * dt; f.x += (f.drift || 0) * dt;
+      f.vy += 55 * dt;
     } else if (f.kind === 'notify') {
       f.y += (f.vy || 0) * dt;
       f.vy = (f.vy || 0) * damp(0.93, dt);

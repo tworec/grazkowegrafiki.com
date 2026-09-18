@@ -19,7 +19,7 @@ export function makeAlien(type, x, y) {
   // This makes the swarm spread out around the map instead of dogpiling the dino.
   const personality = Math.random() < 0.35 ? 'aggressive' : 'wanderer';
   const common = {
-    x, y, vx:0, vy:0, attackCd: 0,
+    x, y, vx:0, vy:0, attackCd: 0, facing: -1, flash: 0,
     wob: rand(0,Math.PI*2),
     personality,
     wanderTarget: pickWanderTarget(),
@@ -134,6 +134,9 @@ export function updateAlien(a, dt) {
   { const d = damp(0.96, dt); a.vx *= d; a.vy *= d; }
   a.x += a.vx * dt;
   a.y += a.vy * dt;
+  // Facing with a dead zone, so an alien drifting sideways does not flicker.
+  if (a.vx < -8) a.facing = -1; else if (a.vx > 8) a.facing = 1;
+  if (a.flash > 0) a.flash -= dt;
   // flyers fly over rocks; walkers and big are blocked
   if (a.type !== 'small') pushOutOfRocks(a);
   // keep aliens on screen too

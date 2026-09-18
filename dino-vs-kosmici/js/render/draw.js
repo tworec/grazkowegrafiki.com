@@ -703,7 +703,11 @@ export function drawShield(p) {
 export function drawAlien(a) {
   ctx.save();
   ctx.translate(a.x, a.y);
-  const bob = Math.sin(state.t*4 + a.wob) * 2.2;
+  // Ground walkers use the shared animation machine (step-driven bob, squash,
+  // tweened turns); flyers keep a gentle hover, which is what they should do.
+  const flying = a.type === 'small';
+  const pose = flying ? null : animPose(a, Math.hypot(a.vx, a.vy) > 25);
+  const bob = flying ? Math.sin(state.t*4 + a.wob) * 2.2 : pose.bob * 1.4;
 
   // shadow
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -734,7 +738,10 @@ export function drawAlien(a) {
     }
     ctx.save();
     ctx.translate(a.x, a.y - a.r*0.52 + bob*0.35);
-    if (a.vx < -5) ctx.scale(-1, 1);
+    const fx = a.anim ? a.anim.facing : (a.vx < -5 ? -1 : 1);
+    if (pose) { ctx.rotate(pose.rot * fx); ctx.scale(fx * pose.sx, pose.sy); }
+    else ctx.scale(fx, 1);
+    if (a.flash > 0) ctx.filter = 'brightness(1.7) saturate(0.4)';
     if (a.type === 'small') {
       const frame = Math.floor(state.t * FLYER_ANIM.fps + (a.wob || 0)) % FLYER_ANIM.frames;
       ctx.drawImage(alienImg,
@@ -753,6 +760,7 @@ export function drawAlien(a) {
     } else {
       ctx.drawImage(alienImg, -w/2, -h/2, w, h);
     }
+    ctx.filter = 'none';
     ctx.restore();
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -765,7 +773,7 @@ export function drawAlien(a) {
 
   const robotScale = a.type === 'big' ? 1.35 : (a.type === 'small' ? 0.82 : 1.0);
   ctx.restore();
-  if (drawSprite('robot', a.x, a.y - a.r*0.18 + bob*0.35, a.r*2.35*robotScale, a.r*2.55*robotScale, {flip: a.vx < -5})) {
+  if (drawSprite('robot', a.x, a.y - a.r*0.18 + bob*0.35, a.r*2.35*robotScale, a.r*2.55*robotScale, {flip: (a.anim ? a.anim.facing : 1) < 0})) {
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);

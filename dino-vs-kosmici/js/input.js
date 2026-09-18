@@ -100,6 +100,13 @@ joyEl.addEventListener('mousedown', joyStart);
 document.addEventListener('touchstart', areaTouchStart, {passive:false});
 document.addEventListener('touchmove', e => { if (joy.active) { e.preventDefault(); joyMove(e); } }, {passive:false});
 document.addEventListener('touchend', e => { joyEnd(e); if (!joy.active) resetJoyHome(); });
+// A cancelled touch (OS gesture, incoming call) must release the stick too,
+// otherwise the dino keeps walking with no finger on the screen.
+document.addEventListener('touchcancel', e => { joyEnd(e); if (!joy.active) resetJoyHome(); });
+// Belt and braces: if no touch is left on the screen, the stick is not held.
+document.addEventListener('touchend', e => {
+  if (e.touches.length === 0 && joy.active) { joyEnd(); resetJoyHome(); }
+});
 window.addEventListener('mousemove', e => joy.active && joy.id==='mouse' && joyMove(e));
 window.addEventListener('mouseup', e => joy.active && joy.id==='mouse' && joyEnd());
 
