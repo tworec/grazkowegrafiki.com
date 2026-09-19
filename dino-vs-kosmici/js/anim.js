@@ -11,11 +11,13 @@ import { rand } from './util.js';
 // sprite, so the cycle reads at the size the dino is actually drawn.
 const STEP_LEN = 52;
 
-export function makeAnim() {
+export function makeAnim(facing) {
   return {
     phase: 0,        // 0..1 within the current half-step
     step: 0,         // how many half-steps taken (integer, grows)
-    facing: 1,       // tweened facing, -1..1 (crosses zero = turning)
+    // Seeded from the entity so a fresh spawn does not play a turn on its
+    // first frames; the tween is for turns that actually happen.
+    facing: facing === -1 ? -1 : 1,
     lean: 0,         // radians, body tips into the direction of travel
     squash: 0,       // >0 right after a foot plant, decays
     breathe: rand(0, Math.PI * 2),
@@ -24,7 +26,7 @@ export function makeAnim() {
 }
 
 function ensure(e) {
-  if (!e.anim) e.anim = makeAnim();
+  if (!e.anim) e.anim = makeAnim(e.facing);
   return e.anim;
 }
 

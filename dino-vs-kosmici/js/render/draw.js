@@ -24,32 +24,35 @@ export function drawSprite(name, x, y, w, h, opts) {
   return true;
 }
 
-export function drawDinoSprite(p, scaleOpt) {
-  // One path for all three species: same sheet layout, size derived from the
-  // measured body height so proportions stay honest between them.
+// Drawn geometry of a dinosaur sprite: size, and how far its foot line sits
+// below the top of the image. Shared by the renderer and the HP bar so the bar
+// can never end up drawn across the body.
+export function dinoBox(p, scaleOpt) {
   const ANIM = p.species === 'stego' ? STEGO_ANIM
              : p.species === 'diplo' ? DIPLO_ANIM
              : TYRANNO_ANIM;
   const sheet = charSprites[p.species];
-  const ready = sheet && sheet.complete && sheet.naturalWidth >= ANIM.frameW;
-  const img = ready ? sheet
+  const ready = !!(sheet && sheet.complete && sheet.naturalWidth >= ANIM.frameW);
+  const s = scaleOpt || 1;
+  if (!ready) return { ready, ANIM, s, w: 78 * s, h: 116 * s, footOff: 58 * s };
+  const k = ANIM.drawH / ANIM.bodyH;
+  const h = ANIM.frameH * k * s;
+  return { ready, ANIM, s, w: ANIM.frameW * k * s, h, footOff: (ANIM.footY / ANIM.frameH) * h };
+}
+
+export function drawDinoSprite(p, scaleOpt) {
+  // One path for all three species: same sheet layout, size derived from the
+  // measured body height so proportions stay honest between them.
+  const box = dinoBox(p, scaleOpt);
+  const { ANIM, ready, s, w, h } = box;
+  const img = ready ? charSprites[p.species]
             : (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino
             : (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
   if (!img) return false;
 
-  const s = scaleOpt || 1;
   const jumpY = p.jump > 0 ? Math.sin((0.5 - p.jump) * Math.PI) * 22 : 0;
   const moving = Math.hypot(p.vx, p.vy) > 30;
   const pose = animPose(p, moving);
-
-  let w, h;
-  if (ready) {
-    const k = ANIM.drawH / ANIM.bodyH;
-    w = ANIM.frameW * k * s;
-    h = ANIM.frameH * k * s;
-  } else {
-    w = 78 * s; h = 116 * s;         // front-facing fallback art
-  }
 
   // Lunge along the facing direction while attacking.
   const lunge = attackLunge(p.attackAnim > 0 ? p.attackAnim / 0.25 : 0) * (p.facing === -1 ? -1 : 1) * s;
@@ -57,7 +60,7 @@ export function drawDinoSprite(p, scaleOpt) {
   // the feet belong; the sprite is hung from its own measured foot line.
   // A fixed offset made the dinosaur hover above its shadow, because every
   // sheet puts the feet at a different row.
-  const footOff = ready ? (ANIM.footY / ANIM.frameH) * h : h / 2;
+  const footOff = box.footOff;
   ctx.save();
   ctx.translate(p.x + lunge, p.y - jumpY + pose.bob * s);
   // Facing is tweened, so the sprite squeezes through zero instead of popping.
@@ -327,11 +330,14 @@ export function drawAlly(al) {
   // Hatched allies share the player's species — render with the player sprite
   // at ~half scale so they read as "baby" versions, then add a tiny HP bar.
   if (al.species && drawDinoSprite(al, 0.5)) {
+    // Above the head, not across the chest: the sprite hangs from its foot
+    // line, so a bar placed relative to the collision radius lands mid-body.
+    const barY = al.y - dinoBox(al, 0.5).footOff - 7;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(al.x - 12, al.y - al.r - 12, 24, 3);
+    ctx.fillRect(al.x - 12, barY, 24, 3);
     ctx.fillStyle = '#9aff9a';
-    ctx.fillRect(al.x - 12, al.y - al.r - 12, 24 * (al.hp / al.maxHp), 3);
+    ctx.fillRect(al.x - 12, barY, 24 * (al.hp / al.maxHp), 3);
     ctx.restore();
     return;
   }
