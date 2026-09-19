@@ -4,7 +4,7 @@ import { TREE_SIZE, treeFootY } from '../world.js';
 import { drawGround } from './ground.js';
 import { atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
 import { SPECIES_STATS, WORLD } from '../config.js';
-import { rand, clamp } from '../util.js';
+import { clamp } from '../util.js';
 import { state } from '../state.js';
 import { animPose, attackLunge } from '../anim.js';
 
@@ -25,90 +25,67 @@ export function drawSprite(name, x, y, w, h, opts) {
 }
 
 export function drawDinoSprite(p, scaleOpt) {
-  // Per-species side-view sprite sheets; other species fall back to the
-  // shared front-facing char-dino.png.
-  const stegoReady   = p.species === 'stego'   && charSprites.stego.complete   && charSprites.stego.naturalWidth;
-  const tyrannoReady = p.species === 'tyranno' && charSprites.tyranno.complete && charSprites.tyranno.naturalWidth;
-  const diploReady   = p.species === 'diplo'   && charSprites.diplo.complete   && charSprites.diplo.naturalWidth;
-  const img = stegoReady   ? charSprites.stego   :
-              tyrannoReady ? charSprites.tyranno :
-              diploReady   ? charSprites.diplo   :
-              (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino :
-              (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
+  // One path for all three species: same sheet layout, size derived from the
+  // measured body height so proportions stay honest between them.
+  const ANIM = p.species === 'stego' ? STEGO_ANIM
+             : p.species === 'diplo' ? DIPLO_ANIM
+             : TYRANNO_ANIM;
+  const sheet = charSprites[p.species];
+  const ready = sheet && sheet.complete && sheet.naturalWidth >= ANIM.frameW;
+  const img = ready ? sheet
+            : (charSprites.dino.complete && charSprites.dino.naturalWidth) ? charSprites.dino
+            : (dinoSprite.complete && dinoSprite.naturalWidth ? dinoSprite : null);
   if (!img) return false;
-  const jumpY = p.jump>0 ? Math.sin((0.5-p.jump)*Math.PI)*22 : 0;
+
+  const s = scaleOpt || 1;
+  const jumpY = p.jump > 0 ? Math.sin((0.5 - p.jump) * Math.PI) * 22 : 0;
   const moving = Math.hypot(p.vx, p.vy) > 30;
   const pose = animPose(p, moving);
-  const bob = pose.bob;
+
   let w, h;
-  if (stegoReady) {
-    h = 90;
-    w = STEGO_ANIM.frameW * h / STEGO_ANIM.frameH;
-  } else if (diploReady) {
-    h = 96;  // diplo is the biggest dino
-    w = DIPLO_ANIM.frameW * h / DIPLO_ANIM.frameH;
-  } else if (tyrannoReady) {
-    w = 120;
-    h = w * TYRANNO_ANIM.frameH / TYRANNO_ANIM.frameW;
+  if (ready) {
+    const k = ANIM.drawH / ANIM.bodyH;
+    w = ANIM.frameW * k * s;
+    h = ANIM.frameH * k * s;
   } else {
-    const scale = p.species === 'diplo' ? 1.08 : (p.species === 'tyranno' ? 1.0 : 0.96);
-    w = 78 * scale; h = 116 * scale;
+    w = 78 * s; h = 116 * s;         // front-facing fallback art
   }
-  const s = scaleOpt || 1;
-  w *= s; h *= s;
+
   // Lunge along the facing direction while attacking.
   const lunge = attackLunge(p.attackAnim > 0 ? p.attackAnim / 0.25 : 0) * (p.facing === -1 ? -1 : 1) * s;
   ctx.save();
-  ctx.translate(p.x + lunge, p.y - 34 * s - jumpY + bob * s);
+  ctx.translate(p.x + lunge, p.y - 34 * s - jumpY + pose.bob * s);
   // Facing is tweened, so the sprite squeezes through zero instead of popping.
   const fx = p.anim ? p.anim.facing : (p.facing === -1 ? -1 : 1);
   ctx.rotate(pose.rot * fx);
   ctx.scale(fx * pose.sx, pose.sy);
   if (p.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
-  if (stegoReady || diploReady) {
-    // Shared band-picker: fire breath > walk (moving) > idle.
-    const ANIM = stegoReady ? STEGO_ANIM : DIPLO_ANIM;
+
+  if (ready) {
+    // Band picker: fire breath > melee > walk. Standing still holds the first
+    // walk frame and lets the breathing in animPose carry the idle.
     let band, frame;
     if (p.attackAnim > 0 && p.attackKind === 'fire') {
-      band = ANIM.shoot;
-      const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
-      frame = Math.min(band.count - 1, Math.floor(progress * band.count));
+      band = ANIM.breath;
+      frame = Math.min(band.count - 1, Math.floor((1 - Math.max(0, p.attackAnim) / 0.25) * band.count));
+    } else if (p.attackAnim > 0) {
+      band = ANIM.attack;
+      frame = Math.min(band.count - 1, Math.floor((1 - Math.max(0, p.attackAnim) / 0.25) * band.count));
     } else if (moving) {
       band = ANIM.walk;
       const cycle = (p.anim ? p.anim.step + p.anim.phase : 0) * (band.count / 2);
       frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
     } else {
-      band = ANIM.idle;
-      const cycle = state.t * 4;
-      frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
+      band = ANIM.walk;
+      frame = 0;
     }
-    const sx = (band.start + frame) * ANIM.frameW;
-    ctx.drawImage(img, sx, 0, ANIM.frameW, ANIM.frameH, -w/2, -h/2, w, h);
-  } else if (tyrannoReady) {
-    // Pick animation state: fire breath > melee attack > walk > idle.
-    let band, frame;
-    if (p.attackAnim > 0 && p.attackKind === 'fire') {
-      band = TYRANNO_ANIM.breath;
-      const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
-      frame = Math.min(band.count - 1, Math.floor(progress * band.count));
-    } else if (p.attackAnim > 0) {
-      band = TYRANNO_ANIM.attack;
-      const progress = 1 - Math.max(0, p.attackAnim) / 0.25;
-      frame = Math.min(band.count - 1, Math.floor(progress * band.count));
-    } else {
-      band = TYRANNO_ANIM.walk;
-      const cycle = moving ? (p.anim ? p.anim.step + p.anim.phase : 0) * (band.count / 2) : state.t * 1.5;
-      frame = ((Math.floor(cycle) % band.count) + band.count) % band.count;
-    }
-    const sx = (band.start + frame) * TYRANNO_ANIM.frameW;
-    ctx.drawImage(img, sx, 0, TYRANNO_ANIM.frameW, TYRANNO_ANIM.frameH, -w/2, -h/2, w, h);
+    ctx.drawImage(img, (band.start + frame) * ANIM.frameW, 0, ANIM.frameW, ANIM.frameH, -w/2, -h/2, w, h);
   } else {
     ctx.drawImage(img, -w/2, -h/2, w, h);
-  }
-  if (p.attackAnim > 0 && !tyrannoReady) {
-    // Fallback flash effect when no per-species attack frames are available.
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.beginPath(); ctx.arc(w*0.32, -h*0.12, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    if (p.attackAnim > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.arc(w*0.32, -h*0.12, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+    }
   }
   ctx.filter = 'none';
   ctx.restore();
