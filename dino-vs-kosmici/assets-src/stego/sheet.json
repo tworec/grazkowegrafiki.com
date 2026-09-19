@@ -1,6 +1,6 @@
 {
-  "frameW": 233,
-  "frameH": 188,
+  "frameW": 312,
+  "frameH": 208,
   "frames": 10,
   "bands": {
     "walk": {
@@ -31,8 +31,8 @@
   "srcDir": "../assets-src/stego",
   "scale": 0.18898,
   "medianHeight": 635.0,
-  "margin": 8,
-  "footY": 180,
+  "margin": 12,
+  "footY": 196,
   "anchor": "mass",
-  "js": "export const STEGO_ANIM = {\n  frameW: 233, frameH: 188,\n  walk:   { start:  0, count: 4 },\n  attack: { start:  4, count: 3 },\n  breath: { start:  7, count: 3 }\n};"
+  "js": "export const stego_ANIM = {\n  frameW: 312, frameH: 208,\n  walk:   { start:  0, count: 4 },\n  attack: { start:  4, count: 3 },\n  breath: { start:  7, count: 3 }\n};"
 }

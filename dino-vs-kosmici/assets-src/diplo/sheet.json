@@ -1,6 +1,6 @@
 {
-  "frameW": 233,
-  "frameH": 188,
+  "frameW": 276,
+  "frameH": 200,
   "frames": 10,
   "bands": {
     "walk": {
@@ -31,8 +31,8 @@
   "srcDir": "../assets-src/diplo",
   "scale": 0.16989,
   "medianHeight": 853.5,
-  "margin": 8,
-  "footY": 180,
+  "margin": 12,
+  "footY": 188,
   "anchor": "mass",
-  "js": "export const DIPLO_ANIM = {\n  frameW: 233, frameH: 188,\n  walk:   { start:  0, count: 4 },\n  attack: { start:  4, count: 3 },\n  breath: { start:  7, count: 3 }\n};"
+  "js": "export const DIPLO_ANIM = {\n  frameW: 276, frameH: 200,\n  walk:   { start:  0, count: 4 },\n  attack: { start:  4, count: 3 },\n  breath: { start:  7, count: 3 }\n};"
 }

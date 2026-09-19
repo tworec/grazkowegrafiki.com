@@ -29,8 +29,9 @@ export const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7 };
 // 4-5 collapsing, 6-7 burning ruins. Living bases show 0/1/2 by HP; on
 // death we play 3→7 and hold on the ruins.
 export const BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 150, deathFps: 6 };
-// All three dinosaurs now share one sheet layout: 10 frames of 233x188,
-// walk(4) + attack(3) + breath(3). `bodyH` is the measured height of the
+// All three dinosaurs share one band layout — walk(4) + attack(3) + breath(3)
+// — but each keeps its own frame size, because a long stegosaurus tail and a
+// diplodocus breathing fire need more room than a tyrannosaurus. `bodyH` is the measured height of the
 // animal inside the frame and `drawH` the height it should occupy on screen;
 // sizing from those keeps a low, long stegosaurus and a tall tyrannosaurus in
 // proportion instead of squeezing both into the same box.
@@ -40,8 +41,8 @@ const DINO_BANDS = {
   breath: { start: 7, count: 3 }
 };
 export const TYRANNO_ANIM = { frameW: 233, frameH: 188, bodyH: 173, drawH: 88, ...DINO_BANDS };
-export const STEGO_ANIM   = { frameW: 233, frameH: 188, bodyH: 119, drawH: 66, ...DINO_BANDS };
-export const DIPLO_ANIM   = { frameW: 233, frameH: 188, bodyH: 150, drawH: 92, ...DINO_BANDS };
+export const STEGO_ANIM   = { frameW: 312, frameH: 208, bodyH: 119, drawH: 66, ...DINO_BANDS };
+export const DIPLO_ANIM   = { frameW: 276, frameH: 200, bodyH: 150, drawH: 92, ...DINO_BANDS };
 // Big alien: 5 walk/idle poses (front-facing warrior with mace + wrench).
 export const BIGALIEN_ANIM = { frames: 5, frameW: 327, frameH: 473, fps: 5 };
 // Walker = small flying rocket. 6 frames (varying engine fire / propeller).
