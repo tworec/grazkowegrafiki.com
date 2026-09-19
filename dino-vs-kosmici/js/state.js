@@ -30,7 +30,8 @@ export const state = {
   rocks: [],
   allies: [],
   upgradePad: null,
-  allyPad: null,
+  wild: [],
+  wildAt: null,
   helipad: null,
   flag: null
 };

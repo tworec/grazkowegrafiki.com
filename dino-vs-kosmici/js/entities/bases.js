@@ -77,10 +77,13 @@ export function updateBase(b, dt) {
     const p = state.player;
     const dx = p.x - b.x, dy = p.y - b.y;
     const d = Math.hypot(dx,dy)||1;
+    // Arrows keep flying until they hit something or leave the map: `life` is
+    // just long enough to cross it, and the off-map filter clears the rest.
+    const sp = 330;
     state.projectiles.push({
       kind:'plasma', x: b.x, y: b.y + 20,
-      vx: dx/d*180, vy: dy/d*180,
-      life: 4, r: 8, dmg: b.dmg || 8, t: 0, hostile: true
+      vx: dx/d*sp, vy: dy/d*sp,
+      life: 20, r: 8, dmg: b.dmg || 8, t: 0, hostile: true
     });
   } else if (b.fireCd <= 0) {
     b.aiming = 0.35;
@@ -176,6 +179,5 @@ export function canPlaceReinforcementBase(x, y) {
     }
     if (ok && state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < state.helipad.r + 60) ok = false;
     if (ok && state.upgradePad && Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < 80) ok = false;
-    if (ok && state.allyPad && Math.hypot(x - state.allyPad.x, y - state.allyPad.y) < 80) ok = false;
     return ok;
 }

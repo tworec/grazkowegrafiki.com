@@ -19,6 +19,8 @@ export const ENERGY_COST = { claw: 5, tail: 16, fire: 0 };
 // World size in world units (1 unit == 1 CSS px at zoom 1). The camera shows
 // ~VIEW_H units vertically regardless of screen size, so the dino has the same
 // on-screen size on a phone and on a big monitor.
-export const WORLD = { w: 3600, h: 1440 };
+// Two thirds of the original 3600x1440: the same 2.5:1 shape, but a third
+// less walking between the base and the pads.
+export const WORLD = { w: 2400, h: 960 };
 export const VIEW_H = 720;
 export const ZOOM_MIN = 0.7, ZOOM_MAX = 1.8;

@@ -244,8 +244,8 @@ function updateShooter(a, dt, closest, bestD) {
   const dx = closest.x - a.x, dy = closest.y - a.y;
   const d = Math.hypot(dx, dy) || 1;
   state.projectiles.push({
-    kind: 'plasma', x: a.x, y: a.y, vx: dx/d * 210, vy: dy/d * 210,
-    life: 3, r: 7, dmg: a.dmg, t: 0, hostile: true
+    kind: 'plasma', x: a.x, y: a.y, vx: dx/d * 300, vy: dy/d * 300,
+    life: 20, r: 7, dmg: a.dmg, t: 0, hostile: true
   });
   flashRing(a.x, a.y, 16, '#b98cff');
   sfx.alarm && sfx.alarm();

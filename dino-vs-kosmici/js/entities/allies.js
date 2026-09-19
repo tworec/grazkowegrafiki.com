@@ -7,14 +7,19 @@ import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
 
 
-export function makeAlly(x, y, species) {
-  // small dino sidekick — auto-attacks aliens, low HP
+// `grown` marks a dinosaur taken in from the wild: bigger, tougher and
+// costlier than one hatched from a freed egg.
+export function makeAlly(x, y, species, grown) {
   const allyUp = state.player && state.player.upgrades ? state.player.upgrades.ally : 0;
   return {
     x, y, vx: 0, vy: 0,
-    r: 14, hp: 25, maxHp: 25,
+    r: grown ? 19 : 14,
+    hp: grown ? 70 : 25, maxHp: grown ? 70 : 25,
     // +2 per upgrade level, matching the bonus handed to allies already alive.
-    speed: 150, dmg: 3 + allyUp * 2, attackCd: 0,
+    speed: grown ? 165 : 150,
+    dmg: (grown ? 8 : 3) + allyUp * 2,
+    scale: grown ? 0.72 : 0.5,
+    attackCd: 0,
     bob: rand(0, Math.PI*2), facing: 1, flash: 0,
     species: species || null,
     jump: 0, attackAnim: 0, attackKind: null,

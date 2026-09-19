@@ -10,11 +10,12 @@ import { DIFFICULTY } from './config.js';
 import { keys, joy } from './input.js';
 import { rand, clamp, damp } from './util.js';
 import { state, difficultyKey, currentSpecies, flashRing, notify } from './state.js';
-import { buildLevel, pushOutOfRocks, projectileHitsRock } from './world.js';
+import { buildLevel, pushOutOfRocks, projectileHitsRock, damageScenery } from './world.js';
 import { cd, damagePlayer, updateFire } from './entities/player.js';
 import { spawnAlien, spawnPatrol, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
 import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
+import { updateWild } from './entities/wild.js';
 import { draw } from './render/draw.js';
 
 
@@ -135,29 +136,7 @@ export function update(dt) {
     }
   }
 
-  // Ally pad — buy a STADO (herd) of 3 small dinos for 30$. Max 6 alive at once.
-  const ALLY_COST = 30, ALLY_MAX = 6, ALLY_PER_BUY = 3;
-  const ap = state.allyPad;
-  if (ap) {
-    const onAp = Math.hypot(p.x - ap.x, p.y - ap.y) < ap.r + p.r;
-    ap.glow = onAp ? 1 : Math.max(0, (ap.glow||0) - dt*2);
-    ap.tickAcc = (ap.tickAcc || 0) + (onAp ? dt : 0);
-    if (onAp && ap.tickAcc >= 2) {
-      ap.tickAcc = 0;
-      const aliveCount = state.allies.filter(a => !a.dead).length;
-      // Need full slots for the whole herd, so 3 always show up together.
-      if (p.money >= ALLY_COST && aliveCount + ALLY_PER_BUY <= ALLY_MAX) {
-        p.money -= ALLY_COST;
-        for (let i = 0; i < ALLY_PER_BUY; i++) {
-          const ang = rand(0, Math.PI*2);
-          const dist = rand(20, 45);
-          state.allies.push(makeAlly(p.x + Math.cos(ang)*dist, p.y + Math.sin(ang)*dist, p.species));
-        }
-        sfx.herd();
-        flashRing(p.x, p.y, 70, '#9aff9a');
-      }
-    }
-  }
+  updateWild(dt);
 
   updateFire(dt);
   if (p.jump > 0) p.jump -= dt;
@@ -175,6 +154,11 @@ export function update(dt) {
   // Allies
   for (const al of state.allies) if (!al.dead) { updateAlly(al, dt); updateAnim(al, dt, {scale: 0.6}); }
   state.allies = state.allies.filter(al => !al.dead);
+
+  // Scenery damage flash
+  for (const list of [state.trees, state.rocks]) {
+    for (const o of list) if (o.flash > 0) o.flash -= dt;
+  }
 
   // Bases
   for (const b of state.bases) updateBase(b, dt);
@@ -194,6 +178,8 @@ export function update(dt) {
       for (const b of state.bases) if (!b.dead && Math.abs(b.x-pr.x) < b.w/2+pr.r && Math.abs(b.y-pr.y) < b.h/2+pr.r) {
         damageBase(b, pr.dmg); pr.life = 0;
       }
+      // Fire burns scenery too; a bush goes up in a couple of licks.
+      if (pr.life > 0 && damageScenery(pr.x, pr.y, pr.r, pr.dmg)) pr.life = 0;
     } else if (pr.kind === 'plasma' && pr.hostile) {
       if (Math.hypot(p.x-pr.x, p.y-pr.y) < p.r + pr.r) { damagePlayer(pr.dmg); pr.life = 0; }
       // also hit allies

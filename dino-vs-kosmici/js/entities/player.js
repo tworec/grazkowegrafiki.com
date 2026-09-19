@@ -8,6 +8,7 @@ import { recordRun, bestFor } from '../screens.js';
 import { addShake } from '../camera.js';
 import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
+import { damageScenery } from '../world.js';
 
 
 // ---------- Cooldowns & energy costs ----------
@@ -204,6 +205,8 @@ export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
       any = true;
     }
   }
+  // Scenery takes the same swing: a bush comes apart, a rock needs several.
+  if (damageScenery(p.x, p.y, reach, dmg)) any = true;
   // base too — any swing close enough hits the base
   for (const b of state.bases) {
     if (b.dead) continue;

@@ -2,7 +2,8 @@ import { WORLD } from './config.js';
 import { snapCamera } from './camera.js';
 import { el, updateHUD } from './hud.js';
 import { rand, clamp } from './util.js';
-import { state, makePlayer } from './state.js';
+import { state, makePlayer, flashRing } from './state.js';
+import { sfx } from './audio.js';
 import { spawnAlien, spawnPatrol } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
 import { resetUpgradeTuning } from './upgrades.js';
@@ -32,6 +33,8 @@ export function buildLevel() {
   state.trees = [];
   state.rocks = [];
   state.allies = [];
+  state.wild = [];
+  state.wildAt = null;
 
   // ----- Randomized layout — picked fresh every game -----
   // Alien HQ: anywhere on the map (with margin from edges)
@@ -59,26 +62,13 @@ export function buildLevel() {
     Math.hypot(hpX - pX,    hpY - pY)    < 160
   ));
 
-  // Ally pad — also middle band, but kept away from heal pad
-  let apX, apY; tries = 0;
-  do {
-    apX = clamp(pX + rand(-520, 520), M, WORLD.w - M);
-    apY = clamp(pY + rand(-360, 360), M, WORLD.h - M);
-    tries++;
-  } while (tries < 80 && (
-    Math.hypot(apX - baseX, apY - baseY) < 400 ||
-    Math.hypot(apX - pX,    apY - pY)    < 160 ||
-    Math.hypot(apX - hpX,   apY - hpY)   < 200
-  ));
-
   // Trodden routes between home, both pads and the enemy camp. Defined BEFORE
   // any scenery so rocks and trunks can be kept off them — a boulder sitting
   // in the middle of a path looks like a mistake and blocks the route the
   // ground is advertising.
   const paths = [
     {x1: pX, y1: pY, x2: hpX, y2: hpY, w: 34},
-    {x1: hpX, y1: hpY, x2: apX, y2: apY, w: 30},
-    {x1: apX, y1: apY, x2: baseX, y2: baseY, w: 38}
+    {x1: hpX, y1: hpY, x2: baseX, y2: baseY, w: 38}
   ];
   const terrainSeed = Math.floor(Math.random() * 100000);
   // The widest wobble kindAt() can add to a corridor edge, so scenery clears
@@ -94,7 +84,6 @@ export function buildLevel() {
   // Now create the entities at the picked spots
   state.bases.push(makeBase(baseX, baseY));
   state.upgradePad = {x: hpX, y: hpY, r: 26};
-  state.allyPad    = {x: apX, y: apY, r: 26};
 
   // Helipad — sits to one side of the HQ (decorative, gives the alien camp character)
   const hpdSide = Math.random() < 0.5 ? -1 : 1;
@@ -117,8 +106,7 @@ export function buildLevel() {
   // Bare earth: where the aliens landed, around the pads, plus a few patches.
   const blobs = [
     {x: baseX, y: baseY, r: rand(150, 200)},
-    {x: hpX,   y: hpY,   r: rand(70, 100)},
-    {x: apX,   y: apY,   r: rand(70, 100)}
+    {x: hpX,   y: hpY,   r: rand(70, 100)}
   ];
   if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
   for (let k = 0; k < 5; k++) {
@@ -136,7 +124,6 @@ export function buildLevel() {
     const x = rand(70, WORLD.w - 70);
     const y = rand(70, WORLD.h - 70);
     if (Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < r + state.upgradePad.r + 28) continue;
-    if (Math.hypot(x - state.allyPad.x,    y - state.allyPad.y)    < r + state.allyPad.r + 28) continue;
     if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
     const mainBase = state.bases[0];
     if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
@@ -147,7 +134,7 @@ export function buildLevel() {
       if (Math.hypot(x - rk.x, y - rk.y) < r + rk.r + 22) { tooClose = true; break; }
     }
     if (tooClose) continue;
-    state.rocks.push({x, y, r, seed: Math.random()*1000});
+    state.rocks.push({x, y, r, seed: Math.random()*1000, kind: 'rock', hp: SCENERY.rock, maxHp: SCENERY.rock});
   }
 
   // Trees — random decoration, also avoiding the placed elements
@@ -160,7 +147,6 @@ export function buildLevel() {
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
     if (onPath(tx, ty, 22 * 1.2)) continue;   // trunk radius at the largest scale
     if (Math.hypot(tx - state.upgradePad.x, ty - state.upgradePad.y) < 60) continue;
-    if (Math.hypot(tx - state.allyPad.x,    ty - state.allyPad.y)    < 60) continue;
     const mb = state.bases[0];
     if (Math.abs(tx - mb.x) < mb.w/2 + 30 && Math.abs(ty - mb.y) < mb.h/2 + 30) continue;
     let onRock = false;
@@ -171,27 +157,24 @@ export function buildLevel() {
     for (const t of state.trees) if (Math.hypot(tx - t.x, ty - t.y) < 64) { tooClose = true; break; }
     if (tooClose) continue;
     const variants = ['treeA', 'pine', 'bush', 'treeB'];
-    state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v: variants[Math.floor(Math.random()*variants.length)]});
+    const v = variants[Math.floor(Math.random()*variants.length)];
+    const hp = v === 'bush' ? SCENERY.bush : SCENERY.tree;
+    state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v, kind: 'tree', hp, maxHp: hp});
   }
-  // Solid obstacles for movement: rocks + tree trunks (small circle at the foot of the tree).
-  state.obstacles = state.rocks.slice();
-  for (const t of state.trees) {
-    if (t.v === 'bush') continue;
-    const foot = treeFootY(t);
-    state.obstacles.push({x: t.x, y: foot - 6, r: 9 * t.s});
-  }
+  rebuildObstacles();
 
   state.terrain = makeTerrain(terrainSeed, blobs, paths);
 
   // Patrols posted along the routes, so crossing the map is a journey rather
   // than a stroll. Placed on the path segments (where the player actually
   // walks) but clear of the base, the pads and the starting spot.
-  state.patrolTarget = 5;
+  // Density, not a fixed count: one group per ~600k square units keeps the
+  // journey populated whatever size the map is set to.
+  state.patrolTarget = Math.max(3, Math.round((WORLD.w * WORLD.h) / 600000));
   const patrolOk = (x, y) =>
     Math.hypot(x - pX, y - pY) > 380 &&          // not on the player's doorstep
     Math.hypot(x - baseX, y - baseY) > 340 &&    // the base has its own guards
     Math.hypot(x - hpX, y - hpY) > 200 &&
-    Math.hypot(x - apX, y - apY) > 200 &&
     !state.aliens.some(a => a.home && Math.hypot(x - a.home.x, y - a.home.y) < 300);
   let posted = 0;
   // First pass: on the routes, where the player actually walks.
@@ -220,6 +203,60 @@ export function buildLevel() {
   el.banner.style.display = 'none';
   snapCamera(state.player.x, state.player.y);
   updateHUD();
+}
+
+// How much punishment each piece of scenery takes. A bush comes apart almost
+// at once, a rock takes real work — Antoś's ordering.
+export const SCENERY = { bush: 18, tree: 70, rock: 190 };
+
+// Solid obstacles for movement: rocks plus tree trunks (a small circle at the
+// foot of the tree). Rebuilt whenever scenery is destroyed.
+export function rebuildObstacles() {
+  state.obstacles = state.rocks.slice();
+  for (const t of state.trees) {
+    if (t.v === 'bush') continue;       // you can walk through a bush
+    state.obstacles.push({x: t.x, y: treeFootY(t) - 6, r: 9 * t.s});
+  }
+}
+
+// Damage every piece of scenery inside a circle. Returns true if anything was
+// hit, so attacks can play their feedback.
+export function damageScenery(x, y, radius, dmg) {
+  let hit = false, destroyed = false;
+  for (const list of [state.trees, state.rocks]) {
+    for (const o of list) {
+      if (o.dead) continue;
+      const reach = radius + (o.kind === 'rock' ? o.r : 16 * o.s);
+      if (Math.hypot(o.x - x, o.y - y) > reach) continue;
+      o.hp -= dmg;
+      o.flash = 0.16;
+      hit = true;
+      if (o.hp <= 0) {
+        o.dead = true;
+        destroyed = true;
+        breakScenery(o);
+      }
+    }
+  }
+  if (destroyed) {
+    state.trees = state.trees.filter(t => !t.dead);
+    state.rocks = state.rocks.filter(r => !r.dead);
+    rebuildObstacles();
+  }
+  return hit;
+}
+
+function breakScenery(o) {
+  const isRock = o.kind === 'rock';
+  const colour = isRock ? '#9a9aa2' : (o.v === 'bush' ? '#6fbf5a' : '#4e8f3a');
+  const n = isRock ? 16 : 12;
+  for (let i = 0; i < n; i++) {
+    const ang = rand(0, Math.PI*2), sp = rand(50, 190);
+    state.fx.push({kind:'puff', x: o.x, y: o.y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp - 40,
+                   life: 0.55, t: 0, color: colour});
+  }
+  flashRing(o.x, o.y, isRock ? 46 : 34, colour);
+  sfx.alienHit();
 }
 
 // Tree sprite sizes (w, h) at scale 1 — shared by the renderer and the collision code.

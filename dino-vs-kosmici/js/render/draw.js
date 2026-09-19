@@ -127,12 +127,12 @@ export function draw() {
   // Flat decals — never occlude anything
   drawHelipad(state.helipad);
   drawUpgradePad(state.upgradePad);
-  drawAllyPad(state.allyPad);
   for (const c of state.coins) if (inView(c.x, c.y, 20)) drawCoin(c);
 
   // Blob shadows under characters
   drawShadow(state.player, 0.85);
   for (const al of state.allies) if (!al.dead) drawShadow(al, 0.8);
+  for (const w of state.wild) drawShadow(w, 0.85);
 
   // Depth-sorted layer
   drawList.length = 0;
@@ -141,6 +141,7 @@ export function draw() {
   for (const b of state.bases) if (inView(b.x, b.y, 200)) push(b.y + b.h / 2, drawBase, b);
   if (state.flag) push(state.flag.y + 40, drawFlag, state.flag);
   for (const al of state.allies) if (!al.dead && inView(al.x, al.y, 60)) push(feetY(al), drawAlly, al);
+  for (const w of state.wild) if (inView(w.x, w.y, 80)) push(feetY(w), drawWild, w);
   push(feetY(state.player), drawPlayerAndShield, state.player);
   for (const a of state.aliens) if (inView(a.x, a.y, 80)) push(feetY(a), drawAlien, a);
   drawList.sort((p, q) => p.y - q.y);
@@ -224,9 +225,10 @@ function drawOffscreenBaseArrow() {
 }
 
 export function drawRock(r) {
+  if (r.flash > 0) { ctx.save(); ctx.filter = 'brightness(1.8) saturate(0.4)'; }
   // Rock atlas art is ~1.32:1 (mossy mound on top, stone disk below); keep
   // that aspect and anchor the stone disk near the collision centre.
-  if (drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92)) return;
+  if (drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92)) { if (r.flash > 0) ctx.restore(); return; }
   ctx.save();
   ctx.translate(r.x, r.y);
   // shadow on the grass
@@ -257,87 +259,51 @@ export function drawRock(r) {
   ctx.restore();
 }
 
-export function drawAllyPad(u) {
-  if (!u) return;
-  const glow = u.glow || 0;
-  if (glow > 0) {
+
+
+// A dinosaur waiting under a tree, with its price above it. The label brightens
+// as you come close, and turns gold once you can actually afford it.
+export function drawWild(w) {
+  drawDinoSprite(w, w.scale || 0.72);
+  const p = state.player;
+  const afford = p && p.money >= w.price;
+  const near = w.glow || 0;
+  const top = w.y - dinoBox(w, w.scale || 0.72).footOff - 10;
+  ctx.save();
+  ctx.globalAlpha = 0.65 + near * 0.35;
+  ctx.font = 'bold 13px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const text = afford ? `Przygarnij za ${w.price} $` : `${w.price} $`;
+  const tw = ctx.measureText(text).width + 18;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(w.x - tw/2, top - 20, tw, 20, 6); ctx.fill();
+  ctx.fillStyle = afford ? '#ffd166' : '#e8e2cf';
+  ctx.fillText(text, w.x, top - 10);
+  ctx.restore();
+  if (near > 0.01) {
     ctx.save();
-    ctx.fillStyle = `rgba(120,255,180,${0.3*glow})`;
-    ctx.beginPath(); ctx.arc(u.x,u.y, u.r*1.9, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = near * 0.35;
+    ctx.strokeStyle = afford ? '#ffd166' : '#9aff9a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(w.x, w.y, w.r * 2.2, w.r * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
-  if (drawSprite('bluePad', u.x, u.y + 2, 78, 44)) {
-    drawAllyPadLabel(u);
-    return;
-  }
-  ctx.save();
-  ctx.translate(u.x, u.y);
-  if (glow > 0) {
-    ctx.fillStyle = `rgba(120,255,180,${0.3*glow})`;
-    ctx.beginPath(); ctx.arc(0,0, u.r*1.9, 0, Math.PI*2); ctx.fill();
-  }
-  const pulse = 1 + Math.sin(state.t*3 + 1)*0.06;
-  // teal/green pad
-  ctx.fillStyle = '#1f8a52';
-  ctx.beginPath(); ctx.arc(0,0,u.r*pulse,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#cdf0d8';
-  ctx.beginPath(); ctx.arc(0,0,u.r*0.85*pulse,0,Math.PI*2); ctx.fill();
-  // mini stegosaur silhouette
-  ctx.fillStyle = '#1f8a52';
-  // body
-  ctx.beginPath(); ctx.ellipse(0, 2, u.r*0.55, u.r*0.30, 0, 0, Math.PI*2); ctx.fill();
-  // head
-  ctx.beginPath(); ctx.ellipse(u.r*0.55, 0, u.r*0.22, u.r*0.18, 0, 0, Math.PI*2); ctx.fill();
-  // tail
-  ctx.beginPath();
-  ctx.moveTo(-u.r*0.45, 2);
-  ctx.lineTo(-u.r*0.85, -2);
-  ctx.lineTo(-u.r*0.45, 6);
-  ctx.fill();
-  // back plates
-  for (let i=-1;i<=1;i++) {
-    ctx.beginPath();
-    ctx.moveTo(i*u.r*0.20 - 2, -u.r*0.20);
-    ctx.lineTo(i*u.r*0.20,     -u.r*0.45);
-    ctx.lineTo(i*u.r*0.20 + 2, -u.r*0.20);
-    ctx.closePath(); ctx.fill();
-  }
-  // legs
-  ctx.fillRect(-u.r*0.25, u.r*0.20, 3, 6);
-  ctx.fillRect( u.r*0.20, u.r*0.20, 3, 6);
-  // label
-  drawAllyPadLabel(u, true);
-  ctx.restore();
-}
-
-export function drawAllyPadLabel(u, translated) {
-  const canBuy = state.player && state.player.money >= 30 && state.allies.filter(a => !a.dead).length <= 3;
-  const x = translated ? 0 : u.x;
-  const y = translated ? u.r + 6 : u.y + u.r + 6;
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  roundRect(x - 50, y, 100, 32, 6); ctx.fill();
-  ctx.fillStyle = canBuy ? '#fff' : '#cccccc';
-  ctx.font = 'bold 11px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(canBuy ? 'KUP STADO' : 'BRAK $ / LIMIT', x, y + 8);
-  ctx.font = '10px system-ui';
-  ctx.fillText('30 $ = 3 dinki', x, y + 22);
-  ctx.restore();
 }
 
 export function drawAlly(al) {
   // Hatched allies share the player's species — render with the player sprite
   // at ~half scale so they read as "baby" versions, then add a tiny HP bar.
-  if (al.species && drawDinoSprite(al, 0.5)) {
+  const allyScale = al.scale || 0.5;
+  if (al.species && drawDinoSprite(al, allyScale)) {
     // Above the head, not across the chest: the sprite hangs from its foot
     // line, so a bar placed relative to the collision radius lands mid-body.
-    const barY = al.y - dinoBox(al, 0.5).footOff - 7;
+    const barY = al.y - dinoBox(al, allyScale).footOff - 7;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(al.x - 12, barY, 24, 3);
+    const bw = al.r * 1.7;
+    ctx.fillRect(al.x - bw/2, barY, bw, 3);
     ctx.fillStyle = '#9aff9a';
-    ctx.fillRect(al.x - 12, barY, 24 * (al.hp / al.maxHp), 3);
+    ctx.fillRect(al.x - bw/2, barY, bw * (al.hp / al.maxHp), 3);
     ctx.restore();
     return;
   }
@@ -406,9 +372,10 @@ export function drawAlly(al) {
 
 
 export function drawTree(t) {
+  if (t.flash > 0) { ctx.save(); ctx.filter = 'brightness(1.8) saturate(0.4)'; }
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
   const size = TREE_SIZE[sprite];
-  if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) return;
+  if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) { if (t.flash > 0) ctx.restore(); return; }
   ctx.save();
   ctx.translate(t.x, t.y);
   ctx.scale(t.s, t.s);
