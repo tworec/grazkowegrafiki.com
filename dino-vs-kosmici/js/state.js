@@ -1,6 +1,6 @@
 import { perf } from './view.js';
 import { WORLD } from './config.js';
-import { SPECIES, SPECIES_STATS } from './config.js';
+import { SPECIES, SPECIES_STATS, XP_CURVE } from './config.js';
 import { rand } from './util.js';
 import { buildLevel } from './world.js';
 
@@ -53,7 +53,7 @@ export function makePlayer() {
     species: sp,
     hp: st.hp, maxHp: st.hp,
     energy: 100, maxEnergy: 100,
-    level: 1, xp: 0, xpNeed: 50,
+    level: 1, xp: 0, xpNeed: XP_CURVE.base,
     money: 0,
     facing: 1, // 1 right, -1 left
     jump: 0,   // jump animation timer

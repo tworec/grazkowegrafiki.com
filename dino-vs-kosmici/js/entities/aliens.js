@@ -1,4 +1,4 @@
-import { WORLD } from '../config.js';
+import { WORLD, XP_REWARD } from '../config.js';
 import { sfx } from '../audio.js';
 import { rand, clamp, damp } from '../util.js';
 import { state, spawnCoinBurst, flashRing, damageNumber, notify } from '../state.js';
@@ -136,7 +136,7 @@ export function killAlien(a) {
   //   walker ≈ 2× flyer
   //   big ≈ 7× flyer
   const REWARD = { small: 12, walker: 22, shooter: 26, charger: 34, shield: 55, big: 85, boss: 260 };
-  const XP     = { small: 10, walker: 22, shooter: 24, charger: 30, shield: 46, big: 70, boss: 220 };
+  const XP = XP_REWARD;
   const reward = REWARD[a.type] != null ? REWARD[a.type] : 12;
   const xp     = XP[a.type]     != null ? XP[a.type]     : 10;
   if (a.type === 'boss') {

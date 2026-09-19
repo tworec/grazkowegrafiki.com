@@ -1,6 +1,6 @@
 import { WORLD } from '../config.js';
 import { sfx, music } from '../audio.js';
-import { DIFFICULTY } from '../config.js';
+import { DIFFICULTY, XP_BASE } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state, difficultyKey, notify, spawnCoinBurst, flashRing } from '../state.js';
 import { addXP } from './player.js';
@@ -41,7 +41,7 @@ export function damageBase(b, dmg) {
     for (let i=0;i<8;i++) b.ruin.push({x:rand(-b.w/2, b.w/2), y:rand(-b.h/2, b.h/2), r:rand(3, 5)});
     const isMain = b.tier === 'main';
     const reward = isMain ? 100 : 50;
-    const xp     = isMain ? 80 : 40;
+    const xp     = isMain ? XP_BASE.main : XP_BASE.other;
     spawnCoinBurst(b.x, b.y, reward);
     addXP(xp);
     // free the eggs!

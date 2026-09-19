@@ -24,3 +24,12 @@ export const ENERGY_COST = { claw: 5, tail: 16, fire: 0 };
 export const WORLD = { w: 2400, h: 960 };
 export const VIEW_H = 720;
 export const ZOOM_MIN = 0.7, ZOOM_MAX = 1.8;
+
+// ---------- Levelling ----------
+// Two levels arriving back to back turn the upgrade card from a reward into an
+// interruption, so the early steps are deliberately long. Experience now comes
+// mostly from real objectives (bases, bosses, tough enemies) rather than from
+// clearing patrols, which only trickle it in.
+export const XP_CURVE = { base: 140, growth: 1.32 };
+export const XP_REWARD = { small: 5, walker: 11, shooter: 12, charger: 15, shield: 23, big: 35, boss: 200 };
+export const XP_BASE = { main: 150, other: 75 };

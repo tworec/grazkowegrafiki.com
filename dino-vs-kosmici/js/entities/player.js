@@ -1,7 +1,7 @@
 import { perf } from '../view.js';
 import { sfx } from '../audio.js';
 import { showBanner } from '../hud.js';
-import { SPECIES_STATS, ENERGY_COST } from '../config.js';
+import { SPECIES_STATS, ENERGY_COST, XP_CURVE } from '../config.js';
 import { rand } from '../util.js';
 import { state, notify, flashRing, damageNumber } from '../state.js';
 import { recordRun, bestFor } from '../screens.js';
@@ -268,7 +268,7 @@ export function addXP(n) {
     p.xp -= p.xpNeed;
     p.level += 1;
     p.maxHp += 20; p.hp = Math.min(p.maxHp, p.hp + 20);
-    p.xpNeed = Math.round(p.xpNeed * 1.6);
+    p.xpNeed = Math.round(p.xpNeed * XP_CURVE.growth);
     sfx.levelup();
     flashRing(p.x, p.y, 80, '#9aff9a');
     if (p.level >= 10 && !state.won && !state.gameOver) {
