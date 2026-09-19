@@ -118,6 +118,22 @@ widza jest rysowana jaśniej i przed tułowiem, dalsza ciemniej i za nim — wi�
 tego samego cyklu muszą mieć różnicę o **przeciwnych znakach**; jeśli znak jest ten
 sam, generator nie zamienił nóg, choćby poza wyglądała inaczej.
 
+## leg_tone_quad.py — to samo dla czworonogów
+
+`leg_tone.py` dzieli obszar nóg na pół i porównuje jasność lewej i prawej połowy.
+U dwunoga (tyranno) to dokładnie test „która noga jest bliżej widza". U czworonoga
+(stego, diplo) lewa połowa to para TYLNA, a prawa para PRZEDNIA — każda z nich ma
+jedną nogę jasną (bliższą) i jedną ciemną (dalszą), więc różnica częściowo się
+znosi i wynik jest słaby (dla stego ±9…14 zamiast ±30…45).
+
+```bash
+.venv/bin/python leg_tone_quad.py ../assets-src/stego/walk-1.png ../assets-src/stego/walk-3.png
+```
+
+Skrypt najpierw dzieli obszar nóg na parę tylną i przednią, a dopiero w każdej
+parze porównuje jasność nogi cofniętej i wysuniętej. To jest właściwy test zamiany
+nóg dla czworonoga: **obie pary muszą zmienić znak** między walk-1 a walk-3.
+
 ## Ograniczenia
 
 - Flood-fill idzie tylko od krawędzi: zamknięta "dziura" w kolorze tła wewnątrz
