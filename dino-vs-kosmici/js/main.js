@@ -12,7 +12,7 @@ import { rand, clamp, damp } from './util.js';
 import { state, difficultyKey, currentSpecies, flashRing, notify } from './state.js';
 import { buildLevel, pushOutOfRocks, projectileHitsRock } from './world.js';
 import { cd, damagePlayer, updateFire } from './entities/player.js';
-import { spawnAlien, damageAlien, updateAlien } from './entities/aliens.js';
+import { spawnAlien, spawnPatrol, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
 import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
 import { draw } from './render/draw.js';
@@ -263,9 +263,29 @@ export function update(dt) {
   // Single-base rate ~0.16/s = ~one alien every 6 seconds. +0.06/s per extra base.
   const aliveBases = state.bases.filter(b => !b.dead);
   const maxAliens = Math.min(11, diff.maxBase + (aliveBases.length - 1) * 3);
-  if (aliveBases.length > 0 && state.aliens.length < maxAliens && state.t > 6 &&
+  // Patrols do not count against the base budget, or posting them out on the
+  // map would quietly starve the fight at the base.
+  const fromBases = state.aliens.reduce((n, a) => n + (a.patrol ? 0 : 1), 0);
+  if (aliveBases.length > 0 && fromBases < maxAliens && state.t > 6 &&
       Math.random() < dt * (diff.spawn + (aliveBases.length - 1) * diff.extraSpawn)) {
     spawnAlien(aliveBases[Math.floor(Math.random() * aliveBases.length)]);
+  }
+
+  // Patrols refill slowly, and only far from the player so a group never pops
+  // into view. Cleared stretches of map stay clear for a while.
+  state.patrolAcc = (state.patrolAcc || 0) + dt;
+  if (state.patrolAcc > 6) {
+    state.patrolAcc = 0;
+    const alive = state.aliens.reduce((n, a) => n + (a.patrol ? 1 : 0), 0);
+    const groups = Math.ceil(alive / 3);
+    if (groups < (state.patrolTarget || 0)) {
+      for (let tries = 0; tries < 30; tries++) {
+        const x = rand(160, WORLD.w - 160), y = rand(160, WORLD.h - 160);
+        if (Math.hypot(x - p.x, y - p.y) < 900) continue;
+        spawnPatrol(x, y, state.wave);
+        break;
+      }
+    }
   }
 
   // Next-wave HQ: after the player clears every base, a bigger one sprouts

@@ -25,6 +25,8 @@ export const state = {
   coins: [],
   trees: [],
   terrain: null,
+  patrolTarget: 0,
+  patrolAcc: 0,
   rocks: [],
   allies: [],
   upgradePad: null,

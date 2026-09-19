@@ -9,9 +9,37 @@ import { damageAlly } from './allies.js';
 
 
 export function pickWanderTarget(a) {
-  // Wander within ~500 units of where the alien is (or anywhere on a fresh spawn).
+  // A patrol circles the patch it was posted to; anything else wanders from
+  // wherever it happens to be. Without a home a group slowly drifts off the
+  // route the player walks, which is exactly where we want it to stay.
+  if (a && a.home) {
+    return { x: clamp(a.home.x + rand(-260, 260), 60, WORLD.w - 60),
+             y: clamp(a.home.y + rand(-200, 200), 60, WORLD.h - 60) };
+  }
   if (a) return { x: clamp(a.x + rand(-500, 500), 60, WORLD.w - 60), y: clamp(a.y + rand(-350, 350), 60, WORLD.h - 60) };
   return { x: rand(WORLD.w*0.10, WORLD.w*0.90), y: rand(WORLD.h*0.18, WORLD.h*0.85) };
+}
+
+// A group posted between the bases so the walk across the map has something
+// in it. Patrols sit outside the per-base spawn budget, so they never starve
+// the fight at the base.
+export function spawnPatrol(x, y, wave) {
+  const pool = ['walker', 'small', 'walker', 'big'];
+  if ((wave || 1) >= 2) pool.push('shooter');
+  if ((wave || 1) >= 3) pool.push('charger');
+  const n = 2 + Math.floor(Math.random() * 3);
+  const made = [];
+  for (let i = 0; i < n; i++) {
+    const kind = pool[Math.floor(Math.random() * pool.length)];
+    const a = makeAlien(kind, x + rand(-70, 70), y + rand(-50, 50));
+    a.patrol = true;
+    a.home = { x, y };
+    a.personality = 'wanderer';     // they guard the spot, not hunt the map
+    a.wanderTarget = pickWanderTarget(a);
+    state.aliens.push(a);
+    made.push(a);
+  }
+  return made;
 }
 
 export function makeAlien(type, x, y) {

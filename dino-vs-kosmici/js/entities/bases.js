@@ -148,13 +148,15 @@ export function spawnBaseFromAlienCluster(tier, message) {
 export function findAlienCluster(minCount, radius) {
   let best = null;
   for (const a of state.aliens) {
-    if (a.dead || a.type === 'boss') continue;
+    if (a.dead || a.type === 'boss' || a.patrol) continue;
     const members = [];
     let sx = 0, sy = 0;
     for (const b of state.aliens) {
       // A boss is an event, not building material: it must be fought, not
-      // silently converted into a base.
-      if (b.dead || b.type === 'boss') continue;
+      // silently converted into a base. Patrols are scenery for the journey —
+      // letting them found bases quietly triples the enemy budget, because
+      // every extra base raises the spawn cap.
+      if (b.dead || b.type === 'boss' || b.patrol) continue;
       if (Math.hypot(a.x - b.x, a.y - b.y) <= radius) {
         members.push(b);
         sx += b.x; sy += b.y;

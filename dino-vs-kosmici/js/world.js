@@ -3,7 +3,7 @@ import { snapCamera } from './camera.js';
 import { el, updateHUD } from './hud.js';
 import { rand, clamp } from './util.js';
 import { state, makePlayer } from './state.js';
-import { spawnAlien } from './entities/aliens.js';
+import { spawnAlien, spawnPatrol } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
 import { resetUpgradeTuning } from './upgrades.js';
 import { makeTerrain } from './render/ground.js';
@@ -182,6 +182,35 @@ export function buildLevel() {
   }
 
   state.terrain = makeTerrain(terrainSeed, blobs, paths);
+
+  // Patrols posted along the routes, so crossing the map is a journey rather
+  // than a stroll. Placed on the path segments (where the player actually
+  // walks) but clear of the base, the pads and the starting spot.
+  state.patrolTarget = 5;
+  const patrolOk = (x, y) =>
+    Math.hypot(x - pX, y - pY) > 380 &&          // not on the player's doorstep
+    Math.hypot(x - baseX, y - baseY) > 340 &&    // the base has its own guards
+    Math.hypot(x - hpX, y - hpY) > 200 &&
+    Math.hypot(x - apX, y - apY) > 200 &&
+    !state.aliens.some(a => a.home && Math.hypot(x - a.home.x, y - a.home.y) < 300);
+  let posted = 0;
+  // First pass: on the routes, where the player actually walks.
+  for (let tries = 0; tries < 250 && posted < state.patrolTarget; tries++) {
+    const seg = paths[Math.floor(Math.random() * paths.length)];
+    const t = rand(0.15, 0.85);
+    const x = clamp(seg.x1 + (seg.x2 - seg.x1) * t + rand(-110, 110), 120, WORLD.w - 120);
+    const y = clamp(seg.y1 + (seg.y2 - seg.y1) * t + rand(-110, 110), 120, WORLD.h - 120);
+    if (!patrolOk(x, y)) continue;
+    spawnPatrol(x, y, 1);
+    posted++;
+  }
+  // Second pass: anywhere sensible, so a short route never leaves the map bare.
+  for (let tries = 0; tries < 250 && posted < state.patrolTarget; tries++) {
+    const x = rand(160, WORLD.w - 160), y = rand(160, WORLD.h - 160);
+    if (!patrolOk(x, y)) continue;
+    spawnPatrol(x, y, 1);
+    posted++;
+  }
 
   // Start with one alien (per agreement: zaczynamy od jednego)
   spawnAlien();
