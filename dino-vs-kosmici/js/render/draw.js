@@ -283,13 +283,15 @@ export function drawScar(sc) {
 // staying on the ground is what makes the float read.
 export function drawPickup(q) {
   const pill = q.kind === 'pill';
-  const lift = Math.sin(q.bob) * 9;
-  const high = (lift + 9) / 18;                 // 0 at the bottom, 1 at the top
+  // Once it has been knocked off its tree it lies where it fell: no rise and
+  // fall, and the shadow sits tight underneath.
+  const lift = q.grounded ? 0 : Math.sin(q.bob) * 9;
+  const high = q.grounded ? 0 : (lift + 9) / 18;   // 0 at the bottom, 1 at the top
   ctx.save();
   ctx.translate(q.x, q.y + lift);
   ctx.fillStyle = `rgba(0,0,0,${0.20 - high * 0.09})`;
   ctx.beginPath();
-  ctx.ellipse(0, 30 - lift, 13 - high * 3.5, 4.5 - high * 1.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, (q.grounded ? 9 : 30) - lift, 13 - high * 3.5, 4.5 - high * 1.3, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // The halo: yellow round the fruit, red round the pill.

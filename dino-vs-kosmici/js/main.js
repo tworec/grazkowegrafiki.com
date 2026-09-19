@@ -109,8 +109,20 @@ export function update(dt) {
   // Pickups — walk into one to top up. Fruit gives energy, pills give health;
   // both regrow in their own time so a spot is worth coming back to.
   for (const q of state.pickups) {
-    q.bob += dt * 1.7;      // slow enough to read as floating, not vibrating
-    if (!q.ready) { q.regrow -= dt; if (q.regrow <= 0) q.ready = true; continue; }
+    if (q.falling) {
+      q.vy += 420 * dt;
+      q.y += q.vy * dt;
+      if (q.y >= q.groundY) { q.y = q.groundY; q.falling = false; q.grounded = true; }
+    } else if (!q.grounded) {
+      q.bob += dt * 1.7;    // slow enough to read as floating, not vibrating
+    }
+    if (!q.ready) {
+      // Something knocked off its tree is gone for good once taken.
+      if (q.grounded) continue;
+      q.regrow -= dt;
+      if (q.regrow <= 0) q.ready = true;
+      continue;
+    }
     const cfg = PICKUP[q.kind];
     const needed = q.kind === 'pill' ? p.hp < p.maxHp : p.energy < p.maxEnergy;
     if (!needed || Math.hypot(p.x - q.x, p.y - q.y) > cfg.radius + p.r) continue;

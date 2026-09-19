@@ -8,7 +8,8 @@ import { rand } from '../util.js';
 // hundred drawImage calls per frame and no chunk cache — far lighter on a
 // phone than caching megabytes of composed terrain.
 
-export const TILE = { w: 128, h: 64 };   // a 2:1 diamond
+export const TILE = { w: 96, h: 48 };   // a 2:1 diamond; smaller reads as a
+                                       // laid path rather than a big blotch
 
 // Tile centre in world units.
 export function tileToWorld(i, j) {
@@ -134,11 +135,11 @@ export function kindAt(i, j) {
   if (t) {
     for (const s of t.paths) {
       // A wobble on the edge keeps the path from looking machine-cut.
-      const wob = (hash2(i, j, t.seed + 7) - 0.5) * 34;
+      const wob = (hash2(i, j, t.seed + 7) - 0.5) * 26;
       if (distToSegment(x, y, s) < s.w + wob) return 'path';
     }
     for (const b of t.blobs) {
-      const wob = (hash2(i, j, t.seed + 3) - 0.5) * 70;
+      const wob = (hash2(i, j, t.seed + 3) - 0.5) * 44;
       if (Math.hypot(x - b.x, y - b.y) < b.r + wob) return 'dirt';
     }
   }

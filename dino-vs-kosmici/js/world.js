@@ -61,10 +61,22 @@ export function buildLevel() {
   // ruler-straight line across the map.
   const midX = clamp((pX + baseX) / 2 + rand(-260, 260), 160, WORLD.w - 160);
   const midY = clamp((pY + baseY) / 2 + rand(-200, 200), 160, WORLD.h - 160);
+  // A little network of trodden paths instead of one line: the main route home
+  // to the enemy camp, plus a couple of side trails that meet it.
   const paths = [
-    {x1: pX, y1: pY, x2: midX, y2: midY, w: 34},
-    {x1: midX, y1: midY, x2: baseX, y2: baseY, w: 38}
+    {x1: pX, y1: pY, x2: midX, y2: midY, w: 30},
+    {x1: midX, y1: midY, x2: baseX, y2: baseY, w: 34}
   ];
+  for (let k = 0; k < 2; k++) {
+    const t = rand(0.25, 0.8);
+    const fromX = pX + (baseX - pX) * t, fromY = pY + (baseY - pY) * t;
+    paths.push({
+      x1: fromX, y1: fromY,
+      x2: clamp(fromX + rand(-620, 620), 140, WORLD.w - 140),
+      y2: clamp(fromY + rand(-420, 420), 140, WORLD.h - 140),
+      w: 24
+    });
+  }
   const terrainSeed = Math.floor(Math.random() * 100000);
   // The widest wobble kindAt() can add to a corridor edge, so scenery clears
   // the path at its widest, not its nominal width.
@@ -97,15 +109,13 @@ export function buildLevel() {
     y: clamp(pY + rand(-50, 70),   60, WORLD.h - 60)
   };
 
-  // Bare earth: where the aliens landed, around the pads, plus a few patches.
+  // Bare earth only where something actually flattened it: the alien camp and
+  // its landing strip. The big random patches are gone — Antoś wants the dirt
+  // to read as laid paths, not blotches dropped on the grass.
   const blobs = [
-    {x: baseX, y: baseY, r: rand(150, 200)},
-    {x: midX,  y: midY,  r: rand(70, 110)}
+    {x: baseX, y: baseY, r: rand(110, 150)}
   ];
-  if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
-  for (let k = 0; k < 5; k++) {
-    blobs.push({x: rand(200, WORLD.w - 200), y: rand(200, WORLD.h - 200), r: rand(60, 130)});
-  }
+  if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 70});
 
   // Rocks — random positions, avoiding all the above
   // Counts scale with the map area (the old 1280x1272 screen had 6-8 rocks, 10 trees).
@@ -198,6 +208,7 @@ export function buildLevel() {
     if (!kind) continue;
     state.pickups.push({
       kind,
+      tree: t,                 // felling the tree takes its pickup with it
       // Off to one side of the trunk, never straight in front of it.
       x: t.x + (Math.random() < 0.5 ? -1 : 1) * rand(28, 48),
       y: treeFootY(t) - rand(20, 40),
@@ -223,8 +234,8 @@ export const SCENERY = { bush: 18, tree: 70, rock: 190 };
 // Both pickups hover near trees so neither health nor energy drags you back to
 // one fixed spot on the map. Fruit is the common one; pills are rarer and heal.
 export const PICKUP = {
-  fruit: { chance: 0.55, amount: 40, regrow: 26, radius: 34, glow: '#ffd166' },
-  pill:  { chance: 0.30, amount: 50, regrow: 36, radius: 34, glow: '#ff6b6b' }
+  fruit: { chance: 0.34, amount: 40, regrow: 26, radius: 34, glow: '#ffd166' },
+  pill:  { chance: 0.20, amount: 50, regrow: 36, radius: 34, glow: '#ff6b6b' }
 };
 
 // A felled tree or smashed rock leaves a mark on the ground that fades away,
@@ -261,6 +272,16 @@ export function damageScenery(x, y, radius, dmg) {
     }
   }
   if (destroyed) {
+    // Chop the tree and whatever hung beside it falls instead of hovering on
+    // over nothing. It still works where it lands; it just will not regrow.
+    for (const q of state.pickups) {
+      if (q.tree && q.tree.dead && !q.falling && !q.grounded) {
+        q.falling = true;
+        q.vy = -30;                       // a small hop as the tree goes over
+        q.groundY = treeFootY(q.tree) - 6;
+        q.tree = null;
+      }
+    }
     state.trees = state.trees.filter(t => !t.dead);
     state.rocks = state.rocks.filter(r => !r.dead);
     rebuildObstacles();
