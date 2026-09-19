@@ -1,10 +1,10 @@
 import { perf, resize } from './view.js';
 import { ensureAudio, isMuted, toggleMuted } from './audio.js';
-import { DIFFICULTY, SPECIES_STATS, WORLD } from './config.js';
+import { SPECIES_STATS, WORLD } from './config.js';
 import { cam, viewW, viewH } from './camera.js';
 import { clamp } from './util.js';
-import { state, difficultyKey, notify, restart, setDifficulty } from './state.js';
-import { buildLevel } from './world.js';
+import { state } from './state.js';
+import { showStart } from './screens.js';
 import { cd, cooldownMax } from './entities/player.js';
 
 
@@ -22,7 +22,6 @@ export const el = {
   enBar: document.getElementById('enBar'),
   xpBar: document.getElementById('xpBar'),
   upgradeLine: document.getElementById('upgradeLine'),
-  difficulty: document.getElementById('difficulty'),
   powerBtn: document.getElementById('powerBtn'),
   muteBtn: document.getElementById('muteBtn'),
   banner: document.getElementById('banner'),
@@ -51,11 +50,7 @@ export function setDigits(target, value, font) {
   }
 }
 
-el.difficulty.addEventListener('change', () => {
-  setDifficulty(el.difficulty.value);
-  buildLevel();
-  notify('Poziom: ' + DIFFICULTY[difficultyKey].label, '#ffd166');
-});
+
 el.powerBtn.addEventListener('click', () => {
   perf.lowPower = !perf.lowPower;
   perf.targetFps = perf.lowPower ? 30 : 60;
@@ -96,7 +91,8 @@ export function updateHUD() {
   el.hpBar.style.width = (100 * p.hp / p.maxHp) + '%';
   el.enBar.style.width = (100 * p.energy / p.maxEnergy) + '%';
   el.xpBar.style.width = (100 * p.xp / p.xpNeed) + '%';
-  el.upgradeLine.textContent = `Ulepszenia: HP ${up.hp} EN ${up.energy} CD ${up.cooldown} ST ${up.ally}`;
+  const taken = Object.values(up).reduce((n, v) => n + (v || 0), 0);
+  el.upgradeLine.textContent = taken ? `Ulepszenia: ${taken}` : 'Ulepszenia: brak';
   drawMinimap();
   setBtnCd('Z', cd.claw);
   setBtnCd('X', cd.tail);
@@ -151,8 +147,10 @@ export function showBanner(html, withRestart) {
   el.banner.innerHTML = html + (withRestart ? '<br><button id="rstBtn">Zagraj jeszcze raz</button>' : '');
   el.banner.style.display = 'block';
   if (withRestart) {
+    // Back to the dinosaur picker rather than silently restarting the same run.
+    const again = () => { el.banner.style.display = 'none'; showStart(); };
     const b = document.getElementById('rstBtn');
-    b.addEventListener('click', restart);
-    b.addEventListener('touchstart', e => { e.preventDefault(); restart(); }, {passive:false});
+    b.addEventListener('click', again);
+    b.addEventListener('touchstart', e => { e.preventDefault(); again(); }, {passive:false});
   }
 }

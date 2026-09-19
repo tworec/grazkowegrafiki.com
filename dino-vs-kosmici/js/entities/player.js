@@ -4,6 +4,7 @@ import { showBanner } from '../hud.js';
 import { SPECIES_STATS, ENERGY_COST } from '../config.js';
 import { rand } from '../util.js';
 import { state, notify, flashRing, damageNumber } from '../state.js';
+import { recordRun, bestFor } from '../screens.js';
 import { addShake } from '../camera.js';
 import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
@@ -248,7 +249,12 @@ export function damagePlayer(dmg) {
     state.gameOver = true;
     sfx.lose();
     const name = (SPECIES_STATS[p.species] || SPECIES_STATS.stego).name;
-      showBanner(`Ojej! ${name} padł 😵<br><small>Spróbujcie jeszcze raz!</small>`, true);
+    const beat = recordRun(p.species, state.wave);
+    const best = bestFor(p.species);
+    const line = beat
+      ? `Nowy rekord: fala ${state.wave}!`
+      : `Doszedłeś do fali ${state.wave}. Rekord: fala ${best}.`;
+    showBanner(`Ojej! ${name} padł 😵<br><small>${line}</small>`, true);
   }
 }
 
@@ -265,31 +271,12 @@ export function addXP(n) {
     if (p.level >= 10 && !state.won && !state.gameOver) {
       state.won = true;
       sfx.win();
+      recordRun(p.species, state.wave);
       showBanner('🏆 ZWYCIĘSTWO! 🦖<br><small>Osiągnąłeś 10. poziom!</small>', true);
+    } else {
+      // Every level hands the player a real decision instead of a silent buff.
+      state.pendingLevelUp = true;
     }
   }
 }
 
-export function tryAutoUpgrade() {
-  const p = state.player;
-  const up = p.upgrades;
-  if (p.money < 40) return false;
-  const choices = [
-    {key:'hp',       max:4, label:'+HP', apply: () => { p.maxHp += 25; p.hp = p.maxHp; }},
-    {key:'energy',   max:3, label:'+ENERGIA', apply: () => { p.maxEnergy += 15; p.energy = p.maxEnergy; }},
-    {key:'cooldown', max:4, label:'SZYBSZE ATAKI', apply: () => {}},
-    {key:'ally',     max:3, label:'SILNIEJSZE STADO', apply: () => {
-      for (const al of state.allies) al.dmg += 1;
-    }}
-  ];
-  choices.sort((a, b) => up[a.key] - up[b.key]);
-  const pick = choices.find(c => up[c.key] < c.max);
-  if (!pick) return false;
-  p.money -= 40;
-  up[pick.key] += 1;
-  pick.apply();
-  sfx.levelup();
-  flashRing(p.x, p.y, 90, '#ffd166');
-  notify('Ulepszenie: ' + pick.label, '#ffd166');
-  return true;
-}

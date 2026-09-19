@@ -2,6 +2,7 @@ import { perf, W, H, DPR } from './view.js';
 import { WORLD } from './config.js';
 import { cam, updateCamera } from './camera.js';
 import { updateAnim } from './anim.js';
+import { showStart, showUpgradeChoice, anyScreenOpen } from './screens.js';
 import { sfx } from './audio.js';
 import { updateAudio } from './audio.js';
 import { updateHUD } from './hud.js';
@@ -10,7 +11,7 @@ import { keys, joy } from './input.js';
 import { rand, clamp, damp } from './util.js';
 import { state, difficultyKey, currentSpecies, flashRing, notify } from './state.js';
 import { buildLevel, pushOutOfRocks, projectileHitsRock } from './world.js';
-import { cd, damagePlayer, tryAutoUpgrade, updateFire } from './entities/player.js';
+import { cd, damagePlayer, updateFire } from './entities/player.js';
 import { spawnAlien, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
 import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
@@ -37,7 +38,13 @@ export function frame(now) {
   updateAudio(dt, state);
   // After win/lose we keep drawing (the last base still plays its
   // destruction animation, notifications fade) but stop simulating.
-  if (!state.gameOver && !state.won) update(dt);
+  // A level-up waits for the frame to finish, then opens the card picker;
+  // while any screen is open the world holds still.
+  if (state.pendingLevelUp && !state.paused && !state.gameOver && !state.won) {
+    state.pendingLevelUp = false;
+    showUpgradeChoice();
+  }
+  if (!state.gameOver && !state.won && !state.paused && !anyScreenOpen()) update(dt);
   draw();
   requestAnimationFrame(frame);
 }
@@ -93,7 +100,7 @@ export function update(dt) {
   updateAnim(p, dt);
 
   // Slow passive energy regen — but most of your energy comes from the heal pad
-  p.energy = clamp(p.energy + 2*dt, 0, p.maxEnergy);
+  p.energy = clamp(p.energy + (state.energyRegen || 2)*dt, 0, p.maxEnergy);
 
   // Healing pad (red plus) — converts dino-money into HP and energy
   // Costs: 1 $ = 5 HP, 1 $ = 5 energy. Tick every 100 ms while standing on it.
@@ -123,9 +130,6 @@ export function update(dt) {
         }
         state.fx.push({kind:'puff', x: p.x + rand(-12,12), y: p.y - 14,
                        vx: rand(-20,20), vy: -50, life: 0.5, t: 0, color: '#9aff9a'});
-      } else if (p.hp >= p.maxHp && p.energy >= p.maxEnergy && p.money >= 40 &&
-                 (!pad.lastUpgrade || state.t - pad.lastUpgrade > 1.5)) {
-        if (tryAutoUpgrade()) pad.lastUpgrade = state.t;
       }
     }
   }
@@ -321,5 +325,8 @@ function debugTick(dt) {
 }
 
 // ---------- Boot ----------
+// A level exists from the first frame so the start screen has a world behind
+// it; nothing moves until a dinosaur is picked.
 buildLevel();
+showStart();
 requestAnimationFrame(now => { last = now; frame(now); });

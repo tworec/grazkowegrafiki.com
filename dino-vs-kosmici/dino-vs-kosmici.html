@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Dino kontra Kosmici</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --hud-bg: rgba(0,0,0,0.55);
@@ -160,6 +163,129 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
   }
 
+  /* ---------- Screens (start, level-up, pause, end) ----------
+     Visual language borrowed from the game itself: wooden planks staked in
+     grass, the way the in-world signposts look, rather than floating cards. */
+  :root {
+    --wood-dark: #3a2a1a;
+    --wood: #8a6131;
+    --wood-ink: #2a160a;
+    --parchment: #f7eccd;
+    --grass-deep: #24602f;
+  }
+  .screen {
+    position: absolute; inset: 0; z-index: 20;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 20px 16px;
+    /* The live meadow stays visible behind a scrim, so the menu sits in the
+       world rather than on a separate slab. */
+    background: radial-gradient(130% 100% at 50% 22%, rgba(14,46,18,0.62), rgba(6,20,8,0.92));
+    backdrop-filter: blur(2px);
+    overflow-y: auto; pointer-events: auto;
+  }
+  .screen.on { display: flex; }
+  .screen h1 {
+    font-family: Fredoka, system-ui, sans-serif;
+    font-weight: 600; font-size: clamp(28px, 7vw, 54px);
+    line-height: 1.05; margin: 0; text-align: center;
+    color: var(--parchment);
+    text-shadow: 0 3px 0 rgba(0,0,0,0.45), 0 0 26px rgba(0,0,0,0.5);
+  }
+  .screen .lede {
+    margin: 0; max-width: 46ch; text-align: center;
+    font-size: 15px; line-height: 1.5; color: #dbe7cf;
+  }
+
+  /* A staked sign: plank face + two legs driven into the ground. */
+  .signs { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  .sign {
+    position: relative; width: 180px; padding: 12px 12px 16px;
+    border: 0; border-radius: 10px; cursor: pointer; text-align: center;
+    background:
+      linear-gradient(180deg, rgba(255,226,170,0.22), rgba(120,74,30,0.22)),
+      url('assets/btn-wood-tile.png') center/72px, var(--wood);
+    color: var(--parchment); font: inherit;
+    box-shadow:
+      inset 0 2px 0 rgba(255,235,200,0.5),
+      inset 0 -3px 0 rgba(0,0,0,0.4),
+      0 6px 0 rgba(0,0,0,0.35), 0 12px 18px rgba(0,0,0,0.45);
+  }
+  .sign::after {
+    content: ''; position: absolute; left: 50%; bottom: -26px; width: 12px; height: 26px;
+    margin-left: -6px; border-radius: 0 0 3px 3px;
+    background: linear-gradient(180deg, #6d4a24, #4a3018);
+  }
+  .sign canvas {
+    display: block; margin: 0 auto 8px; border-radius: 8px;
+    background: radial-gradient(70% 70% at 50% 65%, rgba(255,248,225,0.30), rgba(255,248,225,0));
+  }
+  .sign .name {
+    font-family: Fredoka, system-ui, sans-serif; font-weight: 600; font-size: 20px;
+    color: #fff6e0; text-shadow: 0 2px 3px rgba(0,0,0,0.65);
+  }
+  .sign .trait {
+    font-size: 12.5px; line-height: 1.4; margin-top: 4px;
+    color: #f0e2c4; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .sign .best {
+    font-size: 11.5px; margin-top: 7px; color: #ffd166;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  .sign[aria-pressed="true"] {
+    outline: 3px solid var(--energy); outline-offset: 3px;
+    transform: translateY(-4px);
+    box-shadow:
+      inset 0 2px 0 rgba(255,245,215,0.6),
+      inset 0 -3px 0 rgba(0,0,0,0.3),
+      0 10px 0 rgba(0,0,0,0.35), 0 16px 26px rgba(0,0,0,0.5),
+      0 0 0 6px rgba(255,209,102,0.18);
+  }
+  .sign:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+  /* Difficulty: three small tabs cut from the same plank. */
+  .tabs { display: flex; gap: 6px; }
+  .tabs button {
+    border: 0; cursor: pointer; padding: 8px 16px; border-radius: 8px;
+    background: rgba(0,0,0,0.35); color: var(--parchment);
+    font: 600 13px system-ui; letter-spacing: 0.01em;
+  }
+  .tabs button[aria-pressed="true"] {
+    background: url('assets/btn-wood-tile.png') center/60px, var(--wood);
+    color: #fff6e0; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    box-shadow: inset 0 1px 0 rgba(255,235,200,0.45), inset 0 -2px 0 rgba(0,0,0,0.3);
+  }
+  .bigBtn {
+    border: 0; cursor: pointer; padding: 14px 42px; border-radius: 12px;
+    background: url('assets/btn-wood-tile.png') center/72px, var(--wood);
+    color: #fff6e0;
+    font-family: Fredoka, system-ui, sans-serif; font-weight: 600; font-size: 22px;
+    text-shadow: 0 2px 3px rgba(0,0,0,0.6);
+    box-shadow:
+      inset 0 2px 0 rgba(255,235,200,0.5), inset 0 -3px 0 rgba(0,0,0,0.35),
+      0 6px 0 rgba(0,0,0,0.35), 0 12px 20px rgba(0,0,0,0.45);
+  }
+  .bigBtn:active { transform: translateY(3px); box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
+  .ghostBtn {
+    border: 0; cursor: pointer; padding: 10px 22px; border-radius: 10px;
+    background: rgba(0,0,0,0.4); color: var(--parchment); font: 600 14px system-ui;
+  }
+  .screen .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  /* The one piece of motion: the signs get planted, staggered, on arrival.
+     Only the transform is animated — never opacity — so a throttled or
+     interrupted animation can't leave a choice invisible and unclickable. */
+  @keyframes plant { from { transform: translateY(-38px) rotate(-2deg); } }
+  .screen.on .sign { animation: plant 420ms cubic-bezier(.2,.9,.3,1.3) both; }
+  .screen.on .sign:nth-child(2) { animation-delay: 90ms; }
+  .screen.on .sign:nth-child(3) { animation-delay: 180ms; }
+  @media (prefers-reduced-motion: reduce) {
+    .screen.on .sign { animation: none; }
+    .sign[aria-pressed="true"] { transform: none; }
+  }
+
+  /* Pause button lives with the other HUD controls. */
+  #pauseBtn { min-width: 40px; }
+
   /* Banner messages */
   #banner {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -202,13 +328,9 @@
   <div id="upgradeLine">Ulepszenia: 0</div>
   <canvas id="minimap" width="200" height="80"></canvas>
   <div id="settings">
-    <select id="difficulty" title="Poziom trudnosci">
-      <option value="easy">Easy</option>
-      <option value="normal" selected>Normal</option>
-      <option value="hard">Hard</option>
-    </select>
     <button id="powerBtn" type="button" title="Tryb zasilania">30 FPS</button>
     <button id="muteBtn" type="button" title="Wycisz" aria-label="Dźwięk">🔊</button>
+    <button id="pauseBtn" type="button" title="Przerwa (Esc)" aria-label="Przerwa">⏸</button>
   </div>
 </div>
 
@@ -244,6 +366,33 @@
 </div>
 
 <div id="banner"></div>
+
+<div class="screen" id="startScreen">
+  <h1>Dino kontra Kosmici</h1>
+  <p class="lede">Kosmici rozbili obóz na twojej łące. Wybierz dinozaura i rozwal ich bazy.</p>
+  <div class="signs" id="speciesSigns"></div>
+  <div class="tabs" id="diffTabs">
+    <button type="button" data-diff="easy">Łatwy</button>
+    <button type="button" data-diff="normal" aria-pressed="true">Normalny</button>
+    <button type="button" data-diff="hard">Trudny</button>
+  </div>
+  <button class="bigBtn" id="playBtn" type="button">Graj</button>
+  <p class="lede" id="startHint"></p>
+</div>
+
+<div class="screen" id="levelScreen">
+  <h1 id="levelTitle">Poziom 2</h1>
+  <p class="lede">Wybierz jedno ulepszenie.</p>
+  <div class="signs" id="upgradeSigns"></div>
+</div>
+
+<div class="screen" id="pauseScreen">
+  <h1>Przerwa</h1>
+  <div class="row">
+    <button class="bigBtn" id="resumeBtn" type="button">Graj dalej</button>
+    <button class="ghostBtn" id="quitBtn" type="button">Wybierz dinozaura</button>
+  </div>
+</div>
 
 <script type="module" src="js/main.js"></script>
 </body>

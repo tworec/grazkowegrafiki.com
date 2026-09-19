@@ -9,6 +9,8 @@ import { buildLevel } from './world.js';
 export const state = {
   t: 0,
   hitStop: 0,
+  paused: false,
+  energyRegen: 2,
   wave: 1,
   nextWaveAt: null,
   gameOver: false,
@@ -31,6 +33,7 @@ export const state = {
 export let difficultyKey = 'normal';
 export function setDifficulty(k) { difficultyKey = k; }
 export let speciesIndex = 0;
+export function setSpecies(i) { speciesIndex = ((i % SPECIES.length) + SPECIES.length) % SPECIES.length; }
 
 export function currentSpecies() { return SPECIES[speciesIndex]; }
 export function currentStats()   { return SPECIES_STATS[currentSpecies()]; }
