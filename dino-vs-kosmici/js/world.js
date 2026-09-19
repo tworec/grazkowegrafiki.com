@@ -35,6 +35,7 @@ export function buildLevel() {
   state.allies = [];
   state.wild = [];
   state.wildAt = null;
+  state.scars = [];
 
   // ----- Randomized layout — picked fresh every game -----
   // Alien HQ: anywhere on the map (with margin from edges)
@@ -195,6 +196,20 @@ export function buildLevel() {
     posted++;
   }
 
+  // Fruit: a cluster floating by roughly every third tree, so there is usually
+  // one within a short walk wherever you are fighting.
+  state.fruit = [];
+  const fruitTrees = state.trees.filter(t => t.v !== 'bush');
+  for (const t of fruitTrees) {
+    if (Math.random() > 0.55) continue;
+    state.fruit.push({
+      x: t.x + rand(-34, 34),
+      y: treeFootY(t) - rand(24, 44),
+      bob: rand(0, Math.PI * 2),
+      ready: true, regrow: 0
+    });
+  }
+
   // Start with one alien (per agreement: zaczynamy od jednego)
   spawnAlien();
 
@@ -208,6 +223,14 @@ export function buildLevel() {
 // How much punishment each piece of scenery takes. A bush comes apart almost
 // at once, a rock takes real work — Antoś's ordering.
 export const SCENERY = { bush: 18, tree: 70, rock: 190 };
+
+// Fruit hangs in the air near trees and gives energy back on the move, so the
+// healing pad can go back to being only about health.
+export const FRUIT = { energy: 40, radius: 34, regrow: 26 };
+
+// A felled tree or smashed rock leaves a mark on the ground that fades away,
+// so you can see where you have been.
+export const SCAR_LIFE = 26;
 
 // Solid obstacles for movement: rocks plus tree trunks (a small circle at the
 // foot of the tree). Rebuilt whenever scenery is destroyed.
@@ -246,7 +269,18 @@ export function damageScenery(x, y, radius, dmg) {
   return hit;
 }
 
+function addScar(o) {
+  state.scars.push({
+    x: o.x, y: o.kind === 'rock' ? o.y : treeFootY(o) - 4,
+    kind: o.kind === 'rock' ? 'rock' : (o.v === 'bush' ? 'bush' : 'tree'),
+    r: o.kind === 'rock' ? o.r * 0.9 : 13 * (o.s || 1),
+    seed: Math.random() * 1000,
+    life: SCAR_LIFE, t: 0
+  });
+}
+
 function breakScenery(o) {
+  addScar(o);
   const isRock = o.kind === 'rock';
   const colour = isRock ? '#9a9aa2' : (o.v === 'bush' ? '#6fbf5a' : '#4e8f3a');
   const n = isRock ? 16 : 12;

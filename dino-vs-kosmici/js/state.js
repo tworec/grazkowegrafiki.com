@@ -31,6 +31,8 @@ export const state = {
   allies: [],
   upgradePad: null,
   wild: [],
+  fruit: [],
+  scars: [],
   wildAt: null,
   helipad: null,
   flag: null

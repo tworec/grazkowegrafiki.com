@@ -132,9 +132,11 @@ export function draw() {
   drawWorldEdge(vx, vy, vw, vh);
 
   // Flat decals — never occlude anything
+  for (const sc of state.scars) if (inView(sc.x, sc.y, 60)) drawScar(sc);
   drawHelipad(state.helipad);
   drawUpgradePad(state.upgradePad);
   for (const c of state.coins) if (inView(c.x, c.y, 20)) drawCoin(c);
+  for (const f of state.fruit) if (f.ready && inView(f.x, f.y, 40)) drawFruit(f);
 
   // Blob shadows under characters
   drawShadow(state.player, 0.85);
@@ -228,6 +230,71 @@ function drawOffscreenBaseArrow() {
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(`${Math.round(bestD / 10) * 10} m`, ax, ay + 32);
+  ctx.restore();
+}
+
+// What a felled bush, tree or rock leaves behind: a mark that fades out over
+// about half a minute, so you can read where you have already cleared.
+export function drawScar(sc) {
+  const k = clamp(sc.life / 6, 0, 1);          // fade over the last six seconds
+  ctx.save();
+  ctx.globalAlpha = 0.55 * k;
+  ctx.translate(sc.x, sc.y);
+  const rnd = n => {
+    const x = Math.sin(sc.seed * 12.9898 + n * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  if (sc.kind === 'rock') {
+    ctx.fillStyle = '#6f6a63';
+    for (let i = 0; i < 7; i++) {
+      const a = rnd(i) * Math.PI * 2, d = rnd(i + 20) * sc.r * 0.8;
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a) * d, Math.sin(a) * d * 0.4, 3 + rnd(i + 40) * 4, 2 + rnd(i + 60) * 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (sc.kind === 'bush') {
+    ctx.fillStyle = '#4d7a35';
+    for (let i = 0; i < 9; i++) {
+      const a = rnd(i) * Math.PI * 2, d = rnd(i + 20) * sc.r;
+      ctx.save();
+      ctx.translate(Math.cos(a) * d, Math.sin(a) * d * 0.45);
+      ctx.rotate(rnd(i + 30) * Math.PI);
+      ctx.fillRect(-3, -1, 6, 2);
+      ctx.restore();
+    }
+  } else {
+    // A stump with its rings and a couple of splinters.
+    ctx.fillStyle = '#6b4a2b';
+    ctx.beginPath(); ctx.ellipse(0, 0, sc.r, sc.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(60,38,18,0.7)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(0, 0, sc.r * 0.62, sc.r * 0.28, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, sc.r * 0.3, sc.r * 0.14, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#7d5a34';
+    ctx.fillRect(-sc.r * 0.9, -2, sc.r * 0.5, 3);
+    ctx.fillRect(sc.r * 0.5, 1, sc.r * 0.45, 3);
+  }
+  ctx.restore();
+}
+
+// Floating fruit: the on-the-move energy pickup. Drawn in code until the
+// painted version arrives; the shape and bob stay the same either way.
+export function drawFruit(f) {
+  const lift = Math.sin(f.bob) * 4;
+  ctx.save();
+  ctx.translate(f.x, f.y + lift);
+  ctx.fillStyle = 'rgba(0,0,0,0.16)';
+  ctx.beginPath(); ctx.ellipse(0, 26 - lift, 13, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,214,102,0.22)';
+  ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
+  const berries = [[-7, 2, 8, '#e2542f'], [6, 4, 7.5, '#f08a2a'], [0, -6, 8.5, '#f2b632']];
+  for (const [bx, by, br, col] of berries) {
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath(); ctx.arc(bx - br * 0.3, by - br * 0.35, br * 0.28, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#3f8c3a';
+  ctx.beginPath(); ctx.ellipse(3, -13, 7, 3.4, -0.5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -459,19 +526,19 @@ export function drawUpgradePad(u) {
 }
 
 export function drawUpgradePadLabel(u, translated) {
-  const upgradeReady = state.player && state.player.hp >= state.player.maxHp &&
-                       state.player.energy >= state.player.maxEnergy && state.player.money >= 40;
+  // The pad only heals now, so it lights up when you actually need healing.
+  const useful = state.player && state.player.hp < state.player.maxHp && state.player.money >= 1;
   const x = translated ? 0 : u.x;
   const y = translated ? u.r + 6 : u.y + u.r + 6;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   roundRect(x - 46, y, 92, 32, 6); ctx.fill();
-  ctx.fillStyle = upgradeReady ? '#ffd166' : '#fff';
+  ctx.fillStyle = useful ? '#ffd166' : '#fff';
   ctx.font = 'bold 11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(upgradeReady ? 'ULEPSZ 40 $' : 'LECZ + ENERGIA', x, y + 8);
+  ctx.fillText('LECZENIE', x, y + 8);
   ctx.font = '10px system-ui';
-  ctx.fillText('1 $ = 5 HP / 5 EN', x, y + 22);
+  ctx.fillText('1 $ = 5 HP', x, y + 22);
   ctx.restore();
 }
 
