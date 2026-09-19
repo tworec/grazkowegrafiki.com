@@ -14,7 +14,9 @@ export function makeAlly(x, y, species, grown) {
   return {
     x, y, vx: 0, vy: 0,
     r: grown ? 19 : 14,
-    hp: grown ? 70 : 25, maxHp: grown ? 70 : 25,
+    // A dinosaur bought for 70 $ has to survive a real fight, not five hits:
+    // a big alien does 14 a swing, so 160 buys it about eleven.
+    hp: grown ? 160 : 25, maxHp: grown ? 160 : 25,
     // +2 per upgrade level, matching the bonus handed to allies already alive.
     speed: grown ? 165 : 150,
     dmg: (grown ? 8 : 3) + allyUp * 2,

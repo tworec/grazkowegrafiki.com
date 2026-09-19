@@ -34,10 +34,17 @@ export function dinoBox(p, scaleOpt) {
   const sheet = charSprites[p.species];
   const ready = !!(sheet && sheet.complete && sheet.naturalWidth >= ANIM.frameW);
   const s = scaleOpt || 1;
-  if (!ready) return { ready, ANIM, s, w: 78 * s, h: 116 * s, footOff: 58 * s };
+  if (!ready) return { ready, ANIM, s, w: 78 * s, h: 116 * s, footOff: 58 * s, bodyTop: 110 * s };
   const k = ANIM.drawH / ANIM.bodyH;
   const h = ANIM.frameH * k * s;
-  return { ready, ANIM, s, w: ANIM.frameW * k * s, h, footOff: (ANIM.footY / ANIM.frameH) * h };
+  return {
+    ready, ANIM, s, w: ANIM.frameW * k * s, h,
+    footOff: (ANIM.footY / ANIM.frameH) * h,
+    // How tall the animal itself stands above its feet. The frame is taller
+    // than the animal (a stegosaurus fills 119 of 208 rows), so hanging labels
+    // off the frame edge leaves them floating far above the head.
+    bodyTop: ANIM.drawH * s
+  };
 }
 
 export function drawDinoSprite(p, scaleOpt) {
@@ -268,7 +275,7 @@ export function drawWild(w) {
   const p = state.player;
   const afford = p && p.money >= w.price;
   const near = w.glow || 0;
-  const top = w.y - dinoBox(w, w.scale || 0.72).footOff - 10;
+  const top = w.y - dinoBox(w, w.scale || 0.72).bodyTop - 8;
   ctx.save();
   ctx.globalAlpha = 0.65 + near * 0.35;
   ctx.font = 'bold 13px system-ui';
@@ -297,7 +304,7 @@ export function drawAlly(al) {
   if (al.species && drawDinoSprite(al, allyScale)) {
     // Above the head, not across the chest: the sprite hangs from its foot
     // line, so a bar placed relative to the collision radius lands mid-body.
-    const barY = al.y - dinoBox(al, allyScale).footOff - 7;
+    const barY = al.y - dinoBox(al, allyScale).bodyTop - 7;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     const bw = al.r * 1.7;
