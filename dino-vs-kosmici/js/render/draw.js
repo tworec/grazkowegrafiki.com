@@ -279,11 +279,16 @@ export function drawScar(sc) {
 // Floating fruit: the on-the-move energy pickup. Drawn in code until the
 // painted version arrives; the shape and bob stay the same either way.
 export function drawFruit(f) {
-  const lift = Math.sin(f.bob) * 4;
+  // Antoś asked for a clear gentle rise and fall. The shadow stays on the
+  // ground and shrinks as the cluster climbs, which is what sells the float.
+  const lift = Math.sin(f.bob) * 9;
+  const high = (lift + 9) / 18;                 // 0 at the bottom, 1 at the top
   ctx.save();
   ctx.translate(f.x, f.y + lift);
-  ctx.fillStyle = 'rgba(0,0,0,0.16)';
-  ctx.beginPath(); ctx.ellipse(0, 26 - lift, 13, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = `rgba(0,0,0,${0.20 - high * 0.09})`;
+  ctx.beginPath();
+  ctx.ellipse(0, 30 - lift, 13 - high * 3.5, 4.5 - high * 1.3, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = 'rgba(255,214,102,0.22)';
   ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
   const berries = [[-7, 2, 8, '#e2542f'], [6, 4, 7.5, '#f08a2a'], [0, -6, 8.5, '#f2b632']];

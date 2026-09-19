@@ -136,7 +136,7 @@ export function update(dt) {
 
   // Fruit — walk into a cluster to top up energy; it regrows in its own time.
   for (const f of state.fruit) {
-    f.bob += dt * 2.2;
+    f.bob += dt * 1.7;      // slow enough to read as floating, not vibrating
     if (f.ready) {
       if (p.energy < p.maxEnergy && Math.hypot(p.x - f.x, p.y - f.y) < FRUIT.radius + p.r) {
         p.energy = Math.min(p.maxEnergy, p.energy + FRUIT.energy);
