@@ -175,8 +175,15 @@
   }
   .screen {
     position: absolute; inset: 0; z-index: 20;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
+    display: none; flex-direction: column; align-items: center;
+    /* Not `justify-content: center`: when the content is taller than a phone
+       screen, centred flex overflow puts the first and last items outside the
+       scrollable area and the Graj button becomes unreachable. The auto
+       margins below centre it when there is room and scroll when there isn't. */
+    justify-content: flex-start;
     gap: 18px; padding: 20px 16px;
+    /* html/body set touch-action: none for the joystick; the menus need panning. */
+    touch-action: pan-y; overscroll-behavior: contain;
     /* The live meadow stays visible behind a scrim, so the menu sits in the
        world rather than on a separate slab. */
     background: radial-gradient(130% 100% at 50% 22%, rgba(14,46,18,0.62), rgba(6,20,8,0.92));
@@ -184,6 +191,8 @@
     overflow-y: auto; pointer-events: auto;
   }
   .screen.on { display: flex; }
+  .screen > :first-child { margin-top: auto; }
+  .screen > :last-child { margin-bottom: auto; }
   .screen h1 {
     font-family: Fredoka, system-ui, sans-serif;
     font-weight: 600; font-size: clamp(28px, 7vw, 54px);

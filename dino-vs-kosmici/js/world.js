@@ -5,9 +5,13 @@ import { rand, clamp } from './util.js';
 import { state, makePlayer } from './state.js';
 import { spawnAlien } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
+import { resetUpgradeTuning } from './upgrades.js';
 
 
 export function buildLevel() {
+  // Dash, fire and regen upgrades live on module constants, so every path that
+  // starts a run (Play button, R after a defeat, restart()) must clear them.
+  resetUpgradeTuning();
   state.player = makePlayer();
   state.aliens = [];
   state.bases = [];
@@ -137,7 +141,7 @@ export function buildLevel() {
   spawnAlien();
 
   state.t = 0; state.hudAcc = 1; state.gameOver = false; state.won = false;
-  state.wave = 1; state.nextWaveAt = null;
+  state.wave = 1; state.nextWaveAt = null; state.pendingLevelUps = 0;
   el.banner.style.display = 'none';
   snapCamera(state.player.x, state.player.y);
   updateHUD();

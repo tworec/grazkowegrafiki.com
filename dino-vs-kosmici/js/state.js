@@ -10,6 +10,7 @@ export const state = {
   t: 0,
   hitStop: 0,
   paused: false,
+  pendingLevelUps: 0,
   energyRegen: 2,
   wave: 1,
   nextWaveAt: null,

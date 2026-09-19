@@ -3,7 +3,7 @@ import { state, setDifficulty, setSpecies, currentSpecies } from './state.js';
 import { buildLevel } from './world.js';
 import { ensureAudio, sfx, music } from './audio.js';
 import { charSprites, TYRANNO_ANIM, STEGO_ANIM, DIPLO_ANIM } from './render/sprites.js';
-import { pickUpgradeChoices, applyUpgrade, resetUpgradeTuning } from './upgrades.js';
+import { pickUpgradeChoices, applyUpgrade } from './upgrades.js';
 
 // ---------- Screens ----------
 // One overlay per moment: choose a dinosaur, pick an upgrade, take a break.
@@ -129,8 +129,7 @@ export function showStart() {
 function startGame() {
   ensureAudio();
   setSpecies(SPECIES.indexOf(chosenSpecies));
-  resetUpgradeTuning();
-  buildLevel();
+  buildLevel();   // also resets the mutable upgrade tuning
   state.paused = false;
   hide(el.start);
   music.calm && music.calm();
@@ -207,7 +206,14 @@ el.diffTabs.addEventListener('click', e => {
   setDifficulty(b.dataset.diff);
 });
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') togglePause();
-  else if (e.key === 'Enter' && el.start.classList.contains('on')) startGame();
+  if (e.key === 'Escape') { togglePause(); return; }
+  // Enter is a shortcut for Play only when no control has focus; otherwise the
+  // focused button handles it and we would either start with the previous
+  // choice or run startGame twice.
+  if (e.key === 'Enter' && el.start.classList.contains('on')) {
+    const f = document.activeElement;
+    if (f && f !== document.body && f.closest && f.closest('button, select, a, input')) return;
+    startGame();
+  }
 });
 

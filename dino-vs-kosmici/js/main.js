@@ -40,9 +40,10 @@ export function frame(now) {
   // destruction animation, notifications fade) but stop simulating.
   // A level-up waits for the frame to finish, then opens the card picker;
   // while any screen is open the world holds still.
-  if (state.pendingLevelUp && !state.paused && !state.gameOver && !state.won) {
-    state.pendingLevelUp = false;
-    showUpgradeChoice();
+  if (state.pendingLevelUps > 0 && !state.paused && !state.gameOver && !state.won) {
+    state.pendingLevelUps -= 1;
+    // Nothing left to offer: drop the rest of the queue rather than stalling.
+    if (!showUpgradeChoice()) state.pendingLevelUps = 0;
   }
   if (!state.gameOver && !state.won && !state.paused && !anyScreenOpen()) update(dt);
   draw();

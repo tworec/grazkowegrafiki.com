@@ -13,7 +13,8 @@ export function makeAlly(x, y, species) {
   return {
     x, y, vx: 0, vy: 0,
     r: 14, hp: 25, maxHp: 25,
-    speed: 150, dmg: 3 + allyUp, attackCd: 0,
+    // +2 per upgrade level, matching the bonus handed to allies already alive.
+    speed: 150, dmg: 3 + allyUp * 2, attackCd: 0,
     bob: rand(0, Math.PI*2), facing: 1, flash: 0,
     species: species || null,
     jump: 0, attackAnim: 0, attackKind: null,

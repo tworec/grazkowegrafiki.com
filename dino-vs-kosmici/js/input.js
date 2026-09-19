@@ -6,16 +6,21 @@ import { tryAttack, tryDash, startFire, stopFire } from './entities/player.js';
 
 // ---------- Input ----------
 export const keys = new Set();
+// Freezing update() is not enough: these handlers spend energy and deal damage
+// straight away, so they have to respect the frozen world too.
+function frozen() { return state.paused || state.gameOver || state.won; }
+
 window.addEventListener('keydown', e => {
   ensureAudio();
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space'].includes(e.key)) e.preventDefault();
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   keys.add(k);
+  if (k === 'r' && state.gameOver) { restart(); return; }
+  if (frozen()) return;
   if (k === ' ' || e.code === 'Space') tryDash();
   if (k === 'z') tryAttack('claw');
   if (k === 'x') tryAttack('tail');
   if (k === 'c') startFire();
-  if (k === 'r' && state.gameOver) restart();
 }, {passive:false});
 window.addEventListener('keyup', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -82,11 +87,12 @@ function resetJoyHome() {
 
 // A touch that starts on the HUD or on an attack button is not a move command.
 function onControls(target) {
-  return !!(target && target.closest && target.closest('#hud, #attacks, #banner'));
+  return !!(target && target.closest &&
+    target.closest('#hud, #attacks, #banner, .screen'));
 }
 
 function areaTouchStart(e) {
-  if (joy.active) return;
+  if (joy.active || frozen()) return;
   const t = e.changedTouches ? e.changedTouches[0] : e;
   if (onControls(e.target)) return;
   if (t.clientX > window.innerWidth * 0.55) return;  // right side is for attacks
@@ -117,6 +123,7 @@ window.addEventListener('mouseup', e => joy.active && joy.id==='mouse' && joyEnd
 document.querySelectorAll('.attackBtn').forEach(btn => {
   const handler = e => {
     e.preventDefault(); ensureAudio();
+    if (frozen()) return;
     const k = btn.dataset.key;
     if (k === 'Z') tryAttack('claw');
     else if (k === 'X') tryAttack('tail');

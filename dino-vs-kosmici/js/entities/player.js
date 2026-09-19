@@ -274,8 +274,8 @@ export function addXP(n) {
       recordRun(p.species, state.wave);
       showBanner('🏆 ZWYCIĘSTWO! 🦖<br><small>Osiągnąłeś 10. poziom!</small>', true);
     } else {
-      // Every level hands the player a real decision instead of a silent buff.
-      state.pendingLevelUp = true;
+      // One card per level: a boss award can cross several thresholds at once.
+      state.pendingLevelUps = (state.pendingLevelUps || 0) + 1;
     }
   }
 }
