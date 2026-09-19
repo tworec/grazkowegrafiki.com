@@ -24,6 +24,7 @@ export const state = {
   fx: [],
   coins: [],
   trees: [],
+  terrain: null,
   rocks: [],
   allies: [],
   upgradePad: null,

@@ -1,6 +1,7 @@
 import { W, H, DPR, mainCtx } from '../view.js';
 import { cam, viewW, viewH, inView } from '../camera.js';
 import { TREE_SIZE, treeFootY } from '../world.js';
+import { drawGround } from './ground.js';
 import { atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
 import { SPECIES_STATS, WORLD } from '../config.js';
 import { rand, clamp } from '../util.js';
@@ -129,10 +130,10 @@ export function draw() {
   ctx.setTransform(DPR * z, 0, 0, DPR * z, -cam.x * DPR * z, -cam.y * DPR * z);
   const vx = cam.x, vy = cam.y, vw = viewW(), vh = viewH();
 
-  // Ground
+  // Ground: isometric diamond lattice, drawn only where the camera looks.
   ctx.fillStyle = '#3aa14a';
   ctx.fillRect(vx, vy, vw, vh);
-  drawGrassNoise(vx, vy, vw, vh);
+  drawGround(ctx, vx, vy, vw, vh);
 
   // World edge (dark band so the player sees the map boundary)
   drawWorldEdge(vx, vy, vw, vh);
@@ -414,25 +415,6 @@ export function drawAlly(al) {
   ctx.restore();
 }
 
-export function drawGrassNoise(vx, vy, vw, vh) {
-  // Dense pencil-like grass texture, cached as a repeating pattern.
-  if (!drawGrassNoise.pat) {
-    const pc = document.createElement('canvas');
-    pc.width = pc.height = 96;
-    const g = pc.getContext('2d');
-    g.fillStyle = '#48a84d'; g.fillRect(0,0,96,96);
-    for (let i=0;i<150;i++){
-      const x=Math.random()*96, y=Math.random()*96, len=5+Math.random()*18, ang=rand(-0.6, 0.6) + (Math.random()<0.5 ? 0 : Math.PI*0.5);
-      const shade = Math.random();
-      g.strokeStyle = shade < 0.35 ? 'rgba(28,100,35,0.34)' : (shade < 0.7 ? 'rgba(115,180,80,0.32)' : 'rgba(235,230,145,0.18)');
-      g.lineWidth = 1 + Math.random()*1.1;
-      g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(ang)*len, y+Math.sin(ang)*len); g.stroke();
-    }
-    drawGrassNoise.pat = ctx.createPattern(pc, 'repeat');
-  }
-  ctx.fillStyle = drawGrassNoise.pat;
-  ctx.fillRect(vx, vy, vw, vh);
-}
 
 export function drawTree(t) {
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';

@@ -6,6 +6,7 @@ import { state, makePlayer } from './state.js';
 import { spawnAlien } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
 import { resetUpgradeTuning } from './upgrades.js';
+import { makeTerrain } from './render/ground.js';
 
 
 export function buildLevel() {
@@ -136,6 +137,24 @@ export function buildLevel() {
     const foot = treeFootY(t);
     state.obstacles.push({x: t.x, y: foot - 6, r: 9 * t.s});
   }
+
+  // Terrain: trodden paths from home to the enemy camp and to both pads, with
+  // bare earth where the aliens landed and around the pads.
+  const blobs = [
+    {x: baseX, y: baseY, r: rand(150, 200)},
+    {x: hpX,   y: hpY,   r: rand(70, 100)},
+    {x: apX,   y: apY,   r: rand(70, 100)}
+  ];
+  if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
+  for (let k = 0; k < 5; k++) {
+    blobs.push({x: rand(200, WORLD.w - 200), y: rand(200, WORLD.h - 200), r: rand(60, 130)});
+  }
+  const paths = [
+    {x1: pX, y1: pY, x2: hpX, y2: hpY, w: 34},
+    {x1: hpX, y1: hpY, x2: apX, y2: apY, w: 30},
+    {x1: apX, y1: apY, x2: baseX, y2: baseY, w: 38}
+  ];
+  state.terrain = makeTerrain(Math.floor(Math.random() * 100000), blobs, paths);
 
   // Start with one alien (per agreement: zaczynamy od jednego)
   spawnAlien();
