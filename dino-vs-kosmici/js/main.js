@@ -1,6 +1,6 @@
 import { perf, W, H, DPR } from './view.js';
 import { WORLD } from './config.js';
-import { cam, updateCamera } from './camera.js';
+import { cam, updateCamera, inView } from './camera.js';
 import { updateAnim } from './anim.js';
 import { showStart, showUpgradeChoice, anyScreenOpen } from './screens.js';
 import { sfx } from './audio.js';
@@ -276,12 +276,17 @@ export function update(dt) {
   state.patrolAcc = (state.patrolAcc || 0) + dt;
   if (state.patrolAcc > 6) {
     state.patrolAcc = 0;
-    const alive = state.aliens.reduce((n, a) => n + (a.patrol ? 1 : 0), 0);
-    const groups = Math.ceil(alive / 3);
-    if (groups < (state.patrolTarget || 0)) {
-      for (let tries = 0; tries < 30; tries++) {
+    // Count distinct groups, not heads: groups are 2-4 strong, so dividing the
+    // headcount by three both over- and under-counts.
+    const live = new Set();
+    for (const a of state.aliens) if (a.patrol) live.add(a.patrolId);
+    if (live.size < (state.patrolTarget || 0)) {
+      for (let tries = 0; tries < 40; tries++) {
         const x = rand(160, WORLD.w - 160), y = rand(160, WORLD.h - 160);
-        if (Math.hypot(x - p.x, y - p.y) < 900) continue;
+        // Distance from the player is not enough: near a world edge the camera
+        // is clamped and can reach much further one way than the other. Test
+        // the view rectangle itself, padded for the group's own spread.
+        if (inView(x, y, 140)) continue;
         spawnPatrol(x, y, state.wave);
         break;
       }

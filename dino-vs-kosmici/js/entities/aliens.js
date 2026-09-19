@@ -23,7 +23,9 @@ export function pickWanderTarget(a) {
 // A group posted between the bases so the walk across the map has something
 // in it. Patrols sit outside the per-base spawn budget, so they never starve
 // the fight at the base.
+let patrolSeq = 0;
 export function spawnPatrol(x, y, wave) {
+  const id = ++patrolSeq;
   const pool = ['walker', 'small', 'walker', 'big'];
   if ((wave || 1) >= 2) pool.push('shooter');
   if ((wave || 1) >= 3) pool.push('charger');
@@ -33,7 +35,9 @@ export function spawnPatrol(x, y, wave) {
     const kind = pool[Math.floor(Math.random() * pool.length)];
     const a = makeAlien(kind, x + rand(-70, 70), y + rand(-50, 50));
     a.patrol = true;
-    a.home = { x, y };
+    a.patrolId = id;          // group identity: headcount alone cannot tell
+    a.home = { x, y };        // one 4-alien group from two 2-alien ones
+
     a.personality = 'wanderer';     // they guard the spot, not hunt the map
     a.wanderTarget = pickWanderTarget(a);
     state.aliens.push(a);
