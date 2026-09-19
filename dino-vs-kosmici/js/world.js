@@ -9,6 +9,16 @@ import { resetUpgradeTuning } from './upgrades.js';
 import { makeTerrain } from './render/ground.js';
 
 
+// Distance from a point to a path segment; used when keeping scenery off the
+// routes. ground.js has its own copy for per-tile work.
+function distToSeg(x, y, s) {
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((x - s.x1) * dx + (y - s.y1) * dy) / len2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(x - (s.x1 + dx * t), y - (s.y1 + dy * t));
+}
+
 export function buildLevel() {
   // Dash, fire and regen upgrades live on module constants, so every path that
   // starts a run (Play button, R after a defeat, restart()) must clear them.
@@ -61,6 +71,26 @@ export function buildLevel() {
     Math.hypot(apX - hpX,   apY - hpY)   < 200
   ));
 
+  // Trodden routes between home, both pads and the enemy camp. Defined BEFORE
+  // any scenery so rocks and trunks can be kept off them — a boulder sitting
+  // in the middle of a path looks like a mistake and blocks the route the
+  // ground is advertising.
+  const paths = [
+    {x1: pX, y1: pY, x2: hpX, y2: hpY, w: 34},
+    {x1: hpX, y1: hpY, x2: apX, y2: apY, w: 30},
+    {x1: apX, y1: apY, x2: baseX, y2: baseY, w: 38}
+  ];
+  const terrainSeed = Math.floor(Math.random() * 100000);
+  // The widest wobble kindAt() can add to a corridor edge, so scenery clears
+  // the path at its widest, not its nominal width.
+  const PATH_WOBBLE = 17;
+  function onPath(x, y, r) {
+    for (const seg of paths) {
+      if (distToSeg(x, y, seg) < seg.w + PATH_WOBBLE + r) return true;
+    }
+    return false;
+  }
+
   // Now create the entities at the picked spots
   state.bases.push(makeBase(baseX, baseY));
   state.upgradePad = {x: hpX, y: hpY, r: 26};
@@ -84,6 +114,17 @@ export function buildLevel() {
     y: clamp(pY + rand(-50, 70),   60, WORLD.h - 60)
   };
 
+  // Bare earth: where the aliens landed, around the pads, plus a few patches.
+  const blobs = [
+    {x: baseX, y: baseY, r: rand(150, 200)},
+    {x: hpX,   y: hpY,   r: rand(70, 100)},
+    {x: apX,   y: apY,   r: rand(70, 100)}
+  ];
+  if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
+  for (let k = 0; k < 5; k++) {
+    blobs.push({x: rand(200, WORLD.w - 200), y: rand(200, WORLD.h - 200), r: rand(60, 130)});
+  }
+
   // Rocks — random positions, avoiding all the above
   // Counts scale with the map area (the old 1280x1272 screen had 6-8 rocks, 10 trees).
   const area = WORLD.w * WORLD.h;
@@ -100,6 +141,7 @@ export function buildLevel() {
     const mainBase = state.bases[0];
     if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
     if (Math.hypot(x - state.player.x, y - state.player.y) < r + 70) continue;
+    if (onPath(x, y, r)) continue;
     let tooClose = false;
     for (const rk of state.rocks) {
       if (Math.hypot(x - rk.x, y - rk.y) < r + rk.r + 22) { tooClose = true; break; }
@@ -116,6 +158,7 @@ export function buildLevel() {
     const tx = rand(40, WORLD.w - 40);
     const ty = rand(60, WORLD.h - 60);
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
+    if (onPath(tx, ty, 22 * 1.2)) continue;   // trunk radius at the largest scale
     if (Math.hypot(tx - state.upgradePad.x, ty - state.upgradePad.y) < 60) continue;
     if (Math.hypot(tx - state.allyPad.x,    ty - state.allyPad.y)    < 60) continue;
     const mb = state.bases[0];
@@ -138,23 +181,7 @@ export function buildLevel() {
     state.obstacles.push({x: t.x, y: foot - 6, r: 9 * t.s});
   }
 
-  // Terrain: trodden paths from home to the enemy camp and to both pads, with
-  // bare earth where the aliens landed and around the pads.
-  const blobs = [
-    {x: baseX, y: baseY, r: rand(150, 200)},
-    {x: hpX,   y: hpY,   r: rand(70, 100)},
-    {x: apX,   y: apY,   r: rand(70, 100)}
-  ];
-  if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
-  for (let k = 0; k < 5; k++) {
-    blobs.push({x: rand(200, WORLD.w - 200), y: rand(200, WORLD.h - 200), r: rand(60, 130)});
-  }
-  const paths = [
-    {x1: pX, y1: pY, x2: hpX, y2: hpY, w: 34},
-    {x1: hpX, y1: hpY, x2: apX, y2: apY, w: 30},
-    {x1: apX, y1: apY, x2: baseX, y2: baseY, w: 38}
-  ];
-  state.terrain = makeTerrain(Math.floor(Math.random() * 100000), blobs, paths);
+  state.terrain = makeTerrain(terrainSeed, blobs, paths);
 
   // Start with one alien (per agreement: zaczynamy od jednego)
   spawnAlien();
