@@ -53,8 +53,13 @@ export function drawDinoSprite(p, scaleOpt) {
 
   // Lunge along the facing direction while attacking.
   const lunge = attackLunge(p.attackAnim > 0 ? p.attackAnim / 0.25 : 0) * (p.facing === -1 ? -1 : 1) * s;
+  // The entity's y IS its ground contact point, so the origin here is where
+  // the feet belong; the sprite is hung from its own measured foot line.
+  // A fixed offset made the dinosaur hover above its shadow, because every
+  // sheet puts the feet at a different row.
+  const footOff = ready ? (ANIM.footY / ANIM.frameH) * h : h / 2;
   ctx.save();
-  ctx.translate(p.x + lunge, p.y - 34 * s - jumpY + pose.bob * s);
+  ctx.translate(p.x + lunge, p.y - jumpY + pose.bob * s);
   // Facing is tweened, so the sprite squeezes through zero instead of popping.
   const fx = p.anim ? p.anim.facing : (p.facing === -1 ? -1 : 1);
   ctx.rotate(pose.rot * fx);
@@ -79,12 +84,12 @@ export function drawDinoSprite(p, scaleOpt) {
       band = ANIM.walk;
       frame = 0;
     }
-    ctx.drawImage(img, (band.start + frame) * ANIM.frameW, 0, ANIM.frameW, ANIM.frameH, -w/2, -h/2, w, h);
+    ctx.drawImage(img, (band.start + frame) * ANIM.frameW, 0, ANIM.frameW, ANIM.frameH, -w/2, -footOff, w, h);
   } else {
-    ctx.drawImage(img, -w/2, -h/2, w, h);
+    ctx.drawImage(img, -w/2, -footOff, w, h);
     if (p.attackAnim > 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.beginPath(); ctx.arc(w*0.32, -h*0.12, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(w*0.32, -h*0.62, 7*p.attackAnim*4, 0, Math.PI*2); ctx.fill();
     }
   }
   ctx.filter = 'none';
@@ -97,7 +102,8 @@ export function drawDinoSprite(p, scaleOpt) {
 // entities are sorted by their "feet" y so things further down the screen
 // cover what is behind them (2.5D). Ground decals (pads, coins, shadows)
 // go first, projectiles and FX last, HUD-like overlays in screen space.
-function feetY(e) { return e.y + (e.r || 0); }
+// Ground line for depth sorting: the same point the feet and shadow use.
+function feetY(e) { return e.y; }
 
 const drawList = [];
 function push(y, fn, arg) { drawList.push({ y, fn, arg }); }
@@ -155,7 +161,7 @@ export function drawShadow(e, k) {
   ctx.save();
   ctx.fillStyle = `rgba(0,0,0,${0.22 - jump * 0.1})`;
   ctx.beginPath();
-  ctx.ellipse(e.x, e.y + e.r * 0.75, e.r * k * (1 - jump * 0.3), e.r * 0.32 * k * (1 - jump * 0.3), 0, 0, Math.PI * 2);
+  ctx.ellipse(e.x, e.y, e.r * k * (1 - jump * 0.3), e.r * 0.32 * k * (1 - jump * 0.3), 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -690,9 +696,12 @@ export function drawAlien(a) {
   const pose = flying ? null : animPose(a, Math.hypot(a.vx, a.vy) > 25);
   const bob = flying ? Math.sin(state.t*4 + a.wob) * 2.2 : pose.bob * 1.4;
 
-  // shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.ellipse(0, a.r*0.7, a.r*0.85, a.r*0.25, 0, 0, Math.PI*2); ctx.fill();
+  // Shadow on the ground point (a.y), matching where the sprite now stands.
+  // Flyers hover, so theirs is smaller and fainter.
+  ctx.fillStyle = flying ? 'rgba(0,0,0,0.16)' : 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, a.r * (flying ? 0.6 : 0.85), a.r * (flying ? 0.18 : 0.25), 0, 0, Math.PI*2);
+  ctx.fill();
 
   // Pick the source sprite per alien type:
   //   small  -> animated cute round-robot (FLYER_ANIM)
@@ -723,8 +732,14 @@ export function drawAlien(a) {
     } else {
       w = a.r * 2.45 * scale; h = a.r * 3.75 * scale;
     }
+    // Hang the sprite from its own foot line at the ground point; flyers get
+    // lifted clear of it so they read as airborne.
+    const AN = a.type === 'small' ? FLYER_ANIM : walkerReady ? WALKER_ANIM
+             : bigalienReady ? BIGALIEN_ANIM : null;
+    const footOff = AN ? (AN.footF || 0.97) * h : h * 0.95;
+    const hover = flying ? a.r * 1.15 : 0;
     ctx.save();
-    ctx.translate(a.x, a.y - a.r*0.52 + bob*0.35);
+    ctx.translate(a.x, a.y + bob*0.35 - hover);
     const fx = a.anim ? a.anim.facing : (a.vx < -5 ? -1 : 1);
     if (pose) { ctx.rotate(pose.rot * fx); ctx.scale(fx * pose.sx, pose.sy); }
     else ctx.scale(fx, 1);
@@ -735,19 +750,19 @@ export function drawAlien(a) {
       const frame = Math.floor(state.t * FLYER_ANIM.fps + (a.wob || 0)) % FLYER_ANIM.frames;
       ctx.drawImage(alienImg,
         frame * FLYER_ANIM.frameW, 0, FLYER_ANIM.frameW, FLYER_ANIM.frameH,
-        -w/2, -h/2, w, h);
+        -w/2, -footOff, w, h);
     } else if (walkerReady) {
       const frame = Math.floor(state.t * WALKER_ANIM.fps + (a.wob || 0)) % WALKER_ANIM.frames;
       ctx.drawImage(alienImg,
         frame * WALKER_ANIM.frameW, 0, WALKER_ANIM.frameW, WALKER_ANIM.frameH,
-        -w/2, -h/2, w, h);
+        -w/2, -footOff, w, h);
     } else if (bigalienReady) {
       const frame = Math.floor(state.t * BIGALIEN_ANIM.fps + (a.wob || 0)) % BIGALIEN_ANIM.frames;
       ctx.drawImage(alienImg,
         frame * BIGALIEN_ANIM.frameW, 0, BIGALIEN_ANIM.frameW, BIGALIEN_ANIM.frameH,
-        -w/2, -h/2, w, h);
+        -w/2, -footOff, w, h);
     } else {
-      ctx.drawImage(alienImg, -w/2, -h/2, w, h);
+      ctx.drawImage(alienImg, -w/2, -footOff, w, h);
     }
     ctx.filter = 'none';
     ctx.restore();
@@ -765,21 +780,25 @@ export function drawAlien(a) {
     }
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);
+    const barY = a.y - footOff - hover + bob*0.35 - 8;
+    ctx.fillRect(a.x - a.r, barY, a.r*2, 4);
     ctx.fillStyle = '#ff7a7a';
-    ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
+    ctx.fillRect(a.x - a.r, barY, a.r*2 * (a.hp/a.maxHp), 4);
     ctx.restore();
     return;
   }
 
   const robotScale = a.type === 'big' ? 1.35 : (a.type === 'small' ? 0.82 : 1.0);
   ctx.restore();
-  if (drawSprite('robot', a.x, a.y - a.r*0.18 + bob*0.35, a.r*2.35*robotScale, a.r*2.55*robotScale, {flip: (a.anim ? a.anim.facing : 1) < 0})) {
+  // Atlas fallback: the robot is centred, so its own geometry gives the bar.
+  const robotH = a.r * 2.55 * robotScale;
+  if (drawSprite('robot', a.x, a.y - robotH/2 + bob*0.35, a.r*2.35*robotScale, robotH, {flip: (a.anim ? a.anim.facing : 1) < 0})) {
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2, 4);
+    const barY = a.y - robotH + bob*0.35 - 8;
+    ctx.fillRect(a.x - a.r, barY, a.r*2, 4);
     ctx.fillStyle = '#ff7a7a';
-    ctx.fillRect(a.x - a.r, a.y - a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
+    ctx.fillRect(a.x - a.r, barY, a.r*2 * (a.hp/a.maxHp), 4);
     ctx.restore();
     return;
   }

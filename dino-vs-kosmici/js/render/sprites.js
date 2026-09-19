@@ -24,14 +24,17 @@ charSprites.bigalien.src = 'assets/char-bigalien.png';
 charSprites.walker.src = 'assets/char-walker.png';
 charSprites.baseDestruct.src = 'assets/base-destruction.png';
 // Sprite-sheet animation metadata (horizontal strips).
-export const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7 };
+// footY: measured row of the lowest content, as a fraction of the frame.
+export const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7, footF: 0.957 };
 // Base destruction: 8 frames. 0-1 intact, 2 fire starts, 3 explosion,
 // 4-5 collapsing, 6-7 burning ruins. Living bases show 0/1/2 by HP; on
 // death we play 3→7 and hold on the ruins.
 export const BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 150, deathFps: 6 };
 // All three dinosaurs share one band layout — walk(4) + attack(3) + breath(3)
 // — but each keeps its own frame size, because a long stegosaurus tail and a
-// diplodocus breathing fire need more room than a tyrannosaurus. `bodyH` is the measured height of the
+// diplodocus breathing fire need more room than a tyrannosaurus.
+// `footY` is the row inside the frame where the feet stand, so the renderer
+// can put them on the ground instead of guessing a fixed offset. `bodyH` is the measured height of the
 // animal inside the frame and `drawH` the height it should occupy on screen;
 // sizing from those keeps a low, long stegosaurus and a tall tyrannosaurus in
 // proportion instead of squeezing both into the same box.
@@ -40,13 +43,13 @@ const DINO_BANDS = {
   attack: { start: 4, count: 3 },
   breath: { start: 7, count: 3 }
 };
-export const TYRANNO_ANIM = { frameW: 233, frameH: 188, bodyH: 173, drawH: 88, ...DINO_BANDS };
-export const STEGO_ANIM   = { frameW: 312, frameH: 208, bodyH: 119, drawH: 66, ...DINO_BANDS };
-export const DIPLO_ANIM   = { frameW: 276, frameH: 200, bodyH: 150, drawH: 92, ...DINO_BANDS };
+export const TYRANNO_ANIM = { frameW: 233, frameH: 188, bodyH: 173, drawH: 88, footY: 180, ...DINO_BANDS };
+export const STEGO_ANIM   = { frameW: 312, frameH: 208, bodyH: 119, drawH: 66, footY: 196, ...DINO_BANDS };
+export const DIPLO_ANIM   = { frameW: 276, frameH: 200, bodyH: 150, drawH: 92, footY: 188, ...DINO_BANDS };
 // Big alien: 5 walk/idle poses (front-facing warrior with mace + wrench).
-export const BIGALIEN_ANIM = { frames: 5, frameW: 327, frameH: 473, fps: 5 };
+export const BIGALIEN_ANIM = { frames: 5, frameW: 327, frameH: 473, fps: 5, footF: 0.977 };
 // Walker = small flying rocket. 6 frames (varying engine fire / propeller).
-export const WALKER_ANIM = { frames: 6, frameW: 469, frameH: 239, fps: 8 };
+export const WALKER_ANIM = { frames: 6, frameW: 469, frameH: 239, fps: 8, footF: 0.967 };
 export const SPR = {
   hud:     {x:45,   y:40,  w:440, h:285},
   heal:    {x:540,  y:48,  w:250, h:105},
