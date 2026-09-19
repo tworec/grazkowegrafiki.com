@@ -10,7 +10,7 @@ import { DIFFICULTY } from './config.js';
 import { keys, joy } from './input.js';
 import { rand, clamp, damp } from './util.js';
 import { state, difficultyKey, currentSpecies, flashRing, notify } from './state.js';
-import { buildLevel, pushOutOfRocks, projectileHitsRock, damageScenery, FRUIT } from './world.js';
+import { buildLevel, pushOutOfRocks, projectileHitsRock, damageScenery, PICKUP } from './world.js';
 import { cd, damagePlayer, updateFire } from './entities/player.js';
 import { spawnAlien, spawnPatrol, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
@@ -104,55 +104,26 @@ export function update(dt) {
   // Slow passive energy regen — but most of your energy comes from the heal pad
   p.energy = clamp(p.energy + (state.energyRegen || 2)*dt, 0, p.maxEnergy);
 
-  // Healing pad (red plus) — buys HP and nothing else. Energy comes from the
-  // fruit growing round the map, so you are not dragged back here mid-fight
-  // just to breathe fire again.
-  const pad = state.upgradePad;
-  if (pad) {
-    const onPad = Math.hypot(p.x - pad.x, p.y - pad.y) < pad.r + p.r;
-    pad.tickAcc = (pad.tickAcc || 0) + (onPad ? dt : 0);
-    pad.glow = onPad ? 1 : Math.max(0, (pad.glow||0) - dt*2);
-    if (onPad && pad.tickAcc >= 0.1) {
-      pad.tickAcc = 0;
-      let didSomething = false;
-      if (p.hp < p.maxHp && p.money >= 1) {
-        p.hp = Math.min(p.maxHp, p.hp + 5);
-        p.money -= 1;
-        didSomething = true;
-      }
-      if (didSomething) {
-        // tiny heal sound, but only every ~0.5s so it isn't spammy
-        if (!pad.lastSnd || state.t - pad.lastSnd > 0.45) {
-          sfx.heal();
-          pad.lastSnd = state.t;
-        }
-        state.fx.push({kind:'puff', x: p.x + rand(-12,12), y: p.y - 14,
-                       vx: rand(-20,20), vy: -50, life: 0.5, t: 0, color: '#9aff9a'});
-      }
-    }
-  }
-
   updateWild(dt);
 
-  // Fruit — walk into a cluster to top up energy; it regrows in its own time.
-  for (const f of state.fruit) {
-    f.bob += dt * 1.7;      // slow enough to read as floating, not vibrating
-    if (f.ready) {
-      if (p.energy < p.maxEnergy && Math.hypot(p.x - f.x, p.y - f.y) < FRUIT.radius + p.r) {
-        p.energy = Math.min(p.maxEnergy, p.energy + FRUIT.energy);
-        f.ready = false;
-        f.regrow = FRUIT.regrow;
-        sfx.heal();
-        flashRing(f.x, f.y, 34, '#ffd166');
-        for (let i = 0; i < 7; i++) {
-          const ang = rand(0, Math.PI*2);
-          state.fx.push({kind:'puff', x: f.x, y: f.y, vx: Math.cos(ang)*70, vy: Math.sin(ang)*70 - 30,
-                         life: 0.45, t: 0, color: '#ffd166'});
-        }
-      }
-    } else {
-      f.regrow -= dt;
-      if (f.regrow <= 0) f.ready = true;
+  // Pickups — walk into one to top up. Fruit gives energy, pills give health;
+  // both regrow in their own time so a spot is worth coming back to.
+  for (const q of state.pickups) {
+    q.bob += dt * 1.7;      // slow enough to read as floating, not vibrating
+    if (!q.ready) { q.regrow -= dt; if (q.regrow <= 0) q.ready = true; continue; }
+    const cfg = PICKUP[q.kind];
+    const needed = q.kind === 'pill' ? p.hp < p.maxHp : p.energy < p.maxEnergy;
+    if (!needed || Math.hypot(p.x - q.x, p.y - q.y) > cfg.radius + p.r) continue;
+    if (q.kind === 'pill') p.hp = Math.min(p.maxHp, p.hp + cfg.amount);
+    else p.energy = Math.min(p.maxEnergy, p.energy + cfg.amount);
+    q.ready = false;
+    q.regrow = cfg.regrow;
+    sfx.heal();
+    flashRing(q.x, q.y, 34, cfg.glow);
+    for (let i = 0; i < 7; i++) {
+      const ang = rand(0, Math.PI*2);
+      state.fx.push({kind:'puff', x: q.x, y: q.y, vx: Math.cos(ang)*70, vy: Math.sin(ang)*70 - 30,
+                     life: 0.45, t: 0, color: cfg.glow});
     }
   }
 

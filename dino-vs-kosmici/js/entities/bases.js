@@ -178,6 +178,5 @@ export function canPlaceReinforcementBase(x, y) {
       if (Math.abs(x - b.x) < (b.w||120)/2 + 80 && Math.abs(y - b.y) < (b.h||60)/2 + 50) { ok = false; break; }
     }
     if (ok && state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < state.helipad.r + 60) ok = false;
-    if (ok && state.upgradePad && Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < 80) ok = false;
     return ok;
 }

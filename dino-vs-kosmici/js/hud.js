@@ -110,7 +110,7 @@ export function drawMinimap() {
   mmCtx.fillStyle = 'rgba(0,0,0,0.18)';
   for (const t of state.trees) mmCtx.fillRect(t.x * sx - 1, t.y * sy - 1, 2, 2);
   for (const r of state.rocks) mmCtx.fillRect(r.x * sx - 1, r.y * sy - 1, 2, 2);
-  if (state.upgradePad) dot(state.upgradePad.x, state.upgradePad.y, '#ff6b6b', 2.5);
+  for (const q of state.pickups) if (q.ready) dot(q.x, q.y, q.kind === 'pill' ? '#ff6b6b' : '#ffd166', 1.8);
   for (const w of state.wild) dot(w.x, w.y, '#9aff9a', 2.5);   // dinosaurs waiting to be taken in
   for (const b of state.bases) {
     mmCtx.fillStyle = b.dead ? 'rgba(60,40,40,0.8)' : '#e63946';

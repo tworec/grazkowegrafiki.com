@@ -134,9 +134,7 @@ export function draw() {
   // Flat decals — never occlude anything
   for (const sc of state.scars) if (inView(sc.x, sc.y, 60)) drawScar(sc);
   drawHelipad(state.helipad);
-  drawUpgradePad(state.upgradePad);
   for (const c of state.coins) if (inView(c.x, c.y, 20)) drawCoin(c);
-  for (const f of state.fruit) if (f.ready && inView(f.x, f.y, 40)) drawFruit(f);
 
   // Blob shadows under characters
   drawShadow(state.player, 0.85);
@@ -155,6 +153,10 @@ export function draw() {
   for (const a of state.aliens) if (inView(a.x, a.y, 80)) push(feetY(a), drawAlien, a);
   drawList.sort((p, q) => p.y - q.y);
   for (const d of drawList) d.fn(d.arg);
+
+  // Pickups hang in the air, so they go over the scenery rather than into the
+  // depth sort — one hidden behind the trunk it floats beside is just lost.
+  for (const q of state.pickups) if (q.ready && inView(q.x, q.y, 40)) drawPickup(q);
 
   // Projectiles and world-space FX on top
   for (const pr of state.projectiles) drawProjectile(pr);
@@ -276,30 +278,49 @@ export function drawScar(sc) {
   ctx.restore();
 }
 
-// Floating fruit: the on-the-move energy pickup. Drawn in code until the
-// painted version arrives; the shape and bob stay the same either way.
-export function drawFruit(f) {
-  // Antoś asked for a clear gentle rise and fall. The shadow stays on the
-  // ground and shrinks as the cluster climbs, which is what sells the float.
-  const lift = Math.sin(f.bob) * 9;
+// Floating pickups. Fruit is the yellow one and gives energy; the pill is red
+// and heals. Both hover with the same gentle rise and fall, and the shadow
+// staying on the ground is what makes the float read.
+export function drawPickup(q) {
+  const pill = q.kind === 'pill';
+  const lift = Math.sin(q.bob) * 9;
   const high = (lift + 9) / 18;                 // 0 at the bottom, 1 at the top
   ctx.save();
-  ctx.translate(f.x, f.y + lift);
+  ctx.translate(q.x, q.y + lift);
   ctx.fillStyle = `rgba(0,0,0,${0.20 - high * 0.09})`;
   ctx.beginPath();
   ctx.ellipse(0, 30 - lift, 13 - high * 3.5, 4.5 - high * 1.3, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,214,102,0.22)';
+
+  // The halo: yellow round the fruit, red round the pill.
+  ctx.fillStyle = pill ? 'rgba(255,107,107,0.24)' : 'rgba(255,214,102,0.22)';
   ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
-  const berries = [[-7, 2, 8, '#e2542f'], [6, 4, 7.5, '#f08a2a'], [0, -6, 8.5, '#f2b632']];
-  for (const [bx, by, br, col] of berries) {
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath(); ctx.arc(bx - br * 0.3, by - br * 0.35, br * 0.28, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = pill ? 'rgba(255,120,120,0.55)' : 'rgba(255,214,102,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 17 + high * 1.5, 0, Math.PI * 2); ctx.stroke();
+
+  if (pill) {
+    // A capsule lying at a slight angle, white half and red half.
+    ctx.rotate(-0.35);
+    ctx.fillStyle = '#f3efe4';
+    roundRect(-13, -6, 13, 12, 6); ctx.fill();
+    ctx.fillStyle = '#d63c3c';
+    roundRect(0, -6, 13, 12, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(70,40,30,0.55)'; ctx.lineWidth = 1.2;
+    roundRect(-13, -6, 26, 12, 6); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    roundRect(-10, -4, 8, 3, 1.5); ctx.fill();
+  } else {
+    const berries = [[-7, 2, 8, '#e2542f'], [6, 4, 7.5, '#f08a2a'], [0, -6, 8.5, '#f2b632']];
+    for (const [bx, by, br, col] of berries) {
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.beginPath(); ctx.arc(bx - br * 0.3, by - br * 0.35, br * 0.28, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#3f8c3a';
+    ctx.beginPath(); ctx.ellipse(3, -13, 7, 3.4, -0.5, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = '#3f8c3a';
-  ctx.beginPath(); ctx.ellipse(3, -13, 7, 3.4, -0.5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -495,57 +516,7 @@ export function drawHelipad(h) {
   ctx.restore();
 }
 
-export function drawUpgradePad(u) {
-  if (!u) return;
-  const glow = u.glow || 0;
-  if (glow > 0) {
-    ctx.save();
-    ctx.fillStyle = `rgba(155,255,155,${0.25*glow})`;
-    ctx.beginPath(); ctx.arc(u.x,u.y, u.r*1.9, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-  if (drawSprite('heal', u.x, u.y, 82, 42)) {
-    drawUpgradePadLabel(u);
-    return;
-  }
-  ctx.save();
-  ctx.translate(u.x, u.y);
-  // soft outer glow when player stands on it
-  if (glow > 0) {
-    ctx.fillStyle = `rgba(155,255,155,${0.25*glow})`;
-    ctx.beginPath(); ctx.arc(0,0, u.r*1.9, 0, Math.PI*2); ctx.fill();
-  }
-  // pulsing red disk
-  const pulse = 1 + Math.sin(state.t*3)*0.06;
-  ctx.fillStyle = '#b1342f';
-  ctx.beginPath(); ctx.arc(0,0,u.r*pulse,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#f7d4d2';
-  ctx.beginPath(); ctx.arc(0,0,u.r*0.85*pulse,0,Math.PI*2); ctx.fill();
-  // plus
-  ctx.fillStyle = '#b1342f';
-  ctx.fillRect(-u.r*0.55, -u.r*0.18, u.r*1.1, u.r*0.36);
-  ctx.fillRect(-u.r*0.18, -u.r*0.55, u.r*0.36, u.r*1.1);
-  // label
-  drawUpgradePadLabel(u, true);
-  ctx.restore();
-}
 
-export function drawUpgradePadLabel(u, translated) {
-  // The pad only heals now, so it lights up when you actually need healing.
-  const useful = state.player && state.player.hp < state.player.maxHp && state.player.money >= 1;
-  const x = translated ? 0 : u.x;
-  const y = translated ? u.r + 6 : u.y + u.r + 6;
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  roundRect(x - 46, y, 92, 32, 6); ctx.fill();
-  ctx.fillStyle = useful ? '#ffd166' : '#fff';
-  ctx.font = 'bold 11px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('LECZENIE', x, y + 8);
-  ctx.font = '10px system-ui';
-  ctx.fillText('1 $ = 5 HP', x, y + 22);
-  ctx.restore();
-}
 
 export function drawFlag(f) {
   if (!f) return;

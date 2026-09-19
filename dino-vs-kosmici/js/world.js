@@ -36,6 +36,7 @@ export function buildLevel() {
   state.wild = [];
   state.wildAt = null;
   state.scars = [];
+  state.pickups = [];
 
   // ----- Randomized layout — picked fresh every game -----
   // Alien HQ: anywhere on the map (with margin from edges)
@@ -52,24 +53,17 @@ export function buildLevel() {
   } while (tries < 60 && Math.hypot(pX - baseX, pY - baseY) < WORLD.w * 0.45);
   state.player.x = pX; state.player.y = pY;
 
-  // Heal pad — middle band, away from HQ and player
-  let hpX, hpY; tries = 0;
-  do {
-    hpX = clamp(pX + rand(-520, 520), M, WORLD.w - M);
-    hpY = clamp(pY + rand(-360, 360), M, WORLD.h - M);
-    tries++;
-  } while (tries < 60 && (
-    Math.hypot(hpX - baseX, hpY - baseY) < 400 ||
-    Math.hypot(hpX - pX,    hpY - pY)    < 160
-  ));
-
   // Trodden routes between home, both pads and the enemy camp. Defined BEFORE
   // any scenery so rocks and trunks can be kept off them — a boulder sitting
   // in the middle of a path looks like a mistake and blocks the route the
   // ground is advertising.
+  // One trodden route from home to the enemy camp, with a bend so it is not a
+  // ruler-straight line across the map.
+  const midX = clamp((pX + baseX) / 2 + rand(-260, 260), 160, WORLD.w - 160);
+  const midY = clamp((pY + baseY) / 2 + rand(-200, 200), 160, WORLD.h - 160);
   const paths = [
-    {x1: pX, y1: pY, x2: hpX, y2: hpY, w: 34},
-    {x1: hpX, y1: hpY, x2: baseX, y2: baseY, w: 38}
+    {x1: pX, y1: pY, x2: midX, y2: midY, w: 34},
+    {x1: midX, y1: midY, x2: baseX, y2: baseY, w: 38}
   ];
   const terrainSeed = Math.floor(Math.random() * 100000);
   // The widest wobble kindAt() can add to a corridor edge, so scenery clears
@@ -84,7 +78,6 @@ export function buildLevel() {
 
   // Now create the entities at the picked spots
   state.bases.push(makeBase(baseX, baseY));
-  state.upgradePad = {x: hpX, y: hpY, r: 26};
 
   // Helipad — sits to one side of the HQ (decorative, gives the alien camp character)
   const hpdSide = Math.random() < 0.5 ? -1 : 1;
@@ -107,7 +100,7 @@ export function buildLevel() {
   // Bare earth: where the aliens landed, around the pads, plus a few patches.
   const blobs = [
     {x: baseX, y: baseY, r: rand(150, 200)},
-    {x: hpX,   y: hpY,   r: rand(70, 100)}
+    {x: midX,  y: midY,  r: rand(70, 110)}
   ];
   if (state.helipad) blobs.push({x: state.helipad.x, y: state.helipad.y, r: 80});
   for (let k = 0; k < 5; k++) {
@@ -124,7 +117,6 @@ export function buildLevel() {
     const r = rand(22, 36);
     const x = rand(70, WORLD.w - 70);
     const y = rand(70, WORLD.h - 70);
-    if (Math.hypot(x - state.upgradePad.x, y - state.upgradePad.y) < r + state.upgradePad.r + 28) continue;
     if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
     const mainBase = state.bases[0];
     if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
@@ -147,7 +139,6 @@ export function buildLevel() {
     const ty = rand(60, WORLD.h - 60);
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
     if (onPath(tx, ty, 22 * 1.2)) continue;   // trunk radius at the largest scale
-    if (Math.hypot(tx - state.upgradePad.x, ty - state.upgradePad.y) < 60) continue;
     const mb = state.bases[0];
     if (Math.abs(tx - mb.x) < mb.w/2 + 30 && Math.abs(ty - mb.y) < mb.h/2 + 30) continue;
     let onRock = false;
@@ -175,7 +166,6 @@ export function buildLevel() {
   const patrolOk = (x, y) =>
     Math.hypot(x - pX, y - pY) > 380 &&          // not on the player's doorstep
     Math.hypot(x - baseX, y - baseY) > 340 &&    // the base has its own guards
-    Math.hypot(x - hpX, y - hpY) > 200 &&
     !state.aliens.some(a => a.home && Math.hypot(x - a.home.x, y - a.home.y) < 300);
   let posted = 0;
   // First pass: on the routes, where the player actually walks.
@@ -196,15 +186,21 @@ export function buildLevel() {
     posted++;
   }
 
-  // Fruit: a cluster floating by roughly every third tree, so there is usually
-  // one within a short walk wherever you are fighting.
-  state.fruit = [];
-  const fruitTrees = state.trees.filter(t => t.v !== 'bush');
-  for (const t of fruitTrees) {
-    if (Math.random() > 0.55) continue;
-    state.fruit.push({
-      x: t.x + rand(-34, 34),
-      y: treeFootY(t) - rand(24, 44),
+  // Pickups: a cluster or a pill hovering by many of the trees, so whatever you
+  // are short of is usually a short walk away rather than across the map.
+  state.pickups = [];
+  for (const t of state.trees) {
+    if (t.v === 'bush') continue;
+    const r = Math.random();
+    const kind = r < PICKUP.pill.chance ? 'pill'
+               : r < PICKUP.pill.chance + PICKUP.fruit.chance ? 'fruit'
+               : null;
+    if (!kind) continue;
+    state.pickups.push({
+      kind,
+      // Off to one side of the trunk, never straight in front of it.
+      x: t.x + (Math.random() < 0.5 ? -1 : 1) * rand(28, 48),
+      y: treeFootY(t) - rand(20, 40),
       bob: rand(0, Math.PI * 2),
       ready: true, regrow: 0
     });
@@ -224,9 +220,12 @@ export function buildLevel() {
 // at once, a rock takes real work — Antoś's ordering.
 export const SCENERY = { bush: 18, tree: 70, rock: 190 };
 
-// Fruit hangs in the air near trees and gives energy back on the move, so the
-// healing pad can go back to being only about health.
-export const FRUIT = { energy: 40, radius: 34, regrow: 26 };
+// Both pickups hover near trees so neither health nor energy drags you back to
+// one fixed spot on the map. Fruit is the common one; pills are rarer and heal.
+export const PICKUP = {
+  fruit: { chance: 0.55, amount: 40, regrow: 26, radius: 34, glow: '#ffd166' },
+  pill:  { chance: 0.30, amount: 50, regrow: 36, radius: 34, glow: '#ff6b6b' }
+};
 
 // A felled tree or smashed rock leaves a mark on the ground that fades away,
 // so you can see where you have been.
