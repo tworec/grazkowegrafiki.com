@@ -53,9 +53,14 @@ export function dinoBox(p, scaleOpt) {
 export function alienBox(a) {
   const walkerReady = a.type === 'walker' && imgReady(charSprites.walker);
   const bigalienReady = a.type === 'big' && imgReady(charSprites.bigalien);
+  const shooterReady = a.type === 'shooter' && imgReady(charSprites.shooter);
+  const chargerReady = a.type === 'charger' && imgReady(charSprites.charger);
+  const dedicatedReady = shooterReady || chargerReady;
   const img = a.type === 'small' ? charSprites.flyer
             : walkerReady        ? charSprites.walker
             : bigalienReady      ? charSprites.bigalien
+            : shooterReady       ? charSprites.shooter
+            : chargerReady       ? charSprites.charger
                                  : charSprites.alien;
   const ready = imgReady(img);
   const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 :
@@ -66,14 +71,17 @@ export function alienBox(a) {
   } else if (walkerReady) {
     w = a.r * 4.2 * scale;
     h = w * WALKER_ANIM.frameH / WALKER_ANIM.frameW;
+  } else if (dedicatedReady) {
+    h = a.r * 3.75 * scale;
+    w = h * img.naturalWidth / img.naturalHeight;
   } else {
     w = a.r * 2.45 * scale; h = a.r * 3.75 * scale;
   }
   const ANIM = a.type === 'small' ? FLYER_ANIM : walkerReady ? WALKER_ANIM
              : bigalienReady ? BIGALIEN_ANIM : null;
-  const footOff = ANIM ? (ANIM.footF || 0.97) * h : h * 0.95;
+  const footOff = ANIM ? (ANIM.footF || 0.97) * h : dedicatedReady ? h : h * 0.95;
   const hover = a.type === 'small' ? a.r * 1.15 : 0;
-  return { ready, img, walkerReady, bigalienReady, scale, w, h, ANIM, footOff, hover };
+  return { ready, img, walkerReady, bigalienReady, dedicatedReady, scale, w, h, ANIM, footOff, hover };
 }
 
 // The destruction sheet is square but is anchored by its painted grass line,
@@ -615,8 +623,8 @@ export function drawShield(p) {
   ctx.restore();
 }
 
-// New enemy types reuse the robot sprite until their own art exists; a hue
-// shift plus a size difference keeps them apart at a glance.
+// Types without loaded dedicated art reuse the robot sprite; a hue shift plus
+// a size difference keeps the fallback variants apart at a glance.
 const ALIEN_TINT = {
   shooter: 'hue-rotate(255deg) saturate(1.5)',
   charger: 'hue-rotate(320deg) saturate(1.7) brightness(1.1)',
@@ -663,7 +671,7 @@ export function drawAlien(a) {
   if (a.slamWind > 0) warnRing(1 - a.slamWind / 0.7, 150, '#ff7a7a');
 
   const box = alienBox(a);
-  const { img: alienImg, walkerReady, bigalienReady, w, h, footOff, hover } = box;
+  const { img: alienImg, walkerReady, bigalienReady, dedicatedReady, w, h, footOff, hover } = box;
   if (box.ready) {
     ctx.restore();
     // Hang the sprite from its own foot line at the ground point; flyers get
@@ -673,7 +681,9 @@ export function drawAlien(a) {
     const fx = a.anim ? a.anim.facing : (a.vx < -5 ? -1 : 1);
     if (pose) { ctx.rotate(pose.rot * fx); ctx.scale(fx * pose.sx, pose.sy); }
     else ctx.scale(fx, 1);
-    const tint = ALIEN_TINT[a.type];
+    // The generated shooter and charger already carry their role colors;
+    // tint only the shared fallback robot used by the remaining variants.
+    const tint = dedicatedReady ? null : ALIEN_TINT[a.type];
     const flashF = a.flash > 0 ? 'brightness(1.7) saturate(0.4) ' : '';
     if (flashF || tint) ctx.filter = (flashF + (tint || '')).trim();
     if (a.type === 'small') {

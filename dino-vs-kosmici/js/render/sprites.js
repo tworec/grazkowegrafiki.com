@@ -10,6 +10,8 @@ export const charSprites = {
   stego: new Image(),
   tyranno: new Image(),
   diplo: new Image(),
+  shooter: new Image(),
+  charger: new Image(),
   bigalien: new Image(),
   walker: new Image(),
   baseDestruct: new Image()
@@ -20,6 +22,8 @@ charSprites.flyer.src = 'assets/char-flyer.png';
 charSprites.stego.src = 'assets/char-stego.png';
 charSprites.tyranno.src = 'assets/char-tyranno.png';
 charSprites.diplo.src = 'assets/char-diplo.png';
+charSprites.shooter.src = 'assets/char-shooter.png';
+charSprites.charger.src = 'assets/char-charger.png';
 charSprites.bigalien.src = 'assets/char-bigalien.png';
 charSprites.walker.src = 'assets/char-walker.png';
 charSprites.baseDestruct.src = 'assets/base-destruction.png';
