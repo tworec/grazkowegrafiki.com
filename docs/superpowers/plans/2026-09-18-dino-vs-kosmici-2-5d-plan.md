@@ -186,3 +186,124 @@ Etapy 3 i 6 nie zależą od 1 i 2, więc można je przeplatać, gdy czekamy na g
 - **Review Codexa po każdym etapie.** Etap 0: bez uwag. Etap 1: 1 uwaga. Etap 3: 3 uwagi (martwe gałęzie efektów, joystick po przerwanym dotyku, kosmici nie czytali animacji). Etap 4: 5 uwag (pierścienie ostrzegawcze w podwójnych współrzędnych, ogień przy powtarzaniu klawisza, kierunek zrywu, boss wchłaniany przez bazę, pancerz liczony od gracza). Etap 5: 7 uwag (ekran nieosiągalny na telefonie, joystick zjadał kliknięcia w menu, ataki na pauzie, gubione awanse, niespójne stado, wyciek ulepszeń przy restarcie R, Enter). Wszystkie naprawione.
 - **Uwaga o testach:** Chrome dławi karty w tle, a gra słusznie pauzuje przy `document.hidden`. Do weryfikacji krokuję `M.frame()`/`M.update(dt)` ręcznie i mierzę liczbowo. Po zmianie plików w `js/` trzeba twardego przeładowania (cmd+shift+R), bo moduły siedzą w cache.
 - Następne: etap 2 (teren) oraz podmiana arkuszy stego i diplo, gdy sub-agent skończy.
+
+---
+
+## Przekazanie dla astry — stan na 2026-09-20
+
+Repozytorium: `/Users/tworec/git/grazkowegrafiki.com`, gałąź `main`, ostatni commit
+`7325823`. Katalog gry: `/Users/tworec/git/grazkowegrafiki.com/dino-vs-kosmici`.
+Nic nie jest wypchnięte na GitHub — całość jest lokalnie.
+
+Uruchomienie do testów: `python3 -m http.server 8765` w katalogu repo, potem
+`http://127.0.0.1:8765/dino-vs-kosmici/dino-vs-kosmici.html`. Po zmianie plików
+w `js/` konieczne twarde przeładowanie (cmd+shift+R), bo moduły siedzą w cache.
+
+### 1. Cztery nieodrobione uwagi z audytu astry
+
+Audyt wskazał 30 uwag, naprawione są wszystkie poza czterema. Te cztery wymagają
+zmian w `js/render/draw.js`, którego świadomie nie ruszałem, bo pracował w nim
+wtedy agent graficzny.
+
+1. **[P2] Boss znika, gdy jego stopy opuszczą kadr** —
+   `dino-vs-kosmici/js/render/draw.js:153` i `:576`.
+   Odrzucanie przeciwników poza kadrem używa stałego promienia 80 wokół stóp,
+   a sprite bossa ma ok. 223 jednostek wysokości. Granice widoczności powinny
+   wynikać z geometrii sprite'a (jest do tego `dinoBox()` w tym samym pliku).
+   *Sprawdzenie:* boss podchodzący od dołu, stopy 100 jednostek pod kadrem —
+   górna część ciała musi być widoczna.
+
+2. **[P2] Pasek HP bazy jest rysowany przez budynek** —
+   `dino-vs-kosmici/js/render/draw.js:378` i `:388`.
+   Sprite bazy jest pozycjonowany według `drawH`, a pasek został przy
+   współrzędnych starego prostokąta `b.h`. Dla bazy 160×80 góra klatki wypada
+   ok. `y−121`, a pasek na `y−66`, czyli w środku budynku. Pozycję paska trzeba
+   wyprowadzić z rozmiaru rysowanej grafiki.
+
+3. **[P3, wydajność] Pociski i efekty poza kadrem są nadal rysowane** —
+   `dino-vs-kosmici/js/render/draw.js:162`.
+   W przeciwieństwie do postaci te pętle nie mają kontroli widoczności, a bazy
+   wysyłają pociski o czasie życia do 20 s. Odrzucać po granicach efektu,
+   zostawiając symulację aktywną (`inView()` z `js/camera.js`).
+
+4. **[P3] Animacja zionięcia ogniem stoi na jednej klatce** —
+   `dino-vs-kosmici/js/entities/player.js:159` oraz
+   `dino-vs-kosmici/js/render/draw.js:83`.
+   `updateFire()` w każdej klatce ustawia `p.attackAnim = 0.2`, a renderer
+   wylicza numer klatki właśnie z tego timera, więc przy stabilnym FPS postać
+   tkwi w jednej pozie. Potrzebny osobny, narastający czas trwania zionięcia
+   (np. `p.fireAnimT += dt`), z którego renderer liczy klatkę pasma `breath`.
+
+Pełna treść audytu (uwagi 11–30, po polsku, ze scenariuszami odtworzenia):
+`/private/tmp/claude-501/-Users-tworec-git-grazkowegrafiki-com-dino-vs-kosmici/184fad0c-f683-4eb4-89de-5e9a49121016/tasks/bhnkg4orn.output`
+— plik tymczasowy, może zniknąć; uwagi 1–10 zostały naprawione wcześniej.
+
+### 2. Nowa baza narysowana przez Antosia (nie zaczęte)
+
+Rysunek: `/Users/tworec/git/grazkowegrafiki.com/dino-vs-kosmici/assets-src/base/baza-antosia-rysunek.jpg`
+
+Żółto-oliwkowa kopuła na trawie, czerwone owalne „usta" z zębami, trzy
+niebieskie iluminatory z krzyżykiem, cztery spiralne anteny, maszt z czerwoną
+kapsułką na szczycie.
+
+Do zrobienia: **przez ChatGPT** (zasada użytkownika: żadnej grafiki nie
+generujemy kodem) zrobić z tego rysunku 8 klatek i złożyć w poziomy pasek
+1200×150 jako `dino-vs-kosmici/assets/base-destruction.png`. Stała w kodzie:
+`BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 150, deathFps: 6 }` w
+`dino-vs-kosmici/js/render/sprites.js`. Znaczenie klatek: 0 nietknięta,
+1 lekko uszkodzona, 2 mocno uszkodzona + ogień, 3 eksplozja, 4–5 zawalanie się,
+6 dopalające się ruiny, 7 wystygłe ruiny (tu animacja się zatrzymuje).
+Stary pasek przenieść do `assets-src/stare-arkusze/`.
+
+Krytyczne: ten sam kadr, ta sama skala i ta sama linia podstawy we wszystkich
+klatkach, inaczej baza skacze w animacji. Wszystkie 8 skalować jednym
+współczynnikiem i wyrównywać do wspólnej podstawy.
+
+### 3. Rekwizyty czekające na mechanikę
+
+W `dino-vs-kosmici/assets/props/` leży 16 gotowych obrazków (manifest z
+wymiarami: `assets/props/props.json`). Użyte w grze: `fruit`, `pill`,
+`scar-tree`, `scar-rock`, `scar-bush`. **Nieużyte, czekają na kod:**
+
+- `nest` — gniazdo z jajami do rozbicia (Antoś chciał jaj na mapie)
+- `pod` + `treasure` — rozbita kapsuła kosmitów ze skarbem
+- `cage` — klatka z uwięzionym dinkiem do uwolnienia
+- `tower` — wieża obserwacyjna kosmitów
+- `tracks` — ślady prowadzące do skarbu
+- `berries` — jagody (drugi rodzaj jedzenia)
+- `coin`, `arrow`, `fireball`, `shield-plate` — podmiana rzeczy rysowanych
+  dziś kodem w `draw.js` (moneta, strzałka do bazy, pocisk ognia, pancerz
+  tarczownika). To jest zgodne z zasadą „wszystko z ChatGPT, nic kodem".
+
+Wszystkie pomysły z tej listy Antoś zaakceptował wcześniej.
+
+### 4. Co jest zrobione (żeby nie robić drugi raz)
+
+Etapy 0–6 z tego planu są zamknięte. Ostatnie trzy commity:
+
+- `0ce2154` — 8 nowych elementów scenerii (dąb, palmo-paproć, uschnięte drzewo,
+  dwa krzaki, trzy kamienie) plus trzy bezszwowe tekstury ziemi; kamienie
+  skalowane szerokością przez `wMul` w `SCENERY_ART` (`js/render/sprites.js`)
+- `4967172` — 14 uwag z audytu: pamięć typów kafelków (`js/render/ground.js`),
+  rysowanie 10 zamiast 60 razy na sekundę na pauzie i w menu (`js/main.js`),
+  nowa kwatera fali nie pojawia się w kadrze ani na skale (`js/entities/bases.js`),
+  monety i owoce w granicach mapy, nagroda płacona co do sztuki
+  (`js/state.js`), efekty dogrywają się po końcu gry (`updateFx()` w `main.js`),
+  widoczne podpisy przycisków ataku i prawdziwy warunek zwycięstwa w pomocy
+  (`dino-vs-kosmici.html`), jedno źródło wartości startowych ognia i zrywu
+  (`js/config.js`)
+- `7325823` — merge 16 rekwizytów od agenta graficznego
+
+### 5. Zasady pracy, których trzymał się poprzedni agent
+
+- **Cała grafika pochodzi z ChatGPT**, nigdy z kodu. Jedna klatka na jeden
+  prompt (przy kilku naraz gubi spójność). Pierwsza wersja często wraca
+  fotorealistyczna na ciemnym tle — trzeba nazwać błąd wprost i poprosić
+  o powtórkę. Obrazy zamawiać małe (~512 px), nie 1536.
+- Obróbka: `dino-vs-kosmici/tools/` (`prep_prop.py`, `prep_scenery.py`,
+  `build_sheet.py`, `measure_frames.py`, `make_tileable.py`), venv w
+  `tools/.venv`.
+- Do kasowania plików `trash`, nie `rm`.
+- Commity po polsku: krótki tytuł `dino: …`, potem akapit wyjaśniający.
+- Testy logiki bez przeglądarki: harness DOM w Node (krokowanie `M.update(dt)`
+  i `M.frame()` i pomiar liczbowy), bo Chrome dławi karty w tle.
