@@ -47,6 +47,90 @@ export function dinoBox(p, scaleOpt) {
   };
 }
 
+// Drawn geometry of an alien sprite. Keep visibility checks and rendering on
+// the same measurements: large enemies (especially the boss) can still fill
+// much of the screen after their ground point has moved outside the view.
+export function alienBox(a) {
+  const walkerReady = a.type === 'walker' && imgReady(charSprites.walker);
+  const bigalienReady = a.type === 'big' && imgReady(charSprites.bigalien);
+  const img = a.type === 'small' ? charSprites.flyer
+            : walkerReady        ? charSprites.walker
+            : bigalienReady      ? charSprites.bigalien
+                                 : charSprites.alien;
+  const ready = imgReady(img);
+  const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 :
+                a.type === 'boss' ? 1.35 : (a.type === 'shield' ? 1.1 : 0.86));
+  let w, h;
+  if (a.type === 'small') {
+    w = a.r * 2.6 * scale; h = a.r * 3.6 * scale;
+  } else if (walkerReady) {
+    w = a.r * 4.2 * scale;
+    h = w * WALKER_ANIM.frameH / WALKER_ANIM.frameW;
+  } else {
+    w = a.r * 2.45 * scale; h = a.r * 3.75 * scale;
+  }
+  const ANIM = a.type === 'small' ? FLYER_ANIM : walkerReady ? WALKER_ANIM
+             : bigalienReady ? BIGALIEN_ANIM : null;
+  const footOff = ANIM ? (ANIM.footF || 0.97) * h : h * 0.95;
+  const hover = a.type === 'small' ? a.r * 1.15 : 0;
+  return { ready, img, walkerReady, bigalienReady, scale, w, h, ANIM, footOff, hover };
+}
+
+// The destruction sheet is square but is anchored by its painted grass line,
+// not by the old collision rectangle. This box is the single source of truth
+// for drawing, culling and placing the HP bar.
+export function baseBox(b) {
+  const sheet = charSprites.baseDestruct;
+  const ready = imgReady(sheet);
+  if (!ready) {
+    return { ready, sheet, w: b.w, h: b.h, top: b.y - b.h / 2, bottom: b.y + b.h / 2 };
+  }
+  const w = b.w * 1.05;
+  const h = w * BASE_DESTRUCT.frameH / BASE_DESTRUCT.frameW;
+  const grassFrac = 0.04;
+  const bottom = b.y + b.h / 2 + h * grassFrac;
+  return { ready, sheet, w, h, top: bottom - h, bottom };
+}
+
+function boxViewRadius(box, y) {
+  return Math.max(box.w / 2, y - box.top, box.bottom - y);
+}
+
+function alienViewRadius(box) {
+  return Math.max(box.w / 2, box.footOff + box.hover);
+}
+
+function projectileRadius(pr) {
+  return pr.kind === 'plasma' ? 16 : Math.max(1, pr.r || 0);
+}
+
+function fxRadius(f) {
+  if (f.kind === 'ring') return Math.max(f.r0 || 0, f.r1 || 0) + 3;
+  if (f.kind === 'dmg') return 48;
+  if (f.kind === 'dust') return Math.max(3, (f.r || 0) * 1.6);
+  if (f.kind === 'egg') return 9;
+  return 4;
+}
+
+// Fire is held and attackAnim is refreshed every update, so it cannot also be
+// the animation clock. Keep a renderer-local elapsed time per creature and
+// reset it on the next breath; state.t stops naturally while the game pauses.
+const breathClocks = new WeakMap();
+function breathFrame(p, count) {
+  let clock = breathClocks.get(p);
+  if (!clock) {
+    clock = { elapsed: 0, lastT: state.t, active: false };
+    breathClocks.set(p, clock);
+  }
+  if (p.firing) {
+    if (!clock.active) clock.elapsed = 0;
+    else clock.elapsed += Math.max(0, state.t - clock.lastT);
+  }
+  clock.active = !!p.firing;
+  clock.lastT = state.t;
+  return Math.floor(clock.elapsed * 12) % count;
+}
+
 export function drawDinoSprite(p, scaleOpt) {
   // One path for all three species: same sheet layout, size derived from the
   // measured body height so proportions stay honest between them.
@@ -82,7 +166,7 @@ export function drawDinoSprite(p, scaleOpt) {
     let band, frame;
     if (p.attackAnim > 0 && p.attackKind === 'fire') {
       band = ANIM.breath;
-      frame = Math.min(band.count - 1, Math.floor((1 - Math.max(0, p.attackAnim) / 0.25) * band.count));
+      frame = breathFrame(p, band.count);
     } else if (p.attackAnim > 0) {
       band = ANIM.attack;
       frame = Math.min(band.count - 1, Math.floor((1 - Math.max(0, p.attackAnim) / 0.25) * band.count));
@@ -145,12 +229,20 @@ export function draw() {
   drawList.length = 0;
   for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
   for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
-  for (const b of state.bases) if (inView(b.x, b.y, 200)) push(b.y + b.h / 2, drawBase, b);
+  for (const b of state.bases) {
+    const box = baseBox(b);
+    if (inView(b.x, b.y, boxViewRadius(box, b.y))) push(b.y + b.h / 2, drawBase, b);
+  }
   if (state.flag) push(state.flag.y + 40, drawFlag, state.flag);
   for (const al of state.allies) if (!al.dead && inView(al.x, al.y, 60)) push(feetY(al), drawAlly, al);
   for (const w of state.wild) if (inView(w.x, w.y, 80)) push(feetY(w), drawWild, w);
   push(feetY(state.player), drawPlayerAndShield, state.player);
-  for (const a of state.aliens) if (inView(a.x, a.y, 80)) push(feetY(a), drawAlien, a);
+  for (const a of state.aliens) {
+    const box = alienBox(a);
+    if (inView(a.x, a.y, alienViewRadius(box))) {
+      push(feetY(a), drawAlien, a);
+    }
+  }
   drawList.sort((p, q) => p.y - q.y);
   for (const d of drawList) d.fn(d.arg);
 
@@ -159,8 +251,8 @@ export function draw() {
   for (const q of state.pickups) if (q.ready && inView(q.x, q.y, 40)) drawPickup(q);
 
   // Projectiles and world-space FX on top
-  for (const pr of state.projectiles) drawProjectile(pr);
-  for (const f of state.fx) if (!f.screen) drawFx(f);
+  for (const pr of state.projectiles) if (inView(pr.x, pr.y, projectileRadius(pr))) drawProjectile(pr);
+  for (const f of state.fx) if (!f.screen && inView(f.x, f.y, fxRadius(f))) drawFx(f);
 
   // Screen-space overlays
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -381,8 +473,8 @@ export function drawFlag(f) {
 }
 
 export function drawBase(b) {
-  const sheet = charSprites.baseDestruct;
-  if (sheet.complete && sheet.naturalWidth) {
+  const box = baseBox(b);
+  if (box.ready) {
     // Pick frame: living base shows damage stage by HP; dead base animates
     // through the destruction sequence and holds on the ruins.
     let frame;
@@ -393,21 +485,16 @@ export function drawBase(b) {
       const f = b.hp / b.maxHp;
       frame = f > 0.5 ? 0 : (f > 0.22 ? 1 : 2);
     }
-    // Scale to base width; anchor the grass row at the base's bottom edge.
-    // Keep close to the 150px native size so it doesn't pixelate.
-    const drawW = b.w * 1.05;
-    const drawH = drawW * BASE_DESTRUCT.frameH / BASE_DESTRUCT.frameW;
-    const grassFrac = 0.04; // grass sits ~4% above the cell bottom
-    const topY = (b.y + b.h/2) - drawH * (1 - grassFrac);
-    ctx.drawImage(sheet,
+    ctx.drawImage(box.sheet,
       frame * BASE_DESTRUCT.frameW, 0, BASE_DESTRUCT.frameW, BASE_DESTRUCT.frameH,
-      b.x - drawW/2, topY, drawW, drawH);
+      b.x - box.w/2, box.top, box.w, box.h);
     if (!b.dead) {
+      const barY = box.top - 10;
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(b.x - b.w/2, b.y - b.h/2 - 26, b.w, 6);
+      ctx.fillRect(b.x - b.w/2, barY, b.w, 6);
       ctx.fillStyle = '#e63946';
-      ctx.fillRect(b.x - b.w/2, b.y - b.h/2 - 26, b.w * (b.hp/b.maxHp), 6);
+      ctx.fillRect(b.x - b.w/2, barY, b.w * (b.hp/b.maxHp), 6);
       // tier label for the smaller bases (the art is identical, only scaled)
       if (b.tier && b.tier !== 'main') {
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -575,32 +662,12 @@ export function drawAlien(a) {
   if (a.windup > 0) warnRing(1 - a.windup / 0.55, 46, '#ffd166');
   if (a.slamWind > 0) warnRing(1 - a.slamWind / 0.7, 150, '#ff7a7a');
 
-  const walkerReady   = a.type === 'walker' && charSprites.walker.complete   && charSprites.walker.naturalWidth;
-  const bigalienReady = a.type === 'big'    && charSprites.bigalien.complete && charSprites.bigalien.naturalWidth;
-  const alienImg = a.type === 'small' ? charSprites.flyer
-                 : walkerReady        ? charSprites.walker
-                 : bigalienReady      ? charSprites.bigalien
-                                      : charSprites.alien;
-  if (alienImg && alienImg.complete && alienImg.naturalWidth) {
+  const box = alienBox(a);
+  const { img: alienImg, walkerReady, bigalienReady, w, h, footOff, hover } = box;
+  if (box.ready) {
     ctx.restore();
-    const scale = a.type === 'big' ? 1.18 : (a.type === 'small' ? 1.0 :
-                  a.type === 'boss' ? 1.35 : (a.type === 'shield' ? 1.1 : 0.86));
-    // Walker is a wide rocket (~2:1), the others are tall.
-    let w, h;
-    if (a.type === 'small') {
-      w = a.r * 2.6 * scale;  h = a.r * 3.6 * scale;
-    } else if (walkerReady) {
-      w = a.r * 4.2 * scale;
-      h = w * WALKER_ANIM.frameH / WALKER_ANIM.frameW;
-    } else {
-      w = a.r * 2.45 * scale; h = a.r * 3.75 * scale;
-    }
     // Hang the sprite from its own foot line at the ground point; flyers get
     // lifted clear of it so they read as airborne.
-    const AN = a.type === 'small' ? FLYER_ANIM : walkerReady ? WALKER_ANIM
-             : bigalienReady ? BIGALIEN_ANIM : null;
-    const footOff = AN ? (AN.footF || 0.97) * h : h * 0.95;
-    const hover = flying ? a.r * 1.15 : 0;
     ctx.save();
     ctx.translate(a.x, a.y + bob*0.35 - hover);
     const fx = a.anim ? a.anim.facing : (a.vx < -5 ? -1 : 1);
