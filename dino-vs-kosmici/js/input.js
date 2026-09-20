@@ -107,7 +107,9 @@ function areaTouchStart(e) {
 }
 
 joyEl.addEventListener('touchstart', joyStart, {passive:false});
-joyEl.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e); }, {passive:false});
+// No touchmove here: the event bubbles to the document handler below, which
+// already tracks the stick wherever the finger wanders. Listening on both
+// meant every move ran joyMove() twice.
 joyEl.addEventListener('touchend', e => { joyEnd(e); if (!joy.active) resetJoyHome(); });
 joyEl.addEventListener('touchcancel', e => { joyEnd(e); resetJoyHome(); });
 joyEl.addEventListener('mousedown', joyStart);

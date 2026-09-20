@@ -34,3 +34,12 @@ export const ZOOM_MIN = 0.7, ZOOM_MAX = 1.8;
 export const XP_CURVE = { base: 100, growth: 1.25 };
 export const XP_REWARD = { small: 0, walker: 0, shooter: 0, charger: 0, shield: 0, big: 0, boss: 120 };
 export const XP_BASE = { main: 100, other: 60 };
+
+// ---------- Tuning that upgrades mutate ----------
+// FIRE, DASH and the energy trickle are objects the upgrade cards write to, so
+// they cannot be plain constants. These frozen copies are the only place the
+// starting values are written down; resetUpgradeTuning() restores from them, so
+// changing a number here really changes the game.
+export const FIRE_DEFAULTS = Object.freeze({ drain: 26, dps: 1, cone: 0.42, reach: 150 });
+export const DASH_DEFAULTS = Object.freeze({ speed: 640, time: 0.18, iframes: 0.22, cooldown: 1.2 });
+export const ENERGY_REGEN_DEFAULT = 2;

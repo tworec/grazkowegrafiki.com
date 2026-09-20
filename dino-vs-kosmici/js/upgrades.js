@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { FIRE_DEFAULTS, DASH_DEFAULTS, ENERGY_REGEN_DEFAULT } from './config.js';
 import { DASH, cd } from './entities/player.js';
 import { FIRE } from './entities/player.js';
 
@@ -38,7 +39,7 @@ export const UPGRADES = [
   {
     key: 'regen', max: 3, name: 'Spokojny oddech',
     trait: 'Energia sama wraca szybciej.',
-    apply() { state.energyRegen = (state.energyRegen || 2) + 2; }
+    apply() { state.energyRegen = (state.energyRegen || ENERGY_REGEN_DEFAULT) + 2; }
   }
 ];
 
@@ -65,9 +66,8 @@ export function applyUpgrade(p, u) {
 // Cooldown and dash tuning live on module constants, so a new run has to reset
 // them or upgrades would carry over between games.
 export function resetUpgradeTuning() {
-  DASH.cooldown = 1.2;
-  DASH.iframes = 0.22;
-  FIRE.drain = 26;
+  Object.assign(DASH, DASH_DEFAULTS);
+  Object.assign(FIRE, FIRE_DEFAULTS);
   cd.claw.ready = cd.tail.ready = cd.fire.ready = 0;
-  state.energyRegen = 2;
+  state.energyRegen = ENERGY_REGEN_DEFAULT;
 }

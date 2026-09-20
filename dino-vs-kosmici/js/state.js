@@ -1,7 +1,7 @@
 import { perf } from './view.js';
 import { WORLD } from './config.js';
 import { SPECIES, SPECIES_STATS, XP_CURVE } from './config.js';
-import { rand } from './util.js';
+import { rand, clamp } from './util.js';
 import { buildLevel } from './world.js';
 
 
@@ -27,6 +27,7 @@ export const state = {
   terrain: null,
   patrolTarget: 0,
   patrolAcc: 0,
+  clusterAcc: 0,
   rocks: [],
   allies: [],
   wild: [],
@@ -75,12 +76,21 @@ export function notify(text, color) {
 
 export function spawnCoinBurst(x, y, total) {
   const n = Math.min(perf.lowPower ? 5 : 8, Math.max(2, Math.round(total/14)));
-  const each = Math.round(total / n);
+  // Hand out the remainder one unit at a time instead of rounding every coin:
+  // a base worth 100 has to pay 100 whether the burst is five coins or eight.
+  const each = Math.floor(total / n);
+  let extra = total - each * n;
+  // Keep the burst inside the map, or the coins from a fight at the edge land
+  // where the dino cannot walk.
+  x = clamp(x, 12, WORLD.w - 12);
+  y = clamp(y, 12, WORLD.h - 12);
   for (let i=0;i<n;i++) {
     const ang = rand(0, Math.PI*2), sp = rand(60, 160);
+    const value = each + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra -= 1;
     // Coins now stick around for ~25 s instead of 6, so you have time to
     // come back and pick them up after a fight.
-    state.coins.push({x, y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:25, t:0, value:each});
+    state.coins.push({x, y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:25, t:0, value});
   }
 }
 

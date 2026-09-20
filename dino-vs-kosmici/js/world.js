@@ -217,9 +217,11 @@ export function buildLevel() {
     state.pickups.push({
       kind,
       tree: t,                 // felling the tree takes its pickup with it
-      // Off to one side of the trunk, never straight in front of it.
-      x: t.x + (Math.random() < 0.5 ? -1 : 1) * rand(28, 48),
-      y: treeFootY(t) - rand(20, 40),
+      // Off to one side of the trunk, never straight in front of it — and
+      // pulled back inside the map, since a tree near the edge would otherwise
+      // hang its fruit outside it.
+      x: clamp(t.x + (Math.random() < 0.5 ? -1 : 1) * rand(28, 48), 16, WORLD.w - 16),
+      y: clamp(treeFootY(t) - rand(20, 40), 16, WORLD.h - 16),
       bob: rand(0, Math.PI * 2),
       ready: true, regrow: 0
     });
@@ -228,7 +230,7 @@ export function buildLevel() {
   // Counters first, then the first alien: spawnAlien() reads state.wave to pick
   // its type, so spawning before the reset gave a brand new game a guard from
   // the previous run's wave.
-  state.t = 0; state.hitStop = 0; state.patrolAcc = 0;
+  state.t = 0; state.hitStop = 0; state.patrolAcc = 0; state.clusterAcc = 0;
   state.hudAcc = 1; state.gameOver = false; state.won = false;
   state.wave = 1; state.nextWaveAt = null; state.pendingLevelUps = 0;
   el.banner.style.display = 'none';

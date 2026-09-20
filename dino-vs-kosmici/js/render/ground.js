@@ -107,8 +107,26 @@ function distToSegment(x, y, s) {
   return Math.hypot(x - (s.x1 + dx * t), y - (s.y1 + dy * t));
 }
 
+// A tile's kind never changes while a level is up, but working it out means
+// walking every path segment and every dirt blob. With a few hundred tiles on
+// screen that was the same arithmetic thirty times a second, so the answers are
+// kept. The map is fixed-size, so the table cannot grow without bound; it is
+// dropped when a new level replaces state.terrain.
+let kindMemo = new Map();
+let kindMemoFor = null;
+
 export function kindAt(i, j) {
   const t = state.terrain;
+  if (t !== kindMemoFor) { kindMemo = new Map(); kindMemoFor = t; }
+  const key = i * 65536 + j;
+  const hit = kindMemo.get(key);
+  if (hit !== undefined) return hit;
+  const kind = computeKind(i, j, t);
+  kindMemo.set(key, kind);
+  return kind;
+}
+
+function computeKind(i, j, t) {
   const { x, y } = tileToWorld(i, j);
   if (t) {
     for (const s of t.paths) {

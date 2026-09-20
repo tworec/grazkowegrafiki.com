@@ -1,7 +1,7 @@
 import { perf } from '../view.js';
 import { sfx } from '../audio.js';
 import { showBanner } from '../hud.js';
-import { SPECIES_STATS, ENERGY_COST, XP_CURVE } from '../config.js';
+import { SPECIES_STATS, ENERGY_COST, XP_CURVE, FIRE_DEFAULTS, DASH_DEFAULTS } from '../config.js';
 import { rand } from '../util.js';
 import { state, notify, flashRing, damageNumber } from '../state.js';
 import { recordRun, bestFor } from '../screens.js';
@@ -16,8 +16,9 @@ export const cd = { claw:{ready:0,max:0.42}, tail:{ready:0,max:3}, fire:{ready:0
 
 // Claw combo: three swings inside the window, the third one hits hard.
 export const COMBO = { window: 0.85, hits: 3, finisherMul: 1.75, finisherCost: 4 };
-// Fire is no longer a once-a-minute nuke but a breath you hold.
-export const FIRE = { drain: 26, dps: 1, cone: 0.42, reach: 150 };
+// Fire is no longer a once-a-minute nuke but a breath you hold. Upgrades write
+// to this object, so the starting numbers live in config.js.
+export const FIRE = { ...FIRE_DEFAULTS };
 export function cooldownMax(kind) {
   const up = state.player && state.player.upgrades ? state.player.upgrades.cooldown : 0;
   return cd[kind].max * Math.max(0.72, 1 - up * 0.07);
@@ -226,7 +227,7 @@ export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
 
 // Dash: a short burst in the direction of travel with a few frames of
 // invulnerability. Replaces the old jump, which looked nice but did nothing.
-export const DASH = { speed: 640, time: 0.18, iframes: 0.22, cooldown: 1.2 };
+export const DASH = { ...DASH_DEFAULTS };
 export function tryDash() {
   if (state.gameOver) return;
   const p = state.player;

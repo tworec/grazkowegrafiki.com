@@ -3,6 +3,7 @@ import { sfx, music } from '../audio.js';
 import { DIFFICULTY, XP_BASE } from '../config.js';
 import { rand, clamp } from '../util.js';
 import { state, difficultyKey, notify, spawnCoinBurst, flashRing } from '../state.js';
+import { inView } from '../camera.js';
 import { addXP } from './player.js';
 import { makeAlien } from './aliens.js';
 
@@ -97,18 +98,29 @@ export function spawnNextWaveBase() {
   const dmgMul = 1 + (wave - 1) * 0.22;
   const sizeMul = 1 + (wave - 1) * 0.12;
   const p = state.player;
-  let bx, by, tries = 0;
-  do {
-    bx = rand(160, WORLD.w - 160);
-    by = rand(160, WORLD.h - 160);
-    tries++;
-  } while (tries < 80 && (
-    Math.hypot(bx - p.x, by - p.y) < WORLD.w * 0.35 ||
-    !canPlaceReinforcementBase(bx, by)
-  ));
-  const base = makeBase(bx, by, 'main');
+  // Size first: the placement test needs the real footprint of this wave's
+  // (bigger) HQ, not the footprint of a starting base.
+  const base = makeBase(0, 0, 'main');
   base.w = Math.round(base.w * sizeMul);
   base.h = Math.round(base.h * sizeMul);
+
+  let bx = null, by = null;
+  for (let tries = 0; tries < 80; tries++) {
+    const x = rand(160, WORLD.w - 160);
+    const y = rand(160, WORLD.h - 160);
+    if (Math.hypot(x - p.x, y - p.y) < WORLD.w * 0.35) continue;
+    // Distance alone is not enough: against a world edge the camera is clamped
+    // and reaches much further one way, so a "far" base can still be on screen.
+    // The boss spawns below the base, hence the generous margin.
+    if (inView(x, y, Math.max(base.w, base.h) / 2 + 160)) continue;
+    if (!canPlaceReinforcementBase(x, y, base.w, base.h)) continue;
+    bx = x; by = y; break;
+  }
+  // Nowhere good right now (the player is standing in the only clear corner).
+  // Say nothing and try again on a later frame instead of dropping a base on a
+  // rock, or in plain sight.
+  if (bx == null) return false;
+  base.x = bx; base.y = by;
   base.hp = Math.round(base.hp * hpMul);
   base.maxHp = base.hp;
   base.dmg = Math.round(base.dmg * dmgMul);
@@ -127,6 +139,7 @@ export function spawnNextWaveBase() {
     state.aliens.push(boss);
     notify('Uwaga: BOSS!', '#ff7a7a');
   }
+  return true;
 }
 
 export function spawnBaseFromAlienCluster(tier, message) {
@@ -134,8 +147,9 @@ export function spawnBaseFromAlienCluster(tier, message) {
   if (!cluster) return false;
   const x = clamp(cluster.x, 120, WORLD.w - 120);
   const y = clamp(cluster.y, 120, WORLD.h - 120);
-  if (!canPlaceReinforcementBase(x, y)) return false;
-  const nb = makeBase(x, y, tier);
+  const probe = makeBase(x, y, tier);
+  if (!canPlaceReinforcementBase(x, y, probe.w, probe.h)) return false;
+  const nb = probe;
   state.bases.push(nb);
   for (const a of cluster.members.slice(0, 5)) {
     a.dead = true;
@@ -172,11 +186,19 @@ export function findAlienCluster(minCount, radius) {
   return best;
 }
 
-export function canPlaceReinforcementBase(x, y) {
-    let ok = true;
+// Is (x, y) a sane place to drop a base of w x h? Checks the other bases, the
+// helipad and the scenery: a base grown on top of a boulder is unreachable from
+// that side and swallows the fire aimed at it.
+export function canPlaceReinforcementBase(x, y, w, h) {
+    const hw = (w || 160) / 2, hh = (h || 80) / 2;
     for (const b of state.bases) {
-      if (Math.abs(x - b.x) < (b.w||120)/2 + 80 && Math.abs(y - b.y) < (b.h||60)/2 + 50) { ok = false; break; }
+      if (Math.abs(x - b.x) < (b.w||120)/2 + hw + 40 && Math.abs(y - b.y) < (b.h||60)/2 + hh + 30) return false;
     }
-    if (ok && state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < state.helipad.r + 60) ok = false;
-    return ok;
+    if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < state.helipad.r + hw) return false;
+    // state.obstacles is the same list movement collides with: rocks plus tree
+    // trunks. The extra margin keeps a canopy from hanging over the roof.
+    for (const o of state.obstacles || []) {
+      if (Math.abs(x - o.x) < hw + o.r + 30 && Math.abs(y - o.y) < hh + o.r + 30) return false;
+    }
+    return true;
 }

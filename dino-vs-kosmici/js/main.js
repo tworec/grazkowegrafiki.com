@@ -22,6 +22,7 @@ import { draw } from './render/draw.js';
 // ---------- Frame ----------
 export let last = performance.now();
 export let lastDraw = performance.now();
+let lastIdleDraw = 0;
 export function frame(now) {
   if (perf.hidden) {
     requestAnimationFrame(frame);
@@ -46,9 +47,62 @@ export function frame(now) {
     // Nothing left to offer: drop the rest of the queue rather than stalling.
     if (!showUpgradeChoice()) state.pendingLevelUps = 0;
   }
-  if (!state.gameOver && !state.won && !state.paused && !anyScreenOpen()) update(dt);
-  draw();
+  const simulating = !state.gameOver && !state.won && !state.paused && !anyScreenOpen();
+  if (simulating) {
+    update(dt);
+  } else if (state.gameOver || state.won) {
+    // The world is over but the picture is not: the last base is still
+    // collapsing and the effects it threw have to land.
+    updateFx(dt);
+  }
+  // On a menu or a pause the image is all but still, so repainting the whole
+  // map sixty times a second just drains a phone. Ten times a second is plenty
+  // for the cooldown ticks and the fading banner behind the cards.
+  const idling = !simulating && !state.gameOver && !state.won;
+  if (!idling || now - lastIdleDraw >= 100) {
+    lastIdleDraw = now;
+    draw();
+  }
   requestAnimationFrame(frame);
+}
+
+// Effects run on their own, because they have to finish after the world
+// stops: the last ring, the floating numbers and the eggs thrown by the
+// killing blow were all freezing behind the result banner.
+export function updateFx(dt) {
+  for (const f of state.fx) {
+    f.t += dt; f.life -= dt;
+    if (f.kind === 'puff') {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      f.vy += 240 * dt; f.vx *= damp(0.98, dt);
+    } else if (f.kind === 'egg') {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      f.vy += 240 * dt; f.vx *= damp(0.98, dt);
+      // settle on the ground just below where the egg was launched
+      const groundY = f.groundY != null ? f.groundY : f.y;
+      if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= damp(0.6, dt); }
+    } else if (f.kind === 'dust') {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      f.vy += 26 * dt; f.vx *= damp(0.94, dt);
+    } else if (f.kind === 'dmg') {
+      f.y += f.vy * dt; f.x += (f.drift || 0) * dt;
+      f.vy += 55 * dt;
+    } else if (f.kind === 'notify') {
+      f.y += (f.vy || 0) * dt;
+      f.vy = (f.vy || 0) * damp(0.93, dt);
+    }
+    // Eggs hatch into baby allied dinosaurs (same species as the player)
+    if (f.kind === 'egg' && f.life <= 0 && !f.hatched) {
+      f.hatched = true;
+      const ax = clamp(f.x, 30, WORLD.w - 30);
+      const ay = clamp(f.y, 30, WORLD.h - 30);
+      const sp = state.player ? state.player.species : currentSpecies();
+      state.allies.push(makeAlly(ax, ay, sp));
+      flashRing(ax, ay, 22, '#9aff9a');
+      sfx.hatch();
+    }
+  }
+  state.fx = state.fx.filter(f => f.life > 0);
 }
 
 export function update(dt) {
@@ -206,6 +260,8 @@ export function update(dt) {
     c.t += dt; c.life -= dt;
     c.x += c.vx * dt; c.y += c.vy * dt;
     { const d = damp(0.92, dt); c.vx *= d; c.vy *= d; }
+    // A burst at the map edge used to fling coins past it, out of reach.
+    c.x = clamp(c.x, 8, WORLD.w - 8); c.y = clamp(c.y, 8, WORLD.h - 8);
     // generous pickup range so you don't lose coins by walking past them
     const pickupR = p.r + 22;
     const dToP = Math.hypot(c.x-p.x, c.y-p.y);
@@ -220,40 +276,7 @@ export function update(dt) {
   }
   state.coins = state.coins.filter(c => c.life > 0);
 
-  // FX
-  for (const f of state.fx) {
-    f.t += dt; f.life -= dt;
-    if (f.kind === 'puff') {
-      f.x += f.vx * dt; f.y += f.vy * dt;
-      f.vy += 240 * dt; f.vx *= damp(0.98, dt);
-    } else if (f.kind === 'egg') {
-      f.x += f.vx * dt; f.y += f.vy * dt;
-      f.vy += 240 * dt; f.vx *= damp(0.98, dt);
-      // settle on the ground just below where the egg was launched
-      const groundY = f.groundY != null ? f.groundY : f.y;
-      if (f.y > groundY) { f.y = groundY; f.vy = 0; f.vx *= 0.6; }
-    } else if (f.kind === 'dust') {
-      f.x += f.vx * dt; f.y += f.vy * dt;
-      f.vy += 26 * dt; f.vx *= damp(0.94, dt);
-    } else if (f.kind === 'dmg') {
-      f.y += f.vy * dt; f.x += (f.drift || 0) * dt;
-      f.vy += 55 * dt;
-    } else if (f.kind === 'notify') {
-      f.y += (f.vy || 0) * dt;
-      f.vy = (f.vy || 0) * damp(0.93, dt);
-    }
-    // Eggs hatch into baby allied dinosaurs (same species as the player)
-    if (f.kind === 'egg' && f.life <= 0 && !f.hatched) {
-      f.hatched = true;
-      const ax = clamp(f.x, 30, WORLD.w - 30);
-      const ay = clamp(f.y, 30, WORLD.h - 30);
-      const sp = state.player ? state.player.species : currentSpecies();
-      state.allies.push(makeAlly(ax, ay, sp));
-      flashRing(ax, ay, 22, '#9aff9a');
-      sfx.hatch();
-    }
-  }
-  state.fx = state.fx.filter(f => f.life > 0);
+  updateFx(dt);
 
   // Aliens are produced by every alive base. Spawn rate is intentionally slow
   // so the player has time to actually win (was way too aggressive before).
@@ -295,9 +318,15 @@ export function update(dt) {
   if (state.nextWaveAt != null) {
     const left = state.nextWaveAt - state.t;
     if (left <= 0) {
-      state.nextWaveAt = null;
-      state.waveCountdown = null;
-      spawnNextWaveBase();
+      // The base refuses to appear on screen or on top of scenery. If there is
+      // no good spot this instant, wait half a second and look again rather
+      // than landing it somewhere wrong.
+      if (spawnNextWaveBase()) {
+        state.nextWaveAt = null;
+        state.waveCountdown = null;
+      } else {
+        state.nextWaveAt = state.t + 0.5;
+      }
     } else {
       // Tick down out loud over the last few seconds.
       const sec = Math.ceil(left);
@@ -309,13 +338,18 @@ export function update(dt) {
   }
 
   // Reinforcement bases are built from a real group of at least 5 aliens,
-  // so they never appear out of empty grass.
-  const haveLiveBase = state.bases.some(bb => !bb.dead);
-  if (haveLiveBase && state.bases.filter(b => !b.dead).length < 2) {
-    spawnBaseFromAlienCluster('secondary', 'Druga baza zbudowana przez kosmitów!');
-  }
-  if (haveLiveBase && state.bases.filter(b => !b.dead).length < 3) {
-    spawnBaseFromAlienCluster('tertiary', 'Trzecia baza zbudowana przez kosmitów!');
+  // so they never appear out of empty grass. The search is a nested scan over
+  // every alien, and aliens do not gather up within a frame, so twice a second
+  // is as often as it is worth asking — it used to run twice per frame.
+  state.clusterAcc = (state.clusterAcc || 0) + dt;
+  if (state.clusterAcc >= 0.5) {
+    state.clusterAcc = 0;
+    const live = state.bases.reduce((n, b) => n + (b.dead ? 0 : 1), 0);
+    if (live > 0 && live < 2) {
+      spawnBaseFromAlienCluster('secondary', 'Druga baza zbudowana przez kosmitów!');
+    } else if (live > 0 && live < 3) {
+      spawnBaseFromAlienCluster('tertiary', 'Trzecia baza zbudowana przez kosmitów!');
+    }
   }
 
   state.hudAcc = (state.hudAcc || 0) + dt;

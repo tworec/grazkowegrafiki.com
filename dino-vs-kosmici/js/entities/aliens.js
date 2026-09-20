@@ -276,7 +276,9 @@ function updateCharger(a, dt, closest, bestD) {
   }
   if (a.windup > 0) {
     a.windup -= dt;
-    a.vx *= 0.7; a.vy *= 0.7;
+    // Braking during the wind-up runs every frame, so it has to be time-based
+    // or the charger stops harder at 60 FPS than at 30.
+    { const d = damp(0.7, dt); a.vx *= d; a.vy *= d; }
     if (a.windup <= 0) {
       const dx = closest.x - a.x, dy = closest.y - a.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -310,7 +312,7 @@ function updateCharger(a, dt, closest, bestD) {
 function updateBoss(a, dt, closest, bestD) {
   if (a.slamWind > 0) {
     a.slamWind -= dt;
-    a.vx *= 0.6; a.vy *= 0.6;
+    { const d = damp(0.6, dt); a.vx *= d; a.vy *= d; }
     if (a.slamWind <= 0) {
       a.slamCd = rand(4, 6);
       flashRing(a.x, a.y, 150, '#ff7a7a');
