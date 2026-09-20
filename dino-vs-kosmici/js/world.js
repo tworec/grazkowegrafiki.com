@@ -8,6 +8,7 @@ import { spawnAlien, spawnPatrol } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
 import { resetUpgradeTuning } from './upgrades.js';
 import { makeTerrain } from './render/ground.js';
+import { SCENERY_ART } from './render/sprites.js';
 
 
 // Distance from a point to a path segment; used when keeping scenery off the
@@ -137,7 +138,10 @@ export function buildLevel() {
       if (Math.hypot(x - rk.x, y - rk.y) < r + rk.r + 22) { tooClose = true; break; }
     }
     if (tooClose) continue;
-    state.rocks.push({x, y, r, seed: Math.random()*1000, kind: 'rock', hp: SCENERY.rock, maxHp: SCENERY.rock});
+    const rockLooks = ['rock', 'rock-tall', 'rock-flat', 'rock-cluster'];
+    state.rocks.push({x, y, r, seed: Math.random()*1000, kind: 'rock',
+                      v: rockLooks[Math.floor(Math.random()*rockLooks.length)],
+                      hp: SCENERY.rock, maxHp: SCENERY.rock});
   }
 
   // Trees — random decoration, also avoiding the placed elements
@@ -158,9 +162,13 @@ export function buildLevel() {
     let tooClose = false;
     for (const t of state.trees) if (Math.hypot(tx - t.x, ty - t.y) < 64) { tooClose = true; break; }
     if (tooClose) continue;
-    const variants = ['treeA', 'pine', 'bush', 'treeB'];
+    // Four from the original atlas plus five painted ones, so a walk across the
+    // map is not the same three shapes over and over.
+    const variants = ['treeA', 'pine', 'treeB', 'tree-oak', 'tree-palm-fern', 'tree-dead',
+                      'bush', 'bush-flower', 'bush-dry'];
     const v = variants[Math.floor(Math.random()*variants.length)];
-    const hp = v === 'bush' ? SCENERY.bush : SCENERY.tree;
+    const isBush = v === 'bush' || v.startsWith('bush-');
+    const hp = isBush ? SCENERY.bush : SCENERY.tree;
     state.trees.push({x: tx, y: ty, s: rand(0.85, 1.2), v, kind: 'tree', hp, maxHp: hp});
   }
   rebuildObstacles();
@@ -200,7 +208,7 @@ export function buildLevel() {
   // are short of is usually a short walk away rather than across the map.
   state.pickups = [];
   for (const t of state.trees) {
-    if (t.v === 'bush') continue;
+    if (isBushVariant(t.v)) continue;
     const r = Math.random();
     const kind = r < PICKUP.pill.chance ? 'pill'
                : r < PICKUP.pill.chance + PICKUP.fruit.chance ? 'fruit'
@@ -250,7 +258,7 @@ export const SCAR_LIFE = 26;
 export function rebuildObstacles() {
   state.obstacles = state.rocks.slice();
   for (const t of state.trees) {
-    if (t.v === 'bush') continue;       // you can walk through a bush
+    if (isBushVariant(t.v)) continue;   // you can walk through a bush
     state.obstacles.push({x: t.x, y: treeFootY(t) - 6, r: 9 * t.s});
   }
 }
@@ -262,8 +270,11 @@ export function damageScenery(x, y, radius, dmg) {
   for (const list of [state.trees, state.rocks]) {
     for (const o of list) {
       if (o.dead) continue;
-      const reach = radius + (o.kind === 'rock' ? o.r : 16 * o.s);
-      if (Math.hypot(o.x - x, o.y - y) > reach) continue;
+      // Hit the trunk where it stands, not the centre of the picture: the two
+      // used to be up to 58 units apart on a big tree.
+      const oy = o.kind === 'rock' ? o.y : treeFootY(o) - 8;
+      const reach = radius + (o.kind === 'rock' ? o.r : 18 * o.s);
+      if (Math.hypot(o.x - x, oy - y) > reach) continue;
       o.hp -= dmg;
       o.flash = 0.16;
       hit = true;
@@ -295,7 +306,7 @@ export function damageScenery(x, y, radius, dmg) {
 function addScar(o) {
   state.scars.push({
     x: o.x, y: o.kind === 'rock' ? o.y : treeFootY(o) - 4,
-    kind: o.kind === 'rock' ? 'rock' : (o.v === 'bush' ? 'bush' : 'tree'),
+    kind: o.kind === 'rock' ? 'rock' : (isBushVariant(o.v) ? 'bush' : 'tree'),
     r: o.kind === 'rock' ? o.r * 0.9 : 13 * (o.s || 1),
     seed: Math.random() * 1000,
     life: SCAR_LIFE, t: 0
@@ -305,7 +316,7 @@ function addScar(o) {
 function breakScenery(o) {
   addScar(o);
   const isRock = o.kind === 'rock';
-  const colour = isRock ? '#9a9aa2' : (o.v === 'bush' ? '#6fbf5a' : '#4e8f3a');
+  const colour = isRock ? '#9a9aa2' : (isBushVariant(o.v) ? '#6fbf5a' : '#4e8f3a');
   const n = isRock ? 16 : 12;
   for (let i = 0; i < n; i++) {
     const ang = rand(0, Math.PI*2), sp = rand(50, 190);
@@ -318,7 +329,12 @@ function breakScenery(o) {
 
 // Tree sprite sizes (w, h) at scale 1 — shared by the renderer and the collision code.
 export const TREE_SIZE = { pine: [52, 78], bush: [72, 50], treeB: [78, 96], treeA: [66, 78] };
+export function isBushVariant(v) { return v === 'bush' || v.startsWith('bush-'); }
+
 export function treeFootY(t) {
+  const art = SCENERY_ART[t.v];
+  // Painted pieces stand on their base; atlas pieces are centred on t.y.
+  if (art) return t.y + art.h * t.s * 0.5;
   const sz = TREE_SIZE[t.v] || TREE_SIZE.treeA;
   return t.y + sz[1] * t.s / 2;
 }

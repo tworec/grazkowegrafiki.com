@@ -2,7 +2,7 @@ import { W, H, DPR, mainCtx } from '../view.js';
 import { cam, viewW, viewH, inView } from '../camera.js';
 import { TREE_SIZE, treeFootY } from '../world.js';
 import { drawGround } from './ground.js';
-import { PROPS, imgReady, atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
+import { SCENERY_ART, PROPS, imgReady, atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
 import { WORLD } from '../config.js';
 import { clamp } from '../util.js';
 import { state } from '../state.js';
@@ -289,7 +289,14 @@ export function drawRock(r) {
   // not loaded and nothing is drawn at all.
   // Rock atlas art is ~1.32:1 (mossy mound on top, stone disk below); keep
   // that aspect and anchor the stone disk near the collision centre.
-  drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92);
+  const art = SCENERY_ART[r.v];
+  if (art && imgReady(art.img)) {
+    const w = r.r * art.wMul;
+    const h = w * art.img.naturalHeight / art.img.naturalWidth;
+    ctx.drawImage(art.img, r.x - w / 2, r.y - h * art.foot + r.r * 0.35, w, h);
+  } else {
+    drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92);
+  }
   if (r.flash > 0) ctx.restore();
 }
 
@@ -346,6 +353,15 @@ export function drawAlly(al) {
 
 export function drawTree(t) {
   if (t.flash > 0) { ctx.save(); ctx.filter = 'brightness(1.8) saturate(0.4)'; }
+  // Painted varieties first; the rest still come from the atlas.
+  const art = SCENERY_ART[t.v];
+  if (art && imgReady(art.img)) {
+    const h = art.h * t.s;
+    const w = h * art.img.naturalWidth / art.img.naturalHeight;
+    ctx.drawImage(art.img, t.x - w / 2, treeFootY(t) - h * art.foot, w, h);
+    if (t.flash > 0) ctx.restore();
+    return;
+  }
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
   const size = TREE_SIZE[sprite];
   drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s);

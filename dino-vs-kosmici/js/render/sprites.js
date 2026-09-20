@@ -89,3 +89,19 @@ export const PROPS = {
 };
 
 export function imgReady(i) { return !!(i && i.complete && i.naturalWidth); }
+
+// Painted scenery: extra varieties beyond the four in the atlas. `h` is the
+// height the piece should stand on screen; width follows the artwork's own
+// proportions so nothing is squashed.
+export const SCENERY_ART = {
+  'tree-oak':       { img: img('assets/scenery/tree-oak.png'),       h: 118, foot: 0.97 },
+  'tree-palm-fern': { img: img('assets/scenery/tree-palm-fern.png'), h: 128, foot: 0.98 },
+  'tree-dead':      { img: img('assets/scenery/tree-dead.png'),      h: 104, foot: 0.97 },
+  'bush-flower':    { img: img('assets/scenery/bush-flower.png'),    h: 54,  foot: 0.97 },
+  'bush-dry':       { img: img('assets/scenery/bush-dry.png'),       h: 48,  foot: 0.97 },
+  // Rocks are sized by WIDTH against their collision radius, so a tall narrow
+  // stone does not end up twice the height of the dinosaur.
+  'rock-tall':      { img: img('assets/scenery/rock-tall.png'),      foot: 0.96, wMul: 1.5 },
+  'rock-flat':      { img: img('assets/scenery/rock-flat.png'),      foot: 0.92, wMul: 2.7 },
+  'rock-cluster':   { img: img('assets/scenery/rock-cluster.png'),   foot: 0.96, wMul: 2.2 }
+};
