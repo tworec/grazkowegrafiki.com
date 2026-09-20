@@ -3,7 +3,7 @@ import { cam, viewW, viewH, inView } from '../camera.js';
 import { TREE_SIZE, treeFootY } from '../world.js';
 import { drawGround } from './ground.js';
 import { PROPS, imgReady, atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
-import { SPECIES_STATS, WORLD } from '../config.js';
+import { WORLD } from '../config.js';
 import { clamp } from '../util.js';
 import { state } from '../state.js';
 import { animPose, attackLunge } from '../anim.js';
@@ -288,34 +288,6 @@ export function drawRock(r) {
   // Rock atlas art is ~1.32:1 (mossy mound on top, stone disk below); keep
   // that aspect and anchor the stone disk near the collision centre.
   if (drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92)) { if (r.flash > 0) ctx.restore(); return; }
-  ctx.save();
-  ctx.translate(r.x, r.y);
-  // shadow on the grass
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.beginPath(); ctx.ellipse(2, r.r*0.55, r.r*1.0, r.r*0.32, 0, 0, Math.PI*2); ctx.fill();
-  // base rock
-  ctx.fillStyle = '#7a7a82';
-  ctx.beginPath(); ctx.arc(0, 0, r.r, 0, Math.PI*2); ctx.fill();
-  // top highlight
-  ctx.fillStyle = '#a4a4ad';
-  ctx.beginPath(); ctx.ellipse(-r.r*0.25, -r.r*0.32, r.r*0.55, r.r*0.4, 0, 0, Math.PI*2); ctx.fill();
-  // dark crack lines (use seed-stable variation)
-  ctx.strokeStyle = '#4a4a52'; ctx.lineWidth = 2;
-  const sd = (r.seed||0);
-  ctx.beginPath();
-  ctx.moveTo(-r.r*0.45, -r.r*0.10 + Math.sin(sd)*r.r*0.05);
-  ctx.lineTo( r.r*0.10,  r.r*0.20 + Math.cos(sd*1.3)*r.r*0.04);
-  ctx.lineTo( r.r*0.50, -r.r*0.05 + Math.sin(sd*0.7)*r.r*0.03);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(-r.r*0.20, r.r*0.40);
-  ctx.lineTo( r.r*0.05, r.r*0.15);
-  ctx.stroke();
-  // little moss patches
-  ctx.fillStyle = '#3a7a3a';
-  ctx.beginPath(); ctx.arc(r.r*0.55,  r.r*0.10, r.r*0.18, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(-r.r*0.30, r.r*0.50, r.r*0.13, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
 }
 
 
@@ -366,67 +338,6 @@ export function drawAlly(al) {
     ctx.restore();
     return;
   }
-  ctx.save();
-  ctx.translate(al.x, al.y);
-  if (al.facing === -1) ctx.scale(-1, 1);
-  if (al.flash > 0) ctx.filter = 'brightness(1.6) saturate(0.5)';
-  const wp = al.walkPhase || 0;
-  const moving = Math.hypot(al.vx, al.vy) > 30;
-  const bob = Math.sin(wp*2) * (moving ? 1.2 : 0.3);
-  const tailSway = Math.sin(wp) * (moving ? 3 : 0.5);
-  const liftBack  = Math.max(0, Math.sin(wp));
-  const liftFront = Math.max(0, Math.sin(wp + Math.PI));
-  const liftAmt = moving ? 3.5 : 0;
-  // shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.ellipse(0, 11, 14, 3.5, 0, 0, Math.PI*2); ctx.fill();
-  // legs (animated, 2 pairs)
-  ctx.fillStyle = '#2c6b34';
-  ctx.fillRect(-7, 7+bob*0.3 - liftBack*liftAmt,  3, 6 - liftBack*2);
-  ctx.fillStyle = '#3a8a4a';
-  ctx.fillRect(-9, 6+bob*0.4 - liftBack*liftAmt,  4, 7 - liftBack*2.5);
-  ctx.fillStyle = '#2c6b34';
-  ctx.fillRect( 6, 7+bob*0.3 - liftFront*liftAmt, 3, 6 - liftFront*2);
-  ctx.fillStyle = '#3a8a4a';
-  ctx.fillRect( 4, 6+bob*0.4 - liftFront*liftAmt, 4, 7 - liftFront*2.5);
-  // body
-  ctx.fillStyle = '#5fbe5f';
-  ctx.beginPath(); ctx.ellipse(-1, bob, 13, 8, 0, 0, Math.PI*2); ctx.fill();
-  // belly
-  ctx.fillStyle = '#bce8bc';
-  ctx.beginPath(); ctx.ellipse(-2, 4+bob, 8, 3.5, 0, 0, Math.PI*2); ctx.fill();
-  // tail (animated)
-  ctx.fillStyle = '#5fbe5f';
-  ctx.beginPath();
-  ctx.moveTo(-11, bob);
-  ctx.quadraticCurveTo(-18, -2+bob+tailSway*0.4, -22, 2+bob+tailSway);
-  ctx.quadraticCurveTo(-18,  5+bob+tailSway*0.4, -11, 4+bob);
-  ctx.fill();
-  // back plates
-  ctx.fillStyle = '#3a8a3a';
-  for (let i=-1;i<=1;i++){
-    const px = i*4 - 2;
-    ctx.beginPath();
-    ctx.moveTo(px-2, -5+bob);
-    ctx.lineTo(px,   -10+bob);
-    ctx.lineTo(px+2, -5+bob);
-    ctx.closePath(); ctx.fill();
-  }
-  // head
-  ctx.fillStyle = '#5fbe5f';
-  ctx.beginPath(); ctx.ellipse(11, -1+bob, 6.5, 5, 0, 0, Math.PI*2); ctx.fill();
-  // eye
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(13, -2+bob, 1.7, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.arc(13.5, -2+bob, 0.9, 0, Math.PI*2); ctx.fill();
-  ctx.filter = 'none';
-  // hp bar (small)
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(-12, -al.r-9, 24, 3);
-  ctx.fillStyle = '#9aff9a';
-  ctx.fillRect(-12, -al.r-9, 24 * (al.hp/al.maxHp), 3);
-  ctx.restore();
 }
 
 
@@ -435,44 +346,11 @@ export function drawTree(t) {
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
   const size = TREE_SIZE[sprite];
   if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) { if (t.flash > 0) ctx.restore(); return; }
-  ctx.save();
-  ctx.translate(t.x, t.y);
-  ctx.scale(t.s, t.s);
-  if (t.v === 'pine') {
-    // trunk
-    ctx.fillStyle = '#6b4a2b';
-    ctx.fillRect(-3, 8, 6, 14);
-    // foliage
-    ctx.fillStyle = '#1f6f2a';
-    ctx.beginPath();
-    ctx.moveTo(0, -22); ctx.lineTo(-14, 8); ctx.lineTo(14, 8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#2a8336';
-    ctx.beginPath();
-    ctx.moveTo(0, -16); ctx.lineTo(-11, 4); ctx.lineTo(11, 4); ctx.closePath(); ctx.fill();
-  } else {
-    // bush
-    ctx.fillStyle = '#225a26';
-    ctx.beginPath(); ctx.arc(-6,2,9,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6,2,10,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(0,-6,10,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#2e7c33';
-    ctx.beginPath(); ctx.arc(-2,0,6,0,Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
 }
 
 export function drawHelipad(h) {
   if (!h) return;
   if (drawSprite('arrow', h.x, h.y, h.r*2.4, h.r*1.2)) return;
-  ctx.save();
-  ctx.translate(h.x, h.y);
-  ctx.fillStyle = '#2a6fb5';
-  ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 36px system-ui';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('H', 0, 1);
-  ctx.restore();
 }
 
 
@@ -480,17 +358,6 @@ export function drawHelipad(h) {
 export function drawFlag(f) {
   if (!f) return;
   if (drawSprite('flag', f.x, f.y + 18, 62, 82)) return;
-  ctx.save();
-  ctx.translate(f.x, f.y);
-  ctx.fillStyle = '#5a3a1f';
-  ctx.fillRect(-1, 0, 2, 30);
-  // flag rectangle with cross
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(2, 0, 22, 14);
-  ctx.fillStyle = '#cc3333';
-  ctx.fillRect(2, 5, 22, 4);
-  ctx.fillRect(11, 0, 4, 14);
-  ctx.restore();
 }
 
 export function drawBase(b) {
@@ -627,13 +494,7 @@ export function drawCoin(c) {
 }
 
 export function drawPlayer(p) {
-  if (drawDinoSprite(p)) return;
-  // Sprite sheets not loaded yet: simple placeholder so the dino is never invisible.
-  const st = SPECIES_STATS[p.species] || SPECIES_STATS.stego;
-  ctx.save();
-  ctx.fillStyle = st.color;
-  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
+  drawDinoSprite(p);
 }
 
 export function drawShield(p) {
@@ -770,173 +631,8 @@ export function drawAlien(a) {
     return;
   }
 
-  const robotScale = a.type === 'big' ? 1.35 : (a.type === 'small' ? 0.82 : 1.0);
-  ctx.restore();
-  // Atlas fallback: the robot is centred, so its own geometry gives the bar.
-  const robotH = a.r * 2.55 * robotScale;
-  if (drawSprite('robot', a.x, a.y - robotH/2 + bob*0.35, a.r*2.35*robotScale, robotH, {flip: (a.anim ? a.anim.facing : 1) < 0})) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    const barY = a.y - robotH + bob*0.35 - 8;
-    ctx.fillRect(a.x - a.r, barY, a.r*2, 4);
-    ctx.fillStyle = '#ff7a7a';
-    ctx.fillRect(a.x - a.r, barY, a.r*2 * (a.hp/a.maxHp), 4);
-    ctx.restore();
-    return;
-  }
-  ctx.save();
-  ctx.translate(a.x, a.y);
-
-  if (a.type === 'big') {
-    // BIG alien — friendly mushroom-blob style with 1 big eye, antennae, little legs.
-    // legs
-    ctx.fillStyle = '#5b3a8a';
-    for (let i=-1;i<=1;i++){
-      ctx.fillRect(-3 + i*9, a.r*0.4, 5, 10);
-    }
-    // body (round purple)
-    ctx.fillStyle = '#9d6dff';
-    ctx.beginPath(); ctx.arc(0, bob, a.r, 0, Math.PI*2); ctx.fill();
-    // belly
-    ctx.fillStyle = '#caa6ff';
-    ctx.beginPath(); ctx.ellipse(0, bob+8, a.r*0.7, a.r*0.4, 0, 0, Math.PI*2); ctx.fill();
-    // spots
-    ctx.fillStyle = '#7a4cd6';
-    ctx.beginPath(); ctx.arc(-10, bob-6, 4, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(8, bob+2, 3, 0, Math.PI*2); ctx.fill();
-    // antennae
-    ctx.strokeStyle = '#5b3a8a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-8, bob - a.r + 2); ctx.quadraticCurveTo(-14, bob - a.r - 12, -16, bob - a.r - 16); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(8, bob - a.r + 2); ctx.quadraticCurveTo(14, bob - a.r - 12, 16, bob - a.r - 16); ctx.stroke();
-    ctx.fillStyle = '#ffd166';
-    ctx.beginPath(); ctx.arc(-16, bob - a.r - 16, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(16, bob - a.r - 16, 3, 0, Math.PI*2); ctx.fill();
-    // big eye
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(0, bob - 4, 9, 0, Math.PI*2); ctx.fill();
-    // bloodshot tinge so the eye reads "menacing", not "cartoon-cute"
-    ctx.fillStyle = '#ffd2c4';
-    ctx.beginPath(); ctx.arc(0, bob - 4, 9, 0, Math.PI*2); ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#1a1a2a';
-    const lookX = clamp((state.player.x - a.x)/30, -3, 3);
-    const lookY = clamp((state.player.y - a.y)/30, -3, 3);
-    ctx.beginPath(); ctx.arc(lookX, bob - 4 + lookY, 4.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(lookX-1.5, bob - 5.5 + lookY, 1.4, 0, Math.PI*2); ctx.fill();
-
-    // angry V-shaped eyebrow above the eye (slants down toward center)
-    ctx.strokeStyle = '#3a1f6a'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-9, bob - 14);   // outer end higher
-    ctx.lineTo(-1, bob - 11);
-    ctx.lineTo( 9, bob - 14);   // outer end higher (mirror) — V shape pointing down to eye
-    ctx.stroke();
-    ctx.lineCap = 'butt';
-
-    // mouth — open & toothy when within striking distance, grumpy frown otherwise
-    const distP = Math.hypot(state.player.x - a.x, state.player.y - a.y);
-    if (distP < 95) {
-      // open angry mouth
-      ctx.fillStyle = '#1a0a2a';
-      ctx.beginPath();
-      ctx.ellipse(0, bob + 8, 8, 5, 0, 0, Math.PI*2);
-      ctx.fill();
-      // jagged teeth — small white triangles top & bottom
-      ctx.fillStyle = '#fff5e0';
-      for (let i=-1; i<=1; i++) {
-        const x = i*4;
-        // upper teeth
-        ctx.beginPath();
-        ctx.moveTo(x - 1.7, bob + 5.2);
-        ctx.lineTo(x,       bob + 9);
-        ctx.lineTo(x + 1.7, bob + 5.2);
-        ctx.closePath(); ctx.fill();
-      }
-      for (let i=-1; i<=1; i++) {
-        const x = i*4 + 2;
-        // lower teeth (offset)
-        ctx.beginPath();
-        ctx.moveTo(x - 1.4, bob + 11);
-        ctx.lineTo(x,       bob + 7.5);
-        ctx.lineTo(x + 1.4, bob + 11);
-        ctx.closePath(); ctx.fill();
-      }
-    } else {
-      // closed grumpy frown — middle dips upward
-      ctx.strokeStyle = '#3a1f6a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-7, bob + 9);
-      ctx.quadraticCurveTo(0, bob + 4, 7, bob + 9);
-      ctx.stroke();
-      ctx.lineCap = 'butt';
-    }
-  } else if (a.type === 'walker') {
-    // SMALL WALKING alien — orange-red, 4 thin legs, two big eyes, a little gremlin
-    // step animation
-    const step = Math.sin(state.t*8 + a.wob) * 3;
-    // legs
-    ctx.strokeStyle = '#7a2317'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-a.r*0.5, a.r*0.3); ctx.lineTo(-a.r*0.7, a.r*0.9 + step);
-    ctx.moveTo(-a.r*0.2, a.r*0.4); ctx.lineTo(-a.r*0.3, a.r*0.95 - step);
-    ctx.moveTo( a.r*0.2, a.r*0.4); ctx.lineTo( a.r*0.3, a.r*0.95 + step);
-    ctx.moveTo( a.r*0.5, a.r*0.3); ctx.lineTo( a.r*0.7, a.r*0.9 - step);
-    ctx.stroke();
-    // body
-    ctx.fillStyle = '#e85a3c';
-    ctx.beginPath(); ctx.arc(0, bob, a.r, 0, Math.PI*2); ctx.fill();
-    // belly
-    ctx.fillStyle = '#ffb59a';
-    ctx.beginPath(); ctx.ellipse(0, bob+5, a.r*0.65, a.r*0.35, 0, 0, Math.PI*2); ctx.fill();
-    // back spikes
-    ctx.fillStyle = '#a73320';
-    for (let i=-1;i<=1;i++) {
-      ctx.beginPath();
-      ctx.moveTo(i*7 - 3, bob - a.r*0.85);
-      ctx.lineTo(i*7,     bob - a.r*1.25);
-      ctx.lineTo(i*7 + 3, bob - a.r*0.85);
-      ctx.closePath(); ctx.fill();
-    }
-    // two eyes
-    const eyeLook = clamp((state.player.x - a.x)/40, -1.5, 1.5);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(-5, bob-3, 4, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(5,  bob-3, 4, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(-5+eyeLook, bob-3, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(5+eyeLook,  bob-3, 2, 0, Math.PI*2); ctx.fill();
-    // little teeth/mouth (cartoon-fierce, not scary)
-    ctx.strokeStyle = '#5a1a10'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(-4, bob+5); ctx.lineTo(-2, bob+7); ctx.lineTo(0, bob+5); ctx.lineTo(2, bob+7); ctx.lineTo(4, bob+5); ctx.stroke();
-  } else {
-    // SMALL flyer — brown UFO-like with 3 small eyes
-    // wing/saucer
-    ctx.fillStyle = '#7a5a3a';
-    ctx.beginPath(); ctx.ellipse(0, bob+2, a.r, a.r*0.45, 0, 0, Math.PI*2); ctx.fill();
-    // dome
-    ctx.fillStyle = '#b08660';
-    ctx.beginPath(); ctx.arc(0, bob - 2, a.r*0.7, Math.PI, 0); ctx.fill();
-    // dome window
-    ctx.fillStyle = '#2dd2c6';
-    ctx.beginPath(); ctx.arc(0, bob - 3, a.r*0.55, Math.PI*1.05, -0.05*Math.PI); ctx.fill();
-    // 3 eyes
-    ctx.fillStyle = '#1a1a2a';
-    for (let i=-1;i<=1;i++) { ctx.beginPath(); ctx.arc(i*5, bob-4, 1.6, 0, Math.PI*2); ctx.fill(); }
-    // lights under
-    const lit = Math.floor(state.t*4 + a.wob*2) % 3;
-    for (let i=0;i<3;i++) {
-      ctx.fillStyle = i===lit ? '#ffd166' : '#553';
-      ctx.beginPath(); ctx.arc(-a.r*0.6 + i*a.r*0.6, bob+5, 2.3, 0, Math.PI*2); ctx.fill();
-    }
-  }
-
-  // hp bar
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(-a.r, -a.r-12, a.r*2, 4);
-  ctx.fillStyle = '#ff7a7a';
-  ctx.fillRect(-a.r, -a.r-12, a.r*2 * (a.hp/a.maxHp), 4);
-
-  ctx.restore();
+  // No fallback drawing: every alien type has a sheet, and a missing image
+  // should show as nothing rather than as a different, hand-drawn creature.
 }
 
 export function drawProjectile(pr) {
