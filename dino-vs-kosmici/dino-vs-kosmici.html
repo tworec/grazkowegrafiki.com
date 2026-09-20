@@ -319,6 +319,40 @@
     line-height: 1.35; pointer-events: none;
   }
   @media (pointer: coarse) { #help { display: none; } }
+
+  /* ---------- Compact HUD for phones ----------
+     The plank HUD was sized for a desktop window: 220px bars and a 200x80
+     minimap come to ~244px wide, which on a portrait phone covers the middle
+     of the screen — exactly where the camera keeps the dinosaur. Everything
+     here shrinks except the setting buttons, which stay thumb-sized.
+     The height query catches a phone held sideways, where the screen is short
+     rather than narrow. */
+  @media (max-width: 560px), (max-height: 540px) {
+    #hud {
+      min-width: 0; padding: 6px 8px;
+      font-size: 11px; line-height: 1.25;
+      background-color: rgba(58, 42, 26, 0.82);
+    }
+    /* The settings row sets the panel width, so the bars and the minimap are
+       sized to fill it rather than leave a gap. */
+    #hud .bar {
+      width: 146px; height: 15px; margin: 3px 0 4px;
+      /* caps are ~9px of the 90px frame: 9 x 146/90 = 15 */
+      border-width: 0 15px;
+      border-image-width: 0 15px;
+    }
+    #hud #minimap { width: 146px; height: 58px; margin: 4px 0 2px; }
+    #hud .digits.lvl img { height: 15px; }
+    #hud .digits.num img { height: 11px; }
+    #hud #stats { gap: 7px; }
+    #hud #goalLine, #hud #upgradeLine { font-size: 10px; margin-top: 2px; }
+    #hud #settings { gap: 6px; margin-top: 6px; }
+    #hud #settings select, #hud #settings button {
+      height: 26px; padding: 0 9px; font-size: 11px;
+    }
+    #hud #settings button { min-width: 52px; }
+    #hud #settings #muteBtn { min-width: 32px; padding: 0 6px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
