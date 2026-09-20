@@ -32,13 +32,12 @@ export function findNearestTarget() {
     const d = Math.hypot(a.x - p.x, a.y - p.y);
     if (d < bestD) { bestD = d; best = a; }
   }
-  if (!best) {
-    // fallback: target the base if alive
-    for (const b of state.bases) {
-      if (b.dead) continue;
-      const d = Math.hypot(b.x - p.x, b.y - p.y);
-      if (d < bestD) { bestD = d; best = b; }
-    }
+  // Bases compete on distance like everything else: one patrol left alive at
+  // the far end of the map used to stop the base in front of you being a target.
+  for (const b of state.bases) {
+    if (b.dead) continue;
+    const d = Math.hypot(b.x - p.x, b.y - p.y);
+    if (d < bestD) { bestD = d; best = b; }
   }
   if (!best) return null;
   const dx = best.x - p.x, dy = best.y - p.y;
@@ -153,9 +152,11 @@ export function updateFire(dt) {
   if (!p) return;
   if (p.comboT > 0) p.comboT -= dt;
   if (!p.firing) return;
-  if (state.gameOver || p.energy <= 0) { stopFire(); return; }
-
-  p.energy = Math.max(0, p.energy - FIRE.drain * dt);
+  // Compare against what this frame will actually cost: passive regen trickles
+  // a little in every frame, so `energy <= 0` never becomes true on its own.
+  const cost = FIRE.drain * dt;
+  if (state.gameOver || p.energy < cost) { stopFire(); return; }
+  p.energy -= cost;
   p.attackAnim = 0.2;
   p.attackKind = 'fire';
   // Aim at the nearest enemy but leave p.lastDir alone: that is the movement
@@ -167,11 +168,16 @@ export function updateFire(dt) {
   if (tgt && tgt.dist < 320) {
     dirx = tgt.dx / tgt.dist; diry = tgt.dy / tgt.dist;
     if (tgt.dx > 1) p.facing = 1; else if (tgt.dx < -1) p.facing = -1;
-  } else { dirx = p.lastDir.x || p.facing; diry = p.lastDir.y || 0; }
+  } else if (Math.abs(p.lastDir.x) > 0.01 || Math.abs(p.lastDir.y) > 0.01) {
+    // `x || facing` treated a legitimate 0 as "no direction", so breathing
+    // straight up came out diagonal.
+    dirx = p.lastDir.x; diry = p.lastDir.y;
+  } else { dirx = p.facing; diry = 0; }
   const ang = Math.atan2(diry, dirx);
 
-  // Particles per second, halved on the low-power setting.
-  const rate = perf.lowPower ? 26 : 46;
+  // Fixed rate: this is the damage output, so the performance switch must not
+  // change it. Sixty FPS used to mean 77 percent more fire.
+  const rate = 34;
   p.fireAcc = (p.fireAcc || 0) + rate * dt;
   while (p.fireAcc >= 1) {
     p.fireAcc -= 1;
@@ -239,6 +245,9 @@ export function tryDash() {
 
 export function damagePlayer(dmg) {
   const p = state.player;
+  // The end of a run is decided once: a stray shot landing in the same frame
+  // as the winning blow must not turn a victory into a defeat.
+  if (state.won || state.gameOver) return;
   if ((p.iframes || 0) > 0) return;   // dash makes you briefly untouchable
   if (p.shield > 0) dmg = Math.ceil(dmg * 0.45);
   p.hp -= dmg; p.flash = 0.18;

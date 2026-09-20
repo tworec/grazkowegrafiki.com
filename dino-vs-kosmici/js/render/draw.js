@@ -285,9 +285,12 @@ export function drawPickup(q) {
 
 export function drawRock(r) {
   if (r.flash > 0) { ctx.save(); ctx.filter = 'brightness(1.8) saturate(0.4)'; }
+  // Any exit below must undo that save, including the one where the atlas is
+  // not loaded and nothing is drawn at all.
   // Rock atlas art is ~1.32:1 (mossy mound on top, stone disk below); keep
   // that aspect and anchor the stone disk near the collision centre.
-  if (drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92)) { if (r.flash > 0) ctx.restore(); return; }
+  drawSprite('rock', r.x, r.y - r.r*0.18, r.r*2.55, r.r*1.92);
+  if (r.flash > 0) ctx.restore();
 }
 
 
@@ -345,7 +348,8 @@ export function drawTree(t) {
   if (t.flash > 0) { ctx.save(); ctx.filter = 'brightness(1.8) saturate(0.4)'; }
   const sprite = t.v === 'pine' ? 'pine' : t.v === 'bush' ? 'bush' : t.v === 'treeB' ? 'treeB' : 'treeA';
   const size = TREE_SIZE[sprite];
-  if (drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s)) { if (t.flash > 0) ctx.restore(); return; }
+  drawSprite(sprite, t.x, t.y, size[0] * t.s, size[1] * t.s);
+  if (t.flash > 0) ctx.restore();
 }
 
 export function drawHelipad(h) {
@@ -633,6 +637,10 @@ export function drawAlien(a) {
 
   // No fallback drawing: every alien type has a sheet, and a missing image
   // should show as nothing rather than as a different, hand-drawn creature.
+  // The save()/translate() at the top still has to be undone, or every frame
+  // with an unloaded sprite leaves a state on the canvas stack and the next
+  // object is drawn under the wrong transform.
+  ctx.restore();
 }
 
 export function drawProjectile(pr) {

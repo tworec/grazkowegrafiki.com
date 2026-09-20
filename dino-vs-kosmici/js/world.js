@@ -1,5 +1,5 @@
 import { WORLD } from './config.js';
-import { snapCamera } from './camera.js';
+import { snapCamera, cam } from './camera.js';
 import { el, updateHUD } from './hud.js';
 import { rand, clamp } from './util.js';
 import { state, makePlayer, flashRing } from './state.js';
@@ -217,12 +217,15 @@ export function buildLevel() {
     });
   }
 
-  // Start with one alien (per agreement: zaczynamy od jednego)
-  spawnAlien();
-
-  state.t = 0; state.hudAcc = 1; state.gameOver = false; state.won = false;
+  // Counters first, then the first alien: spawnAlien() reads state.wave to pick
+  // its type, so spawning before the reset gave a brand new game a guard from
+  // the previous run's wave.
+  state.t = 0; state.hitStop = 0; state.patrolAcc = 0;
+  state.hudAcc = 1; state.gameOver = false; state.won = false;
   state.wave = 1; state.nextWaveAt = null; state.pendingLevelUps = 0;
   el.banner.style.display = 'none';
+  cam.shake = 0; cam.sx = 0; cam.sy = 0;
+  spawnAlien();              // now that state.wave is back to 1
   snapCamera(state.player.x, state.player.y);
   updateHUD();
 }

@@ -27,8 +27,13 @@ window.addEventListener('keyup', e => {
   keys.delete(k);
   if (k === 'c') stopFire();
 });
-// Losing focus mid-breath must not leave the fire on.
-window.addEventListener('blur', stopFire);
+// Losing focus must release everything that is being held, not just the fire:
+// a key let go outside the page never reaches our keyup handler.
+window.addEventListener('blur', () => {
+  stopFire();
+  keys.clear();
+  if (joy.active) { joyEnd(); resetJoyHome(); }
+});
 
 // Joystick
 export const joyEl = document.getElementById('joy');

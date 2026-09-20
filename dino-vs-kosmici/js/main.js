@@ -173,7 +173,13 @@ export function update(dt) {
     pr.t += dt; pr.life -= dt;
     pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     // Rocks block projectiles — that's how you "hide"
-    if (projectileHitsRock(pr)) { pr.life = 0; continue; }
+    if (projectileHitsRock(pr)) {
+      // Fire that stops on a rock should still scorch it; it used to vanish
+      // without ever reaching the scenery damage below.
+      if (pr.kind === 'fire') damageScenery(pr.x, pr.y, pr.r, pr.dmg);
+      pr.life = 0;
+      continue;
+    }
     if (pr.kind === 'fire') {
       { const d = damp(0.97, dt); pr.vx *= d; pr.vy *= d; }
       // damage aliens & base

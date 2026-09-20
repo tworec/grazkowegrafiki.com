@@ -75,8 +75,10 @@ export function makeAlien(type, x, y) {
                           armor: 0.25}, common);
   } else if (type === 'boss') {
     // End-of-wave brute: slow, heavy, slams the ground in a ring.
+    // personality AFTER the spread: `common` carries a random one and would
+    // otherwise overwrite it, leaving most bosses wandering.
     return Object.assign({type:'boss', r: 44, hp: 420, maxHp: 420, speed: 46, dmg: 22,
-                          slamCd: 3.5, slamWind: 0, personality: 'aggressive'}, common);
+                          slamCd: 3.5, slamWind: 0}, common, {personality: 'aggressive'});
   } else { // small flyer
     return Object.assign({type:'small',  r: 16, hp: 30, maxHp: 30, speed: 95, dmg:  8}, common);
   }
@@ -154,6 +156,9 @@ export function killAlien(a) {
 
 // ---------- AI ----------
 export function updateAlien(a, dt) {
+  // Dead aliens are filtered after the AI pass, so without this one killed
+  // between frames still gets its attack in.
+  if (a.dead) return;
   const p = state.player;
   a.wob += dt * 2;
   a.wanderTimer = (a.wanderTimer || 0) - dt;
