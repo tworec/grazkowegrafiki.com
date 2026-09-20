@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { rand } from '../util.js';
+import { GROUND_TEX, imgReady } from './sprites.js';
 
 // ---------- Diamond ground ----------
 // The world stays cartesian (x right, y down) so movement and collisions are
@@ -52,49 +52,22 @@ function paintTile(kind) {
   g.clip();
 
   const soil = kind === 'dirt' || kind === 'path';
-  // Every grass variant shares one base colour: only the pencil strokes differ.
-  // Varying the base as well turns the lattice into a visible quilt.
-  const base = kind === 'path' ? '#ab8f62'
-             : kind === 'dirt' ? '#8d6b45'
-             : '#48a84d';
-  g.fillStyle = base;
-  g.fillRect(0, 0, w, h);
-
-  if (soil) {
-    // Dry ground: scattered grit and a few pale pebbles.
-    for (let n = 0; n < 90; n++) {
-      const x = Math.random() * w, y = Math.random() * h;
-      g.fillStyle = Math.random() < 0.5 ? 'rgba(90,64,38,0.30)' : 'rgba(226,203,160,0.28)';
-      g.fillRect(x, y, 1.6, 1.4);
-    }
-    for (let n = 0; n < 5; n++) {
-      g.fillStyle = 'rgba(214,198,168,0.5)';
-      g.beginPath();
-      g.ellipse(Math.random() * w, Math.random() * h, 2.4, 1.6, 0, 0, Math.PI * 2);
-      g.fill();
-    }
+  const tex = kind === 'path' ? GROUND_TEX.path : kind === 'dirt' ? GROUND_TEX.dirt : GROUND_TEX.grass;
+  if (imgReady(tex)) {
+    // Each grass variant is cut from a different corner of the same seamless
+    // texture, so neighbouring tiles do not repeat visibly.
+    const off = kind === 'grassB' ? [90, 40] : kind === 'grassC' ? [170, 120] : [0, 0];
+    const scale = 0.62;                       // texture detail at game scale
+    const sw = w / scale, sh = h / scale;
+    g.drawImage(tex, off[0], off[1], Math.min(sw, tex.naturalWidth - off[0]),
+                Math.min(sh, tex.naturalHeight - off[1]), 0, 0, w, h);
   } else {
-    // Grass: short pencil strokes, the same language as the old backdrop.
-    const density = kind === 'grassB' ? 150 : kind === 'grassC' ? 95 : 120;
-    for (let n = 0; n < density; n++) {
-      const x = Math.random() * w, y = Math.random() * h;
-      const len = 4 + Math.random() * (kind === 'grassC' ? 14 : 11);
-      const ang = rand(-0.5, 0.5) + (Math.random() < 0.5 ? 0 : Math.PI * 0.5);
-      const shade = Math.random();
-      g.strokeStyle = shade < 0.35 ? 'rgba(28,100,35,0.34)'
-                    : shade < 0.7  ? 'rgba(115,180,80,0.30)'
-                                   : 'rgba(235,230,145,0.16)';
-      g.lineWidth = 0.9 + Math.random();
-      g.beginPath();
-      g.moveTo(x, y);
-      g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
-      g.stroke();
-    }
+    // Until the texture arrives, a flat fill keeps the map readable.
+    g.fillStyle = kind === 'path' ? '#ab8f62' : kind === 'dirt' ? '#8d6b45' : '#48a84d';
+    g.fillRect(0, 0, w, h);
   }
 
-  // Deliberately no per-tile shading: a light-to-dark gradient inside each
-  // diamond makes the grid read as quilted patchwork instead of ground.
-  // Only bare earth gets a faint edge, which is what marks the path.
+  // Only bare earth gets an edge, and it is that edge which draws the path.
   if (soil) {
     g.strokeStyle = 'rgba(120,92,58,0.30)';
     g.lineWidth = 2;
@@ -106,6 +79,11 @@ function paintTile(kind) {
 }
 
 let tiles = null;
+// The textures load asynchronously; drop the cache when they arrive so the
+// first frames drawn on flat colour get repainted properly.
+for (const t of Object.values(GROUND_TEX)) {
+  t.addEventListener('load', () => { tiles = null; }, { once: true });
+}
 function tileCanvas(kind) {
   if (!tiles) {
     tiles = {};

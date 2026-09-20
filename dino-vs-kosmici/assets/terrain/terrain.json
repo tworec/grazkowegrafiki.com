@@ -1,0 +1,20 @@
+{
+  "ground-grass": {
+    "seamLR": 16.1,
+    "seamTB": 13.41,
+    "refLR": 16.34,
+    "refTB": 14.0
+  },
+  "ground-dirt": {
+    "seamLR": 12.46,
+    "seamTB": 12.85,
+    "refLR": 10.46,
+    "refTB": 12.67
+  },
+  "ground-path": {
+    "seamLR": 5.54,
+    "seamTB": 8.3,
+    "refLR": 5.92,
+    "refTB": 9.63
+  }
+}

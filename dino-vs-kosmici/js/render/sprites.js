@@ -68,3 +68,24 @@ export const SPR = {
   treeB:   {x:1299, y:669, w:223, h:290},
   stick:   {x:70,   y:368, w:240, h:185}
 };
+
+// ---------- Painted map art ----------
+// Ground textures and props generated in ChatGPT in the game's own style.
+// Everything here replaces something that used to be drawn with canvas paths.
+function img(src) { const i = new Image(); i.src = src; return i; }
+
+export const GROUND_TEX = {
+  grass: img('assets/terrain/ground-grass.png'),
+  dirt:  img('assets/terrain/ground-dirt.png'),
+  path:  img('assets/terrain/ground-path.png')
+};
+
+export const PROPS = {
+  fruit:     img('assets/props/fruit.png'),
+  pill:      img('assets/props/pill.png'),
+  scarTree:  img('assets/props/scar-tree.png'),
+  scarRock:  img('assets/props/scar-rock.png'),
+  scarBush:  img('assets/props/scar-bush.png')
+};
+
+export function imgReady(i) { return !!(i && i.complete && i.naturalWidth); }

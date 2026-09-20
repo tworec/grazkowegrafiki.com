@@ -2,7 +2,7 @@ import { W, H, DPR, mainCtx } from '../view.js';
 import { cam, viewW, viewH, inView } from '../camera.js';
 import { TREE_SIZE, treeFootY } from '../world.js';
 import { drawGround } from './ground.js';
-import { atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
+import { PROPS, imgReady, atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
 import { SPECIES_STATS, WORLD } from '../config.js';
 import { clamp } from '../util.js';
 import { state } from '../state.js';
@@ -235,58 +235,32 @@ function drawOffscreenBaseArrow() {
   ctx.restore();
 }
 
-// What a felled bush, tree or rock leaves behind: a mark that fades out over
-// about half a minute, so you can read where you have already cleared.
+// What a felled bush, tree or rock leaves behind: a painted mark that fades
+// out over the last few seconds, so you can read where you have cleared.
 export function drawScar(sc) {
+  const img = sc.kind === 'rock' ? PROPS.scarRock
+            : sc.kind === 'bush' ? PROPS.scarBush
+            : PROPS.scarTree;
+  if (!imgReady(img)) return;
   const k = clamp(sc.life / 6, 0, 1);          // fade over the last six seconds
+  const w = sc.r * (sc.kind === 'rock' ? 3.0 : 3.4);
+  const h = w * img.naturalHeight / img.naturalWidth;
   ctx.save();
-  ctx.globalAlpha = 0.55 * k;
-  ctx.translate(sc.x, sc.y);
-  const rnd = n => {
-    const x = Math.sin(sc.seed * 12.9898 + n * 78.233) * 43758.5453;
-    return x - Math.floor(x);
-  };
-  if (sc.kind === 'rock') {
-    ctx.fillStyle = '#6f6a63';
-    for (let i = 0; i < 7; i++) {
-      const a = rnd(i) * Math.PI * 2, d = rnd(i + 20) * sc.r * 0.8;
-      ctx.beginPath();
-      ctx.ellipse(Math.cos(a) * d, Math.sin(a) * d * 0.4, 3 + rnd(i + 40) * 4, 2 + rnd(i + 60) * 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  } else if (sc.kind === 'bush') {
-    ctx.fillStyle = '#4d7a35';
-    for (let i = 0; i < 9; i++) {
-      const a = rnd(i) * Math.PI * 2, d = rnd(i + 20) * sc.r;
-      ctx.save();
-      ctx.translate(Math.cos(a) * d, Math.sin(a) * d * 0.45);
-      ctx.rotate(rnd(i + 30) * Math.PI);
-      ctx.fillRect(-3, -1, 6, 2);
-      ctx.restore();
-    }
-  } else {
-    // A stump with its rings and a couple of splinters.
-    ctx.fillStyle = '#6b4a2b';
-    ctx.beginPath(); ctx.ellipse(0, 0, sc.r, sc.r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(60,38,18,0.7)'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.ellipse(0, 0, sc.r * 0.62, sc.r * 0.28, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(0, 0, sc.r * 0.3, sc.r * 0.14, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = '#7d5a34';
-    ctx.fillRect(-sc.r * 0.9, -2, sc.r * 0.5, 3);
-    ctx.fillRect(sc.r * 0.5, 1, sc.r * 0.45, 3);
-  }
+  ctx.globalAlpha = 0.9 * k;
+  ctx.drawImage(img, sc.x - w / 2, sc.y - h * 0.62, w, h);
   ctx.restore();
 }
 
-// Floating pickups. Fruit is the yellow one and gives energy; the pill is red
-// and heals. Both hover with the same gentle rise and fall, and the shadow
-// staying on the ground is what makes the float read.
+// Floating pickups. Fruit is the yellow one and gives energy, the pill is red
+// and heals. Both hover with the same gentle rise and fall; the shadow staying
+// on the ground is what makes the float read.
 export function drawPickup(q) {
   const pill = q.kind === 'pill';
-  // Once it has been knocked off its tree it lies where it fell: no rise and
-  // fall, and the shadow sits tight underneath.
+  const img = pill ? PROPS.pill : PROPS.fruit;
+  // Once knocked off its tree it lies where it fell: no rise and fall, and the
+  // shadow sits tight underneath.
   const lift = q.grounded ? 0 : Math.sin(q.bob) * 9;
-  const high = q.grounded ? 0 : (lift + 9) / 18;   // 0 at the bottom, 1 at the top
+  const high = q.grounded ? 0 : (lift + 9) / 18;
   ctx.save();
   ctx.translate(q.x, q.y + lift);
   ctx.fillStyle = `rgba(0,0,0,${0.20 - high * 0.09})`;
@@ -296,32 +270,15 @@ export function drawPickup(q) {
 
   // The halo: yellow round the fruit, red round the pill.
   ctx.fillStyle = pill ? 'rgba(255,107,107,0.24)' : 'rgba(255,214,102,0.22)';
-  ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = pill ? 'rgba(255,120,120,0.55)' : 'rgba(255,214,102,0.5)';
+  ctx.beginPath(); ctx.arc(0, 0, 21, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = pill ? 'rgba(255,120,120,0.6)' : 'rgba(255,214,102,0.55)';
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, 0, 17 + high * 1.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 19 + high * 1.5, 0, Math.PI * 2); ctx.stroke();
 
-  if (pill) {
-    // A capsule lying at a slight angle, white half and red half.
-    ctx.rotate(-0.35);
-    ctx.fillStyle = '#f3efe4';
-    roundRect(-13, -6, 13, 12, 6); ctx.fill();
-    ctx.fillStyle = '#d63c3c';
-    roundRect(0, -6, 13, 12, 6); ctx.fill();
-    ctx.strokeStyle = 'rgba(70,40,30,0.55)'; ctx.lineWidth = 1.2;
-    roundRect(-13, -6, 26, 12, 6); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    roundRect(-10, -4, 8, 3, 1.5); ctx.fill();
-  } else {
-    const berries = [[-7, 2, 8, '#e2542f'], [6, 4, 7.5, '#f08a2a'], [0, -6, 8.5, '#f2b632']];
-    for (const [bx, by, br, col] of berries) {
-      ctx.fillStyle = col;
-      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
-      ctx.beginPath(); ctx.arc(bx - br * 0.3, by - br * 0.35, br * 0.28, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = '#3f8c3a';
-    ctx.beginPath(); ctx.ellipse(3, -13, 7, 3.4, -0.5, 0, Math.PI * 2); ctx.fill();
+  if (imgReady(img)) {
+    const w = pill ? 34 : 30;
+    const h = w * img.naturalHeight / img.naturalWidth;
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
   }
   ctx.restore();
 }
