@@ -1,7 +1,7 @@
 # Updateon — zbieranie surowców i ulepszenia Dina
 
-Stan na 2026-09-20: projekt mechaniki i grafiki trzech surowców są gotowe.
-Mechanika nie jest jeszcze podpięta do gry. Szkic urządzenia:
+Stan na 2026-09-20: projekt mechaniki, grafiki trzech surowców i gotowy sprite
+Updateona są gotowe. Mechanika nie jest jeszcze podpięta do gry. Szkic urządzenia:
 `dino-vs-kosmici/assets-src/artifacts/updateon-antos-sketch.jpg`.
 
 ## Surowce
@@ -40,4 +40,5 @@ wersje do gry w `dino-vs-kosmici/assets/props/`:
 
 - `pebbles.png` — kamyczki,
 - `sticks.png` — patyczki,
-- `logs.png` — duże kłody.
+- `logs.png` — duże kłody,
+- `updateon.png` — stacja ulepszeń z trzema wejściami na surowce.
