@@ -37,6 +37,7 @@ export const state = {
   wildAt: null,
   helipad: null,
   flag: null,
+  tower: null,
   updateon: null
 };
 export let difficultyKey = 'normal';

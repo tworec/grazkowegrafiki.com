@@ -109,7 +109,7 @@ function alienViewRadius(box) {
 }
 
 function projectileRadius(pr) {
-  return pr.kind === 'plasma' ? 16 : Math.max(1, pr.r || 0);
+  return pr.kind === 'plasma' ? 22 : pr.kind === 'fire' ? Math.max(18, (pr.r || 0) * 2) : Math.max(1, pr.r || 0);
 }
 
 function fxRadius(f) {
@@ -238,6 +238,7 @@ export function draw() {
   for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
   for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
   for (const m of state.resourceDrops) if (inView(m.x, m.y, 60)) push(m.y, drawResourceDrop, m);
+  if (state.tower && inView(state.tower.x, state.tower.y, 80)) push(state.tower.y, drawTower, state.tower);
   if (state.updateon && inView(state.updateon.x, state.updateon.y, 70)) {
     push(state.updateon.y + 16, drawUpdateon, state.updateon);
   }
@@ -370,6 +371,20 @@ export function drawUpdateon(u) {
   ctx.ellipse(u.x, u.y + 5, 50, 19, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.drawImage(img, u.x - w / 2, u.y - h * 0.86, w, h);
+  ctx.restore();
+}
+
+export function drawTower(t) {
+  const img = PROPS.tower;
+  if (!imgReady(img)) return;
+  const h = 112;
+  const w = h * img.naturalWidth / img.naturalHeight;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.beginPath();
+  ctx.ellipse(t.x, t.y + 3, w * 0.38, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.drawImage(img, t.x - w / 2, t.y - h * 0.96, w, h);
   ctx.restore();
 }
 
@@ -616,38 +631,15 @@ export function drawBase(b) {
 }
 
 export function drawCoin(c) {
-  // simple round gold coin with a $ sign, gently bobbing
+  const img = PROPS.coin;
+  if (!imgReady(img)) return;
   ctx.save();
   ctx.translate(c.x, c.y + Math.sin(c.t*6) * 1.2);
-
-  // soft glow halo
   ctx.fillStyle = 'rgba(255, 220, 100, 0.35)';
   ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI*2); ctx.fill();
-
-  // outer rim (dark gold)
-  ctx.fillStyle = '#9a6b00';
-  ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI*2); ctx.fill();
-
-  // gold face
-  ctx.fillStyle = '#ffcc33';
-  ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, Math.PI*2); ctx.fill();
-
-  // inner engraved ring
-  ctx.strokeStyle = '#c89110';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.stroke();
-
-  // highlight blob
-  ctx.fillStyle = 'rgba(255, 245, 200, 0.55)';
-  ctx.beginPath(); ctx.arc(-2.2, -2.4, 2.6, 0, Math.PI*2); ctx.fill();
-
-  // $ sign
-  ctx.fillStyle = '#6a3a00';
-  ctx.font = 'bold 10px "Courier New", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('$', 0, 0.5);
-
+  const w = 24;
+  const h = w * img.naturalHeight / img.naturalWidth;
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
 
@@ -751,15 +743,17 @@ export function drawAlien(a) {
     ctx.restore();
     if (a.armor) {
       // A plate drawn on the facing side: the hint is "get behind it".
-      const f = a.anim ? (a.anim.facing < 0 ? -1 : 1) : 1;
-      ctx.save();
-      ctx.translate(a.x + f * a.r * 0.75, a.y);
-      ctx.fillStyle = 'rgba(160,205,255,0.85)';
-      ctx.strokeStyle = 'rgba(40,80,130,0.9)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(0, 0, a.r * 0.34, a.r * 0.95, 0, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-      ctx.restore();
+      const plate = PROPS.shieldPlate;
+      if (imgReady(plate)) {
+        const f = a.anim ? (a.anim.facing < 0 ? -1 : 1) : (a.facing < 0 ? -1 : 1);
+        const ph = a.r * 2.05;
+        const pw = ph * plate.naturalWidth / plate.naturalHeight;
+        ctx.save();
+        ctx.translate(a.x + f * a.r * 0.72, a.y);
+        ctx.scale(f, 1);
+        ctx.drawImage(plate, -pw / 2, -ph * 0.88, pw, ph);
+        ctx.restore();
+      }
     }
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -785,51 +779,23 @@ export function drawProjectile(pr) {
   if (pr.kind === 'fire') {
     const lifeFrac = clamp(pr.life / 0.55, 0, 1);
     ctx.globalAlpha = lifeFrac;
-    ctx.fillStyle = '#ff8533';
-    ctx.beginPath(); ctx.arc(0,0, pr.r * (0.6+0.4*lifeFrac), 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffe066';
-    ctx.beginPath(); ctx.arc(0,0, pr.r*0.55*lifeFrac, 0, Math.PI*2); ctx.fill();
+    const img = PROPS.fireball;
+    if (imgReady(img)) {
+      const ang = Math.atan2(pr.vy, pr.vx);
+      const w = pr.r * 3.3;
+      const h = w * img.naturalHeight / img.naturalWidth;
+      ctx.rotate(ang);
+      ctx.drawImage(img, -w * 0.55, -h / 2, w, h);
+    }
   } else if (pr.kind === 'plasma') {
-    // Arrow shot from the alien base — rotated to match velocity
-    const ang = Math.atan2(pr.vy, pr.vx);
-    ctx.rotate(ang);
-    // wooden shaft
-    ctx.fillStyle = '#7a4a20';
-    ctx.fillRect(-13, -1.2, 22, 2.4);
-    // shaft highlight (top)
-    ctx.fillStyle = '#a07040';
-    ctx.fillRect(-13, -1.2, 22, 0.8);
-    // metal arrowhead — pointed triangle at the leading edge
-    ctx.fillStyle = '#cdd0d4';
-    ctx.beginPath();
-    ctx.moveTo(9, -4.5);
-    ctx.lineTo(15, 0);
-    ctx.lineTo(9, 4.5);
-    ctx.closePath();
-    ctx.fill();
-    // arrowhead shading
-    ctx.fillStyle = '#7a8088';
-    ctx.beginPath();
-    ctx.moveTo(9, 0);
-    ctx.lineTo(15, 0);
-    ctx.lineTo(9, 4.5);
-    ctx.closePath();
-    ctx.fill();
-    // red feather fletching at the back
-    ctx.fillStyle = '#cc3333';
-    ctx.beginPath();
-    ctx.moveTo(-13, -3.5);
-    ctx.lineTo(-7, -1);
-    ctx.lineTo(-7,  1);
-    ctx.lineTo(-13, 3.5);
-    ctx.lineTo(-16, 0);
-    ctx.closePath();
-    ctx.fill();
-    // fletching detail line
-    ctx.strokeStyle = '#7a1a1a'; ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    ctx.moveTo(-13, -3.5); ctx.lineTo(-13, 3.5);
-    ctx.stroke();
+    const img = PROPS.arrow;
+    if (imgReady(img)) {
+      const ang = Math.atan2(pr.vy, pr.vx);
+      const w = 36;
+      const h = w * img.naturalHeight / img.naturalWidth;
+      ctx.rotate(ang);
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    }
   }
   ctx.restore();
 }

@@ -39,6 +39,7 @@ export function buildLevel() {
   state.wildAt = null;
   state.scars = [];
   state.pickups = [];
+  state.tower = null;
   state.updateon = null;
 
   // ----- Randomized layout — picked fresh every game -----
@@ -118,6 +119,14 @@ export function buildLevel() {
     state.helipad.x = clamp(baseX + hpdSide * 110, 60, WORLD.w - 50);
   }
 
+  // The alien observation tower completes the HQ camp. It stands on the side
+  // opposite the landing strip, leaving the base entrance and both props clear.
+  state.tower = {
+    x: clamp(baseX - hpdSide * 112, 45, WORLD.w - 45),
+    y: clamp(baseY + rand(-12, 20), 70, WORLD.h - 45),
+    r: 19
+  };
+
   // Flag (territory) — somewhere near the player's home turf
   state.flag = {
     x: clamp(pX + rand(-100, 100), 50, WORLD.w - 30),
@@ -143,6 +152,7 @@ export function buildLevel() {
     const x = rand(70, WORLD.w - 70);
     const y = rand(70, WORLD.h - 70);
     if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
+    if (state.tower && Math.hypot(x - state.tower.x, y - state.tower.y) < r + state.tower.r + 22) continue;
     if (state.updateon && Math.hypot(x - state.updateon.x, y - state.updateon.y) < r + state.updateon.r + 24) continue;
     const mainBase = state.bases[0];
     if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
@@ -167,6 +177,7 @@ export function buildLevel() {
     const tx = rand(40, WORLD.w - 40);
     const ty = rand(60, WORLD.h - 60);
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
+    if (state.tower && Math.hypot(tx - state.tower.x, ty - state.tower.y) < state.tower.r + 68) continue;
     if (state.updateon && Math.hypot(tx - state.updateon.x, ty - state.updateon.y) < state.updateon.r + 70) continue;
     if (onPath(tx, ty, 22 * 1.2)) continue;   // trunk radius at the largest scale
     const mb = state.bases[0];
@@ -280,6 +291,7 @@ export function rebuildObstacles() {
     state.obstacles.push({x: t.x, y: treeFootY(t) - 6, r: 9 * t.s});
   }
   if (state.updateon) state.obstacles.push(state.updateon);
+  if (state.tower) state.obstacles.push(state.tower);
 }
 
 // Damage every piece of scenery inside a circle. Returns true if anything was
