@@ -30,10 +30,9 @@ charSprites.baseDestruct.src = 'assets/base-destruction.png';
 // Sprite-sheet animation metadata (horizontal strips).
 // footY: measured row of the lowest content, as a fraction of the frame.
 export const FLYER_ANIM = { frames: 6,  frameW: 250, frameH: 350, fps: 7, footF: 0.957 };
-// Base destruction: 8 frames. 0-1 intact, 2 fire starts, 3 explosion,
-// 4-5 collapsing, 6-7 burning ruins. Living bases show 0/1/2 by HP; on
-// death we play 3→7 and hold on the ruins.
-export const BASE_DESTRUCT = { frames: 8, frameW: 150, frameH: 150, deathFps: 6 };
+// Antoś's seven painted stages, cut from stages-2026-09-26.png. Frames 0–3
+// show increasing damage; 4–6 collapse into rubble after the killing blow.
+export const BASE_DESTRUCT = { frames: 7, frameW: 360, frameH: 260, deathFps: 4 };
 // All three dinosaurs share one band layout — walk(4) + attack(3) + breath(3)
 // — but each keeps its own frame size, because a long stegosaurus tail and a
 // diplodocus breathing fire need more room than a tyrannosaurus.

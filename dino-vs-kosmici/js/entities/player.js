@@ -9,7 +9,7 @@ import { addShake } from '../camera.js';
 import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
 import { damageScenery } from '../world.js';
-import { damageTower } from './tower.js';
+import { damageTower, towerBox, towerHitDistance } from './tower.js';
 
 
 // ---------- Cooldowns & energy costs ----------
@@ -43,12 +43,13 @@ export function findNearestTarget() {
   }
   const tower = state.tower;
   if (tower && !tower.dead) {
-    const d = Math.hypot(tower.x - p.x, tower.y - p.y);
+    const d = Math.hypot(tower.x - p.x, towerBox(tower).aimY - p.y);
     if (d < bestD) { bestD = d; best = tower; }
   }
   if (!best) return null;
-  const dx = best.x - p.x, dy = best.y - p.y;
-  return {x: best.x, y: best.y, target: best, dx, dy, dist: Math.hypot(dx, dy) || 1};
+  const targetY = best === tower ? towerBox(tower).aimY : best.y;
+  const dx = best.x - p.x, dy = targetY - p.y;
+  return {x: best.x, y: targetY, target: best, dx, dy, dist: Math.hypot(dx, dy) || 1};
 }
 
 export function autoFaceTarget() {
@@ -222,7 +223,7 @@ export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
   if (damageScenery(p.x, p.y, reach, dmg)) any = true;
   const tower = state.tower;
   if (tower && !tower.dead &&
-      Math.hypot(tower.x - p.x, tower.y - p.y) <= reach + tower.r + 6) {
+      towerHitDistance(tower, p.x, p.y) <= reach + 6) {
     damageTower(tower, dmg);
     any = true;
   }

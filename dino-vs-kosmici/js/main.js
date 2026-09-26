@@ -15,7 +15,7 @@ import { cd, damagePlayer, updateFire } from './entities/player.js';
 import { spawnAlien, spawnPatrol, damageAlien, updateAlien } from './entities/aliens.js';
 import { damageBase, updateBase, spawnNextWaveBase, spawnBaseFromAlienCluster } from './entities/bases.js';
 import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
-import { damageTower, updateTower } from './entities/tower.js';
+import { damageTower, updateTower, towerHitDistance } from './entities/tower.js';
 import { updateWild } from './entities/wild.js';
 import { draw } from './render/draw.js';
 import { stepResourceDrop } from './resources.js';
@@ -254,7 +254,7 @@ export function update(dt) {
       }
       const tower = state.tower;
       if (pr.life > 0 && tower && !tower.dead &&
-          Math.hypot(tower.x - pr.x, tower.y - pr.y) < tower.r + pr.r + 5) {
+          towerHitDistance(tower, pr.x, pr.y) < pr.r + 5) {
         damageTower(tower, pr.dmg);
         pr.life = 0;
       }

@@ -4,6 +4,7 @@ import { TREE_SIZE, treeFootY } from '../world.js';
 import { drawGround } from './ground.js';
 import { SCENERY_ART, PROPS, imgReady, atlas, dinoSprite, charSprites, FLYER_ANIM, BASE_DESTRUCT, STEGO_ANIM, DIPLO_ANIM, TYRANNO_ANIM, BIGALIEN_ANIM, WALKER_ANIM, SPR } from './sprites.js';
 import { WORLD } from '../config.js';
+import { towerBox } from '../entities/tower.js';
 import { clamp } from '../util.js';
 import { state } from '../state.js';
 import { animPose, attackLunge } from '../anim.js';
@@ -84,19 +85,19 @@ export function alienBox(a) {
   return { ready, img, walkerReady, bigalienReady, dedicatedReady, scale, w, h, ANIM, footOff, hover };
 }
 
-// The destruction sheet is square but is anchored by its painted grass line,
-// not by the old collision rectangle. This box is the single source of truth
-// for drawing, culling and placing the HP bar.
+// Base sprite and collision rectangle are different shapes. This box is the
+// single source of truth for drawing, culling and placing the HP bar.
 export function baseBox(b) {
   const sheet = charSprites.baseDestruct;
   const ready = imgReady(sheet);
   if (!ready) {
     return { ready, sheet, w: b.w, h: b.h, top: b.y - b.h / 2, bottom: b.y + b.h / 2 };
   }
-  const w = b.w * 1.05;
+  // The new frames have generous transparent padding so the last, wider pile
+  // of rubble fits the same cell. Size the intact building to the hitbox.
+  const w = b.w * 1.65;
   const h = w * BASE_DESTRUCT.frameH / BASE_DESTRUCT.frameW;
-  const grassFrac = 0.04;
-  const bottom = b.y + b.h / 2 + h * grassFrac;
+  const bottom = b.y + b.h / 2 + h * 0.02;
   return { ready, sheet, w, h, top: bottom - h, bottom };
 }
 
@@ -376,8 +377,8 @@ export function drawUpdateon(u) {
 
 export function drawTower(t) {
   const img = PROPS.tower;
-  const h = 112;
-  const w = imgReady(img) ? h * img.naturalWidth / img.naturalHeight : 55;
+  const box = towerBox(t);
+  const {w, h} = box;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.20)';
   ctx.beginPath();
@@ -385,17 +386,17 @@ export function drawTower(t) {
   ctx.fill();
   if (imgReady(img)) {
     if (t.flash > 0) ctx.filter = 'brightness(2) saturate(0.4)';
-    ctx.drawImage(img, t.x - w / 2, t.y - h * 0.96, w, h);
+    ctx.drawImage(img, box.left, box.top, w, h);
     ctx.filter = 'none';
   }
   if (t.aiming > 0) {
     ctx.fillStyle = `rgba(101, 225, 255, ${0.45 + 0.3 * Math.sin(state.t * 30)})`;
     ctx.beginPath();
-    ctx.arc(t.x, t.y - 62, 11 + (0.5 - t.aiming) * 12, 0, Math.PI * 2);
+    ctx.arc(t.x, box.muzzleY, 11 + (0.55 - t.aiming) * 12, 0, Math.PI * 2);
     ctx.fill();
   }
   const barW = Math.max(48, Math.min(70, w));
-  const barY = t.y - h * 0.96 - 12;
+  const barY = box.top - 12;
   ctx.fillStyle = 'rgba(10, 24, 32, 0.84)';
   ctx.fillRect(t.x - barW / 2 - 2, barY - 2, barW + 4, 9);
   ctx.fillStyle = '#55d7ed';
@@ -561,10 +562,10 @@ export function drawBase(b) {
     let frame;
     if (b.dead) {
       const elapsed = (performance.now() - (b.deadAt != null ? b.deadAt : performance.now())) / 1000;
-      frame = Math.min(BASE_DESTRUCT.frames - 1, 3 + Math.floor(elapsed * BASE_DESTRUCT.deathFps));
+      frame = Math.min(BASE_DESTRUCT.frames - 1, 4 + Math.floor(elapsed * BASE_DESTRUCT.deathFps));
     } else {
       const f = b.hp / b.maxHp;
-      frame = f > 0.5 ? 0 : (f > 0.22 ? 1 : 2);
+      frame = f > 0.72 ? 0 : f > 0.48 ? 1 : f > 0.22 ? 2 : 3;
     }
     ctx.drawImage(box.sheet,
       frame * BASE_DESTRUCT.frameW, 0, BASE_DESTRUCT.frameW, BASE_DESTRUCT.frameH,
