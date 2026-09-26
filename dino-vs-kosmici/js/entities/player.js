@@ -9,6 +9,7 @@ import { addShake } from '../camera.js';
 import { damageAlien } from './aliens.js';
 import { damageBase } from './bases.js';
 import { damageScenery } from '../world.js';
+import { damageTower } from './tower.js';
 
 
 // ---------- Cooldowns & energy costs ----------
@@ -39,6 +40,11 @@ export function findNearestTarget() {
     if (b.dead) continue;
     const d = Math.hypot(b.x - p.x, b.y - p.y);
     if (d < bestD) { bestD = d; best = b; }
+  }
+  const tower = state.tower;
+  if (tower && !tower.dead) {
+    const d = Math.hypot(tower.x - p.x, tower.y - p.y);
+    if (d < bestD) { bestD = d; best = tower; }
   }
   if (!best) return null;
   const dx = best.x - p.x, dy = best.y - p.y;
@@ -214,6 +220,12 @@ export function meleeHit(rangeX, rangeY, _a0, _a1, dmg, radius, tgt) {
   }
   // Scenery takes the same swing: a bush comes apart, a rock needs several.
   if (damageScenery(p.x, p.y, reach, dmg)) any = true;
+  const tower = state.tower;
+  if (tower && !tower.dead &&
+      Math.hypot(tower.x - p.x, tower.y - p.y) <= reach + tower.r + 6) {
+    damageTower(tower, dmg);
+    any = true;
+  }
   // base too — any swing close enough hits the base
   for (const b of state.bases) {
     if (b.dead) continue;
@@ -292,4 +304,3 @@ export function addXP(n) {
     }
   }
 }
-

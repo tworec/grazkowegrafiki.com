@@ -6,6 +6,7 @@ import { state, makePlayer, flashRing } from './state.js';
 import { sfx } from './audio.js';
 import { spawnAlien, spawnPatrol } from './entities/aliens.js';
 import { makeBase } from './entities/bases.js';
+import { makeTower } from './entities/tower.js';
 import { resetUpgradeTuning } from './upgrades.js';
 import { makeTerrain } from './render/ground.js';
 import { SCENERY_ART } from './render/sprites.js';
@@ -82,17 +83,6 @@ export function buildLevel() {
     });
   }
 
-  // Updateon is a landmark on the player's side of the map. Put it just off
-  // the first route and inside the opening camera view, so a new run always
-  // shows Antos's upgrade station instead of hiding it somewhere at random.
-  const routeDx = midX - pX, routeDy = midY - pY;
-  const routeLen = Math.hypot(routeDx, routeDy) || 1;
-  const updateonSide = Math.random() < 0.5 ? -1 : 1;
-  state.updateon = {
-    x: clamp(pX - routeDy / routeLen * 130 * updateonSide, 70, WORLD.w - 70),
-    y: clamp(pY + routeDx / routeLen * 130 * updateonSide, 90, WORLD.h - 70),
-    r: 34
-  };
   const terrainSeed = Math.floor(Math.random() * 100000);
   // The widest wobble kindAt() can add to a corridor edge, so scenery clears
   // the path at its widest, not its nominal width.
@@ -119,13 +109,57 @@ export function buildLevel() {
     state.helipad.x = clamp(baseX + hpdSide * 110, 60, WORLD.w - 50);
   }
 
-  // The alien observation tower completes the HQ camp. It stands on the side
-  // opposite the landing strip, leaving the base entrance and both props clear.
-  state.tower = {
-    x: clamp(baseX - hpdSide * 112, 45, WORLD.w - 45),
-    y: clamp(baseY + rand(-12, 20), 70, WORLD.h - 45),
-    r: 19
-  };
+  // Ten Dino diameters is the farthest these landmarks may spawn from home.
+  // Neither should appear at the spawn point or in the alien HQ camp.
+  const landmarkMax = state.player.r * 20;
+  function placeLandmark(r, minDistance, other) {
+    for (let i = 0; i < 300; i++) {
+      const angle = rand(0, Math.PI * 2);
+      const distance = rand(minDistance, landmarkMax);
+      const x = pX + Math.cos(angle) * distance;
+      const y = pY + Math.sin(angle) * distance;
+      if (x < r + 70 || x > WORLD.w - r - 70 ||
+          y < r + 80 || y > WORLD.h - r - 70) continue;
+      if (Math.hypot(x - baseX, y - baseY) < 340 + r) continue;
+      if (Math.hypot(x - state.helipad.x, y - state.helipad.y) < 90 + r) continue;
+      if (other && Math.hypot(x - other.x, y - other.y) < 150 + r + other.r) continue;
+      if (onPath(x, y, r + 15)) continue;
+      return {x, y};
+    }
+    // Edge spawns can narrow the valid annulus. Try the same rules without
+    // the decorative path clearance before giving up on the landmark.
+    for (let i = 0; i < 300; i++) {
+      const angle = rand(0, Math.PI * 2);
+      const distance = rand(minDistance, landmarkMax);
+      const x = pX + Math.cos(angle) * distance;
+      const y = pY + Math.sin(angle) * distance;
+      if (x < r + 20 || x > WORLD.w - r - 20 ||
+          y < r + 20 || y > WORLD.h - r - 20) continue;
+      if (Math.hypot(x - baseX, y - baseY) < 300 + r) continue;
+      if (Math.hypot(x - state.helipad.x, y - state.helipad.y) < 80 + r) continue;
+      if (other && Math.hypot(x - other.x, y - other.y) < 120 + r + other.r) continue;
+      return {x, y};
+    }
+    // Exhaustively search the annulus, so even a very unlucky random sequence
+    // cannot silently place a landmark beside the base or on top of Dino.
+    for (let distance = minDistance; distance <= landmarkMax; distance += 10) {
+      for (let i = 0; i < 72; i++) {
+        const angle = i * Math.PI / 36;
+        const x = pX + Math.cos(angle) * distance;
+        const y = pY + Math.sin(angle) * distance;
+        if (x < r + 20 || x > WORLD.w - r - 20 ||
+            y < r + 20 || y > WORLD.h - r - 20) continue;
+        if (Math.hypot(x - baseX, y - baseY) < 300 + r) continue;
+        if (Math.hypot(x - state.helipad.x, y - state.helipad.y) < 80 + r) continue;
+        if (other && Math.hypot(x - other.x, y - other.y) < 120 + r + other.r) continue;
+        return {x, y};
+      }
+    }
+    throw new Error('Brak miejsca na obiekt w pobliżu Dina');
+  }
+  state.updateon = {...placeLandmark(34, 190), r: 34};
+  const towerSpot = placeLandmark(19, 240, state.updateon);
+  state.tower = makeTower(towerSpot.x, towerSpot.y);
 
   // Flag (territory) — somewhere near the player's home turf
   state.flag = {
@@ -291,7 +325,7 @@ export function rebuildObstacles() {
     state.obstacles.push({x: t.x, y: treeFootY(t) - 6, r: 9 * t.s});
   }
   if (state.updateon) state.obstacles.push(state.updateon);
-  if (state.tower) state.obstacles.push(state.tower);
+  if (state.tower && !state.tower.dead) state.obstacles.push(state.tower);
 }
 
 // Damage every piece of scenery inside a circle. Returns true if anything was
@@ -379,7 +413,7 @@ function spawnResourceDrops(o, kind) {
       vz: rand(165, 235),
       rot: rand(-0.35, 0.35),
       spin: rand(-2.2, 2.2),
-      collectDelay: rand(0.68, 0.92),
+      collectDelay: rand(0.45, 0.6),
       bounced: false,
       settled: false,
       collected: false

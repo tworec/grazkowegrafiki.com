@@ -80,12 +80,15 @@
   .bar.xp > div { background-image: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
   #materials {
-    display: flex; align-items: center; gap: 9px;
-    min-height: 25px; margin: 2px 0 3px; font-weight: 700;
+    display: grid; gap: 1px; margin: 5px 0;
+    padding: 4px 6px; border-radius: 8px;
+    background: rgba(28, 18, 10, 0.45);
+    border: 1px solid rgba(255, 227, 170, 0.25);
   }
-  #materials .material { display: inline-flex; align-items: center; gap: 2px; }
-  #materials .material > img { width: 25px; height: 22px; object-fit: contain; }
-  #materials .digits.num img { height: 13px; }
+  #materials .materials-title { color: #ffe0a0; font-size: 11px; font-weight: 800; letter-spacing: .03em; }
+  #materials .material { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 5px; min-height: 21px; }
+  #materials .material > img { width: 22px; height: 20px; object-fit: contain; }
+  #materials .material-count { font-weight: 800; font-variant-numeric: tabular-nums; color: #fff5d8; }
   #minimap {
     display: block; width: 200px; height: 80px; margin: 6px 0 2px;
     border-radius: 6px; border: 2px solid rgba(255,235,200,0.25);
@@ -353,6 +356,10 @@
     #hud .digits.num img { height: 11px; }
     #hud #stats { gap: 7px; }
     #hud #goalLine, #hud #upgradeLine { font-size: 10px; margin-top: 2px; }
+    #materials { padding: 3px 5px; gap: 0; }
+    #materials .material { min-height: 17px; grid-template-columns: 18px 1fr auto; gap: 3px; font-size: 10px; }
+    #materials .material > img { width: 17px; height: 16px; }
+    #materials .materials-title { font-size: 10px; }
     #hud #settings { gap: 6px; margin-top: 6px; }
     #hud #settings select, #hud #settings button {
       height: 26px; padding: 0 9px; font-size: 11px;
@@ -371,10 +378,11 @@
     <span>LVL <span id="lvl" class="digits lvl"></span></span>
     <span>$ <span id="money" class="digits num"></span></span>
   </div>
-  <div id="materials" aria-label="Zebrane surowce">
-    <span class="material" title="Kłody"><img src="assets/props/logs.png" alt=""><span id="logsCount" class="digits num"></span></span>
-    <span class="material" title="Kamyczki"><img src="assets/props/pebbles.png" alt=""><span id="pebblesCount" class="digits num"></span></span>
-    <span class="material" title="Patyczki"><img src="assets/props/sticks.png" alt=""><span id="sticksCount" class="digits num"></span></span>
+  <div id="materials" aria-label="Zasobnik surowców">
+    <div class="materials-title">Zasobnik</div>
+    <div class="material"><img src="assets/props/logs.png" alt=""><span>Drewno</span><span id="logsCount" class="material-count">0</span></div>
+    <div class="material"><img src="assets/props/pebbles.png" alt=""><span>Kamienie</span><span id="pebblesCount" class="material-count">0</span></div>
+    <div class="material"><img src="assets/props/sticks.png" alt=""><span>Patyki</span><span id="sticksCount" class="material-count">0</span></div>
   </div>
   <div id="goalLine">Bazy: <span id="bazyCnt" class="digits num"></span>/<span id="bazyMax" class="digits num"></span> | Kosmici: <span id="kosmiciCnt" class="digits num"></span></div>
   <div>HP <span id="hpTxt" class="digits num"></span><span id="hpShield"></span></div>

@@ -94,6 +94,7 @@ export const PROPS = {
   pebbles:   img('assets/props/pebbles.png'),
   sticks:    img('assets/props/sticks.png'),
   shieldPlate: img('assets/props/shield-plate.png'),
+  nest:      img('assets/props/nest.png'),
   tower:     img('assets/props/tower.png'),
   updateon:  img('assets/props/updateon.png'),
   scarTree:  img('assets/props/scar-tree.png'),

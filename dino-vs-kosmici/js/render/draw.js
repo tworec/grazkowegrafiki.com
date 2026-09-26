@@ -238,7 +238,7 @@ export function draw() {
   for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
   for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
   for (const m of state.resourceDrops) if (inView(m.x, m.y, 60)) push(m.y, drawResourceDrop, m);
-  if (state.tower && inView(state.tower.x, state.tower.y, 80)) push(state.tower.y, drawTower, state.tower);
+  if (state.tower && !state.tower.dead && inView(state.tower.x, state.tower.y, 120)) push(state.tower.y, drawTower, state.tower);
   if (state.updateon && inView(state.updateon.x, state.updateon.y, 70)) {
     push(state.updateon.y + 16, drawUpdateon, state.updateon);
   }
@@ -376,15 +376,30 @@ export function drawUpdateon(u) {
 
 export function drawTower(t) {
   const img = PROPS.tower;
-  if (!imgReady(img)) return;
   const h = 112;
-  const w = h * img.naturalWidth / img.naturalHeight;
+  const w = imgReady(img) ? h * img.naturalWidth / img.naturalHeight : 55;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.20)';
   ctx.beginPath();
   ctx.ellipse(t.x, t.y + 3, w * 0.38, 7, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.drawImage(img, t.x - w / 2, t.y - h * 0.96, w, h);
+  if (imgReady(img)) {
+    if (t.flash > 0) ctx.filter = 'brightness(2) saturate(0.4)';
+    ctx.drawImage(img, t.x - w / 2, t.y - h * 0.96, w, h);
+    ctx.filter = 'none';
+  }
+  if (t.aiming > 0) {
+    ctx.fillStyle = `rgba(101, 225, 255, ${0.45 + 0.3 * Math.sin(state.t * 30)})`;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y - 62, 11 + (0.5 - t.aiming) * 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const barW = Math.max(48, Math.min(70, w));
+  const barY = t.y - h * 0.96 - 12;
+  ctx.fillStyle = 'rgba(10, 24, 32, 0.84)';
+  ctx.fillRect(t.x - barW / 2 - 2, barY - 2, barW + 4, 9);
+  ctx.fillStyle = '#55d7ed';
+  ctx.fillRect(t.x - barW / 2, barY, barW * Math.max(0, t.hp / t.maxHp), 5);
   ctx.restore();
 }
 
@@ -828,10 +843,23 @@ export function drawFx(f) {
     ctx.fillStyle = '#cbb98a';
     ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.6 - k * 0.6), 0, Math.PI*2); ctx.fill();
   } else if (f.kind === 'egg') {
-    ctx.fillStyle = '#fff5cc';
-    ctx.strokeStyle = '#a07';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.ellipse(f.x, f.y, 6, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // Antoś's spotted eggs already exist in the painted nest. Use one of
+    // those instead of the old flat ellipse, clipping away the other eggs and
+    // twigs so each flying egg still hatches into exactly one ally.
+    const nest = PROPS.nest;
+    if (imgReady(nest)) {
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(Math.sin(f.t * 8) * 0.12);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 11, 14, 0, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(nest, 65, 1, 72, 70, -11, -14, 22, 28);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#eee3c2';
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, 11, 14, 0, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (f.kind === 'notify') {
     const nx = W / 2, ny = H * 0.28 + f.y;
     ctx.globalAlpha = clamp(f.life / 1.2, 0, 1);

@@ -87,9 +87,9 @@ export function updateHUD() {
   setDigits(el.lvl, p.level, 'lvl');
   setDigits(el.money, p.money, 'num');
   const resources = p.resources || {logs: 0, pebbles: 0, sticks: 0};
-  setDigits(el.logsCount, resources.logs || 0, 'num');
-  setDigits(el.pebblesCount, resources.pebbles || 0, 'num');
-  setDigits(el.sticksCount, resources.sticks || 0, 'num');
+  el.logsCount.textContent = resources.logs || 0;
+  el.pebblesCount.textContent = resources.pebbles || 0;
+  el.sticksCount.textContent = resources.sticks || 0;
   setDigits(el.bazyCnt, aliveBases, 'num');
   setDigits(el.bazyMax, state.bases.length, 'num');
   setDigits(el.kosmiciCnt, state.aliens.length, 'num');
@@ -119,7 +119,7 @@ export function drawMinimap() {
   for (const r of state.rocks) mmCtx.fillRect(r.x * sx - 1, r.y * sy - 1, 2, 2);
   for (const q of state.pickups) if (q.ready) dot(q.x, q.y, q.kind === 'pill' ? '#ff6b6b' : '#ffd166', 1.8);
   if (state.updateon) dot(state.updateon.x, state.updateon.y, '#ff8a5b', 3);
-  if (state.tower) dot(state.tower.x, state.tower.y, '#72b7e6', 2.5);
+  if (state.tower && !state.tower.dead) dot(state.tower.x, state.tower.y, '#72b7e6', 2.5);
   for (const w of state.wild) dot(w.x, w.y, '#9aff9a', 2.5);   // dinosaurs waiting to be taken in
   for (const b of state.bases) {
     mmCtx.fillStyle = b.dead ? 'rgba(60,40,40,0.8)' : '#e63946';
