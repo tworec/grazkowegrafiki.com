@@ -237,6 +237,9 @@ export function draw() {
   drawList.length = 0;
   for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
   for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
+  if (state.updateon && inView(state.updateon.x, state.updateon.y, 70)) {
+    push(state.updateon.y + 16, drawUpdateon, state.updateon);
+  }
   for (const b of state.bases) {
     const box = baseBox(b);
     if (inView(b.x, b.y, boxViewRadius(box, b.y))) push(b.y + b.h / 2, drawBase, b);
@@ -343,11 +346,29 @@ export function drawScar(sc) {
             : PROPS.scarTree;
   if (!imgReady(img)) return;
   const k = clamp(sc.life / 6, 0, 1);          // fade over the last six seconds
-  const w = sc.r * (sc.kind === 'rock' ? 3.0 : 3.4);
+  const wMul = sc.kind === 'rock' ? 3.0 : sc.kind === 'tree' ? 2.2 : 3.4;
+  const w = sc.r * wMul;
   const h = w * img.naturalHeight / img.naturalWidth;
   ctx.save();
   ctx.globalAlpha = 0.9 * k;
-  ctx.drawImage(img, sc.x - w / 2, sc.y - h * 0.62, w, h);
+  const foot = sc.kind === 'tree' ? 0.88 : 0.62;
+  ctx.drawImage(img, sc.x - w / 2, sc.y - h * foot, w, h);
+  ctx.restore();
+}
+
+// Antos's upgrade station. For now it is a visible, solid landmark; the
+// resource prices and upgrade interaction will be wired in as their own step.
+export function drawUpdateon(u) {
+  const img = PROPS.updateon;
+  if (!imgReady(img)) return;
+  const h = 104;
+  const w = h * img.naturalWidth / img.naturalHeight;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,214,86,0.13)';
+  ctx.beginPath();
+  ctx.ellipse(u.x, u.y + 5, 50, 19, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.drawImage(img, u.x - w / 2, u.y - h * 0.86, w, h);
   ctx.restore();
 }
 

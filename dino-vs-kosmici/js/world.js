@@ -38,6 +38,7 @@ export function buildLevel() {
   state.wildAt = null;
   state.scars = [];
   state.pickups = [];
+  state.updateon = null;
 
   // ----- Randomized layout — picked fresh every game -----
   // Alien HQ: anywhere on the map (with margin from edges)
@@ -78,6 +79,18 @@ export function buildLevel() {
       w: 24
     });
   }
+
+  // Updateon is a landmark on the player's side of the map. Put it just off
+  // the first route and inside the opening camera view, so a new run always
+  // shows Antos's upgrade station instead of hiding it somewhere at random.
+  const routeDx = midX - pX, routeDy = midY - pY;
+  const routeLen = Math.hypot(routeDx, routeDy) || 1;
+  const updateonSide = Math.random() < 0.5 ? -1 : 1;
+  state.updateon = {
+    x: clamp(pX - routeDy / routeLen * 130 * updateonSide, 70, WORLD.w - 70),
+    y: clamp(pY + routeDx / routeLen * 130 * updateonSide, 90, WORLD.h - 70),
+    r: 34
+  };
   const terrainSeed = Math.floor(Math.random() * 100000);
   // The widest wobble kindAt() can add to a corridor edge, so scenery clears
   // the path at its widest, not its nominal width.
@@ -129,6 +142,7 @@ export function buildLevel() {
     const x = rand(70, WORLD.w - 70);
     const y = rand(70, WORLD.h - 70);
     if (state.helipad && Math.hypot(x - state.helipad.x, y - state.helipad.y) < r + state.helipad.r + 18) continue;
+    if (state.updateon && Math.hypot(x - state.updateon.x, y - state.updateon.y) < r + state.updateon.r + 24) continue;
     const mainBase = state.bases[0];
     if (Math.abs(x - mainBase.x) < r + mainBase.w/2 + 40 && Math.abs(y - mainBase.y) < r + mainBase.h/2 + 40) continue;
     if (Math.hypot(x - state.player.x, y - state.player.y) < r + 70) continue;
@@ -152,6 +166,7 @@ export function buildLevel() {
     const tx = rand(40, WORLD.w - 40);
     const ty = rand(60, WORLD.h - 60);
     if (Math.hypot(tx - state.player.x, ty - state.player.y) < 80) continue;
+    if (state.updateon && Math.hypot(tx - state.updateon.x, ty - state.updateon.y) < state.updateon.r + 70) continue;
     if (onPath(tx, ty, 22 * 1.2)) continue;   // trunk radius at the largest scale
     const mb = state.bases[0];
     if (Math.abs(tx - mb.x) < mb.w/2 + 30 && Math.abs(ty - mb.y) < mb.h/2 + 30) continue;
@@ -263,6 +278,7 @@ export function rebuildObstacles() {
     if (isBushVariant(t.v)) continue;   // you can walk through a bush
     state.obstacles.push({x: t.x, y: treeFootY(t) - 6, r: 9 * t.s});
   }
+  if (state.updateon) state.obstacles.push(state.updateon);
 }
 
 // Damage every piece of scenery inside a circle. Returns true if anything was

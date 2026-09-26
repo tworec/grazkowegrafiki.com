@@ -35,7 +35,8 @@ export const state = {
   scars: [],
   wildAt: null,
   helipad: null,
-  flag: null
+  flag: null,
+  updateon: null
 };
 export let difficultyKey = 'normal';
 export function setDifficulty(k) { difficultyKey = k; }

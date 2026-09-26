@@ -87,6 +87,7 @@ export const GROUND_TEX = {
 export const PROPS = {
   fruit:     img('assets/props/fruit.png'),
   pill:      img('assets/props/pill.png'),
+  updateon:  img('assets/props/updateon.png'),
   scarTree:  img('assets/props/scar-tree.png'),
   scarRock:  img('assets/props/scar-rock.png'),
   scarBush:  img('assets/props/scar-bush.png')
