@@ -237,6 +237,7 @@ export function draw() {
   drawList.length = 0;
   for (const t of state.trees) if (inView(t.x, t.y, 120)) push(treeFootY(t), drawTree, t);
   for (const r of state.rocks) if (inView(r.x, r.y, 60)) push(r.y + r.r * 0.6, drawRock, r);
+  for (const m of state.resourceDrops) if (inView(m.x, m.y, 60)) push(m.y, drawResourceDrop, m);
   if (state.updateon && inView(state.updateon.x, state.updateon.y, 70)) {
     push(state.updateon.y + 16, drawUpdateon, state.updateon);
   }
@@ -369,6 +370,27 @@ export function drawUpdateon(u) {
   ctx.ellipse(u.x, u.y + 5, 50, 19, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.drawImage(img, u.x - w / 2, u.y - h * 0.86, w, h);
+  ctx.restore();
+}
+
+export function drawResourceDrop(m) {
+  const img = PROPS[m.kind];
+  if (!imgReady(img)) return;
+  const w = m.kind === 'logs' ? 43 : m.kind === 'sticks' ? 36 : 34;
+  const h = w * img.naturalHeight / img.naturalWidth;
+  const shadowScale = clamp(1 - m.lift / 85, 0.45, 1);
+  ctx.save();
+  ctx.globalAlpha = 0.18 * shadowScale;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(m.x, m.y + 4, w * 0.38 * shadowScale, 5 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(m.x, m.y - m.lift);
+  ctx.rotate(m.rot || 0);
+  ctx.drawImage(img, -w / 2, -h * 0.72, w, h);
   ctx.restore();
 }
 

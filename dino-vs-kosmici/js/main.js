@@ -18,6 +18,12 @@ import { makeAlly, damageAlly, updateAlly } from './entities/allies.js';
 import { updateWild } from './entities/wild.js';
 import { draw } from './render/draw.js';
 
+const RESOURCE_INFO = {
+  logs:    {label: 'kłoda', color: '#d69a55'},
+  pebbles: {label: 'kamyk', color: '#d8dde3'},
+  sticks:  {label: 'patyk', color: '#e0ad68'}
+};
+
 
 // ---------- Frame ----------
 export let last = performance.now();
@@ -275,6 +281,56 @@ export function update(dt) {
     }
   }
   state.coins = state.coins.filter(c => c.life > 0);
+
+  // Crafting materials burst out of scenery, bounce once, then wait to be
+  // collected. The short delay guarantees the player sees the reward before
+  // standing on the destroyed object can vacuum it up.
+  for (const m of state.resourceDrops) {
+    m.collectDelay -= dt;
+    m.x += m.vx * dt;
+    m.y += m.vy * dt;
+    m.x = clamp(m.x, 18, WORLD.w - 18);
+    m.y = clamp(m.y, 18, WORLD.h - 18);
+
+    if (!m.settled) {
+      m.lift += m.vz * dt;
+      m.vz -= 520 * dt;
+      m.rot += m.spin * dt;
+      { const d = damp(0.88, dt); m.vx *= d; m.vy *= d; }
+      if (m.lift <= 0) {
+        m.lift = 0;
+        if (!m.bounced && m.vz < -80) {
+          m.vz = -m.vz * 0.24;
+          m.spin *= 0.45;
+          m.bounced = true;
+        } else {
+          m.vz = 0;
+          m.vx = 0;
+          m.vy = 0;
+          m.settled = true;
+        }
+      }
+    }
+
+    const dx = p.x - m.x, dy = p.y - m.y;
+    const dToP = Math.hypot(dx, dy);
+    if (m.collectDelay <= 0 && dToP < p.r + 25) {
+      const resources = p.resources || (p.resources = {logs: 0, pebbles: 0, sticks: 0});
+      resources[m.kind] = (resources[m.kind] || 0) + 1;
+      m.collected = true;
+      const info = RESOURCE_INFO[m.kind];
+      sfx.coin();
+      flashRing(m.x, m.y, 24, info.color);
+      state.fx.push({kind:'dmg', x:m.x, y:m.y - 18, vy:-60, drift:0,
+                     text:`+1 ${info.label}`, color:info.color, life:0.75, t:0});
+    } else if (m.collectDelay <= 0 && m.settled && dToP < 120 && dToP > 0.001) {
+      // A small magnet keeps scattered pieces from becoming pixel-hunting.
+      const pull = 55 + (1 - dToP / 120) * 85;
+      m.x += dx / dToP * pull * dt;
+      m.y += dy / dToP * pull * dt;
+    }
+  }
+  state.resourceDrops = state.resourceDrops.filter(m => !m.collected);
 
   updateFx(dt);
 

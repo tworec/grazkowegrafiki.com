@@ -31,6 +31,7 @@ export function buildLevel() {
   state.projectiles = [];
   state.fx = [];
   state.coins = [];
+  state.resourceDrops = [];
   state.trees = [];
   state.rocks = [];
   state.allies = [];
@@ -334,7 +335,9 @@ function addScar(o) {
 function breakScenery(o) {
   addScar(o);
   const isRock = o.kind === 'rock';
-  const colour = isRock ? '#9a9aa2' : (isBushVariant(o.v) ? '#6fbf5a' : '#4e8f3a');
+  const isBush = !isRock && isBushVariant(o.v);
+  spawnResourceDrops(o, isRock ? 'pebbles' : isBush ? 'sticks' : 'logs');
+  const colour = isRock ? '#9a9aa2' : (isBush ? '#6fbf5a' : '#4e8f3a');
   const n = isRock ? 16 : 12;
   for (let i = 0; i < n; i++) {
     const ang = rand(0, Math.PI*2), sp = rand(50, 190);
@@ -343,6 +346,33 @@ function breakScenery(o) {
   }
   flashRing(o.x, o.y, isRock ? 46 : 34, colour);
   sfx.alienHit();
+}
+
+// Every destroyed piece of scenery throws out real crafting materials. They
+// travel in world space while `lift` supplies the vertical hop, so their
+// shadows stay on the ground and the pickup is easy to read.
+function spawnResourceDrops(o, kind) {
+  const count = kind === 'pebbles' ? 4 : kind === 'logs' ? 3 : 2;
+  const y = o.kind === 'rock' ? o.y : treeFootY(o) - 5;
+  for (let i = 0; i < count; i++) {
+    const angle = rand(0, Math.PI * 2);
+    const speed = rand(45, 105);
+    state.resourceDrops.push({
+      kind,
+      x: o.x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed * 0.58,
+      lift: rand(3, 9),
+      vz: rand(165, 235),
+      rot: rand(-0.35, 0.35),
+      spin: rand(-2.2, 2.2),
+      collectDelay: rand(0.68, 0.92),
+      bounced: false,
+      settled: false,
+      collected: false
+    });
+  }
 }
 
 // Tree sprite sizes (w, h) at scale 1 — shared by the renderer and the collision code.

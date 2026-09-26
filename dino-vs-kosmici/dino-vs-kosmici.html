@@ -79,6 +79,13 @@
   .bar.en > div { background-image: url('assets/bar-en-fill.png'); }
   .bar.xp > div { background-image: url('assets/bar-xp-fill.png'); }
   #stats { display: flex; gap: 10px; font-weight: 600; }
+  #materials {
+    display: flex; align-items: center; gap: 9px;
+    min-height: 25px; margin: 2px 0 3px; font-weight: 700;
+  }
+  #materials .material { display: inline-flex; align-items: center; gap: 2px; }
+  #materials .material > img { width: 25px; height: 22px; object-fit: contain; }
+  #materials .digits.num img { height: 13px; }
   #minimap {
     display: block; width: 200px; height: 80px; margin: 6px 0 2px;
     border-radius: 6px; border: 2px solid rgba(255,235,200,0.25);
@@ -363,6 +370,11 @@
   <div id="stats">
     <span>LVL <span id="lvl" class="digits lvl"></span></span>
     <span>$ <span id="money" class="digits num"></span></span>
+  </div>
+  <div id="materials" aria-label="Zebrane surowce">
+    <span class="material" title="Kłody"><img src="assets/props/logs.png" alt=""><span id="logsCount" class="digits num"></span></span>
+    <span class="material" title="Kamyczki"><img src="assets/props/pebbles.png" alt=""><span id="pebblesCount" class="digits num"></span></span>
+    <span class="material" title="Patyczki"><img src="assets/props/sticks.png" alt=""><span id="sticksCount" class="digits num"></span></span>
   </div>
   <div id="goalLine">Bazy: <span id="bazyCnt" class="digits num"></span>/<span id="bazyMax" class="digits num"></span> | Kosmici: <span id="kosmiciCnt" class="digits num"></span></div>
   <div>HP <span id="hpTxt" class="digits num"></span><span id="hpShield"></span></div>

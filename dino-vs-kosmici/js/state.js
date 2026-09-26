@@ -23,6 +23,7 @@ export const state = {
   projectiles: [],
   fx: [],
   coins: [],
+  resourceDrops: [],
   trees: [],
   terrain: null,
   patrolTarget: 0,
@@ -58,6 +59,7 @@ export function makePlayer() {
     energy: 100, maxEnergy: 100,
     level: 1, xp: 0, xpNeed: XP_CURVE.base,
     money: 0,
+    resources: {logs: 0, pebbles: 0, sticks: 0},
     facing: 1, // 1 right, -1 left
     jump: 0,   // jump animation timer
     flash: 0,  // damage flash
